@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @SpringBootApplication
-@RestController
+@RestController	//doesn't return HTML, but rather a string
 public class AltairApplication {
 
 	public static void main(String[] args) {
