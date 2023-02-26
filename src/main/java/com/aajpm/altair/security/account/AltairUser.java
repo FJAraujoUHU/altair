@@ -1,11 +1,10 @@
-package com.aajpm.altair.account;
+package com.aajpm.altair.security.account;
 
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
 
-import org.springframework.data.annotation.Id;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
@@ -28,10 +27,8 @@ public class AltairUser implements UserDetails {
     private String username;
 
     @NotBlank(message = "Password is mandatory")
-    @Column(nullable = false)
+    @Column(nullable = false, length = 60)
     private String password;
-
-
 
     // Spring Security
     @Column(nullable = false)
@@ -54,11 +51,11 @@ public class AltairUser implements UserDetails {
     // JPA requires a no-arg constructor
     public AltairUser() {}
 
+    // Creates a new user with the given username and password, no roles and disabled
     public AltairUser(String username, String password) {
         this.username = username;
         this.password = password;
-        roles.add(new Role("ROLE_BASIC_USER"));
-        this.enabled = true;
+        this.enabled = false;
         this.failedLoginAttempts = 0;
     }
 
@@ -138,6 +135,14 @@ public class AltairUser implements UserDetails {
 
     public void setRoles(Set<Role> roles) {
         this.roles = roles;
+    }
+
+    public void addRole(Role role) {
+        roles.add(role);
+    }
+
+    public void removeRole(Role role) {
+        roles.remove(role);
     }
     
     @Override

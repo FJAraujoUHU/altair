@@ -1,4 +1,4 @@
-package com.aajpm.altair.account;
+package com.aajpm.altair.security.account;
 
 import org.springframework.security.core.GrantedAuthority;
 
