@@ -41,11 +41,13 @@ public class AltairUser implements UserDetails {
     @Min(value = 0, message = "Login attempts must be greater than or equal to 0")
     private int failedLoginAttempts;
 
+    // Roles act as permissions since Spring hasn't ported RoleHierarchy yet and the
+    // old method is deprecated. Change it if ever porting to Spring 6.X?
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(name = "user_roles",
         joinColumns = @JoinColumn(name = "user_id"),
         inverseJoinColumns = @JoinColumn(name = "role_id"))
-    private Set<Role> roles = new HashSet<>(1);
+    private Set<Role> roles = new HashSet<>(2);
 
 
     // JPA requires a no-arg constructor

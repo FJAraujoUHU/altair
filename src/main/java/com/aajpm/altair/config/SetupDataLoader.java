@@ -2,7 +2,6 @@ package com.aajpm.altair.config;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationListener;
-import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.event.ContextRefreshedEvent;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
@@ -50,6 +49,8 @@ public class SetupDataLoader implements ApplicationListener<ContextRefreshedEven
             // as it is a major security risk.
             adminUser.setPassword(encoder.encode("hikoboshi"));
             adminUser.addRole(adminRole);
+            adminUser.addRole(advUserRole);
+            adminUser.addRole(basicUserRole);
             userRepository.save(adminUser);
         } 
     }
