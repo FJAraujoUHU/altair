@@ -36,15 +36,16 @@ public class SetupDataLoader implements ApplicationListener<ContextRefreshedEven
             return;
 
         // Creates the roles if they don't exist.
-        Role adminRole = createRoleIfNotFound("ROLE_ADMIN");
-        Role basicUserRole = createRoleIfNotFound("ROLE_BASIC_USER");
-        Role advUserRole = createRoleIfNotFound("ROLE_ADVANCED_USER");
+        Role adminRole = createRoleIfNotFound("ADMIN");
+        Role basicUserRole = createRoleIfNotFound("BASIC_USER");
+        Role advUserRole = createRoleIfNotFound("ADVANCED_USER");
 
         // Creates the default admin account if it doesn't exist.
         AltairUser adminUser = userRepository.findByUsername("admin");
         if (adminUser == null) {
             adminUser = new AltairUser();
             adminUser.setUsername("admin");
+            adminUser.setEnabled(true);
             // Please, change this default password before deploying to production,
             // as it is a major security risk.
             adminUser.setPassword(encoder.encode("hikoboshi"));

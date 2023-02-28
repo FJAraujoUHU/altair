@@ -46,7 +46,7 @@ public class AltairUserService implements UserDetailsService {
         user.setPassword(password);
         user.setEnabled(enabled);
         user.setFailedLoginAttempts(0);
-        user.addRole(roleRepository.findByName("ROLE_BASIC_USER"));
+        user.addRole(roleRepository.findByName("BASIC_USER"));
 
         return userRepository.save(user);  
     }

@@ -15,12 +15,14 @@ public class Role implements GrantedAuthority {
 
     private String name;
 
+    private static final String ROLE_PREFIX = "ROLE_";
+
     // JPA requires a no-arg constructor
     protected Role() {
     }
 
     public Role(String name) {
-        this.name = name;
+        this.name = name.startsWith(ROLE_PREFIX) ? name.substring(ROLE_PREFIX.length()) : name;
     }
 
     public Long getId() {
@@ -36,13 +38,13 @@ public class Role implements GrantedAuthority {
     }
 
     public void setName(String name) {
-        this.name = name;
+        this.name = name.startsWith(ROLE_PREFIX) ? name.substring(ROLE_PREFIX.length()) : name;
     }
 
     //GrantedAuthority interface requires this method
     @Override
     public String getAuthority() {
-        return name;
+        return name.startsWith(ROLE_PREFIX) ? name : ROLE_PREFIX + name;
     }
 
 }

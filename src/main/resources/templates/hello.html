@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/thymeleaf-extras-springsecurity6">
+
+<head>
+    <title>Hello world!</title>
+</head>
+
+<body>
+    <h1>Hello <div sec:authentication="name">world</div>!</h1>
+</body>
+
+</html>
