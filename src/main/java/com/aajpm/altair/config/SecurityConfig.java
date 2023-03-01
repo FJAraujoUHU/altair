@@ -14,6 +14,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 
 import com.aajpm.altair.security.account.*;
+import com.aajpm.altair.security.handler.*;
 
 @ComponentScan(basePackages = {"com.aajpm.altair.security"})
 @Configuration
@@ -23,7 +24,13 @@ public class SecurityConfig {
     @Autowired
     private AltairUserService userDetailsService;
 
-    // TODO: Write all necessary beans for authentication -> catch when login fails and add the lockout logic.
+    @Autowired
+    private AltairAuthenticatorSuccessHandler successHandler;
+
+    @Autowired
+    private AltairAuthenticationFailureHandler failureHandler;
+
+    // TODO: Login/logout pages
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -31,20 +38,16 @@ public class SecurityConfig {
             .requestMatchers("/hello.html").permitAll()
             .anyRequest().denyAll()
         ).formLogin()
+        .failureHandler(failureHandler)
+        .successHandler(successHandler)
         .and()
         .build();
     }
-
-
-
-
-
 
     @Bean
     PasswordEncoder encoder() {
         return new BCryptPasswordEncoder();
     }
-
 
     // Authentication config
     @Bean

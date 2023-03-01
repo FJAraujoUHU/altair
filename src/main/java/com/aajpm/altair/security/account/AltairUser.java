@@ -7,6 +7,7 @@ import java.util.Set;
 
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.beans.factory.annotation.Value;
 
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
@@ -34,6 +35,9 @@ public class AltairUser implements UserDetails {
     @Column(nullable = false)
     private boolean enabled;
 
+    @Column(nullable = false)
+    private boolean locked;
+
     @Column(name = "last_login_attempt")
     private LocalDateTime lastLoginAttempt;
 
@@ -50,6 +54,11 @@ public class AltairUser implements UserDetails {
     private Set<Role> roles = new HashSet<>(2);
 
 
+    @Transient
+    @Value("${altair.security.maxAttempts:3}}")
+    private int maxAttempts;
+
+
     // JPA requires a no-arg constructor
     public AltairUser() {}
 
@@ -58,6 +67,7 @@ public class AltairUser implements UserDetails {
         this.username = username;
         this.password = password;
         this.enabled = false;
+        this.locked = false;
         this.failedLoginAttempts = 0;
     }
 
@@ -94,7 +104,7 @@ public class AltairUser implements UserDetails {
 
     @Override
     public boolean isAccountNonLocked() {
-        return failedLoginAttempts < 5;
+        return !locked;
     }
 
     @Override
@@ -113,6 +123,14 @@ public class AltairUser implements UserDetails {
 
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
+    }
+
+    public boolean getLocked() {
+        return locked;
+    }
+
+    public void setLocked(boolean locked) {
+        this.locked = locked;
     }
 
     public LocalDateTime getLastLoginAttempt() {

@@ -12,4 +12,8 @@ spring:
     thymeleaf:
         cache: false
 logging.level.org.springframework: DEBUG
+altair:
+    security:
+        maxAttempts: 3
+        lockoutTime: 300
 

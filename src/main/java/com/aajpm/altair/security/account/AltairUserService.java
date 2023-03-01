@@ -4,9 +4,12 @@ import org.springframework.security.core.userdetails.*;
 
 import java.time.LocalDateTime;
 
+
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Value;
 
 import com.aajpm.altair.utility.exception.UsernameTakenException;
 
@@ -20,6 +23,12 @@ public class AltairUserService implements UserDetailsService {
 
     @Autowired
     private RoleRepository roleRepository;
+
+    @Value("${altair.security.lockoutTime:300}")
+    private int lockoutTime;
+
+    @Value("${altair.security.maxAttempts:3}")
+    private int maxAttempts;
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
@@ -59,11 +68,47 @@ public class AltairUserService implements UserDetailsService {
     @Scheduled(fixedDelay = 60000)
     @Transactional
     public void resetFailedLoginAttempts() {
-        userRepository.findTimeoutDoneUsers(LocalDateTime.now().minusMinutes(5))
+        userRepository.findTimeoutDoneUsers(LocalDateTime.now().minusSeconds(lockoutTime))
                 .forEach(user -> {
                     user.setFailedLoginAttempts(0);
+                    user.setLocked(false);
                     userRepository.save(user);
                 });
+    }
+
+    @Transactional
+    public boolean addFailedLoginAttempt(String username) {
+        AltairUser user = userRepository.findByUsername(username);
+        if (user == null) {
+            return false;
+        }
+
+        int attempts = user.getFailedLoginAttempts() + 1;
+
+        user.setFailedLoginAttempts(attempts);
+        if (user.isAccountNonLocked()) {    // so that timeouts don't stack
+            user.setLastLoginAttempt(LocalDateTime.now());
+        }
+        if (attempts >= maxAttempts) {
+            user.setLocked(true);
+        }
+        userRepository.save(user);
+
+        return true;
+    }
+
+    @Transactional
+    public boolean resetFailedLoginAttempts(String username) {
+        AltairUser user = userRepository.findByUsername(username);
+        if (user == null) {
+            return false;
+        }
+
+        user.setFailedLoginAttempts(0);
+        user.setLastLoginAttempt(LocalDateTime.now());
+        userRepository.save(user);
+
+        return true;
     }
 
 }
