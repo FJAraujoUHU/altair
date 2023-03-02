@@ -36,8 +36,8 @@ public class SecurityConfig {
             .anyRequest().denyAll()
         ).formLogin()
         .loginPage("/login")
-        .failureHandler(AltairAuthFailHandler())
-        .successHandler(AltairAuthSuccHandler())
+        .failureHandler(altairAuthFailHandler())
+        .successHandler(altairAuthSuccHandler())
         .permitAll()
         .and()
         .logout()
@@ -49,12 +49,12 @@ public class SecurityConfig {
     }
 
     @Bean
-    public AuthenticationFailureHandler AltairAuthFailHandler() {
+    public AuthenticationFailureHandler altairAuthFailHandler() {
         return new AltairAuthenticationFailureHandler();
     }
 
     @Bean
-    public AuthenticationSuccessHandler AltairAuthSuccHandler() {
+    public AuthenticationSuccessHandler altairAuthSuccHandler() {
         return new AltairAuthenticationSuccessHandler();
     }
 
