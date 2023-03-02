@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/thymeleaf-extras-springsecurity6">
+
+<head>
+    <title>Hello world!</title>
+</head>
+
+<body>
+    <h1>Hello <span sec:authentication="name">world</span>!</h1>
+    <div sec:authorize="isAuthenticated()">
+        <form name="logoutForm" th:hidden="true" method="post" th:action="@{/logout}">
+            <input type="submit" value="Logout" />
+        </form>
+        <a href="javascript: logoutForm.submit();">Sign Out</a>
+    </div>
+</body>
+
+</html>

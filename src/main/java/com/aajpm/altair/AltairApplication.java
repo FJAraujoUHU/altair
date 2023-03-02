@@ -15,10 +15,10 @@ public class AltairApplication {
 		SpringApplication.run(AltairApplication.class, args);
 	}
 
-	@RequestMapping("/hello.html")
+	@RequestMapping("/index.html")
     public String hello() {
 		
-      return "hello.html";
+      return "index.html";
     }
 
 }

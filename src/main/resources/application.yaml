@@ -11,7 +11,12 @@ spring:
         password: test
     thymeleaf:
         cache: false
-logging.level.org.springframework: DEBUG
+    mvc:
+        log-request-details: true
+logging:
+    level:
+        org:
+            springframework: DEBUG
 altair:
     security:
         maxAttempts: 3

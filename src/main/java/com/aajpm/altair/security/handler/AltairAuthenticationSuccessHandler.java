@@ -4,8 +4,7 @@ import java.io.IOException;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
-import org.springframework.stereotype.Component;
+import org.springframework.security.web.authentication.SavedRequestAwareAuthenticationSuccessHandler;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -13,8 +12,7 @@ import jakarta.servlet.http.HttpServletResponse;
 
 import com.aajpm.altair.security.account.*;
 
-@Component
-public class AltairAuthenticatorSuccessHandler extends SimpleUrlAuthenticationSuccessHandler {
+public class AltairAuthenticationSuccessHandler extends SavedRequestAwareAuthenticationSuccessHandler {
     
     @Autowired
     private AltairUserService userService;
