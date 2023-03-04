@@ -32,7 +32,10 @@ public class SecurityConfig {
         return http.authorizeHttpRequests(auths -> auths
             .requestMatchers("/index.html").permitAll()
             .requestMatchers("/").permitAll()
+            .requestMatchers("/favicon.ico").permitAll()
             .requestMatchers("/login*").permitAll() // asterisk so that error messages can be appended
+            .requestMatchers("/error").permitAll()
+            .requestMatchers("/telescope**").hasAnyRole("ADMIN", "ADVANCED_USER")
             .anyRequest().denyAll()
         ).formLogin()
         .loginPage("/login")

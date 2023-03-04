@@ -31,3 +31,6 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Custom favicon ###
+src/main/resources/static/favicon.ico

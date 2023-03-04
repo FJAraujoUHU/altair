@@ -7,12 +7,22 @@
 
 <body>
     <h1>Hello <span sec:authentication="name">world</span>!</h1>
+
     <div sec:authorize="isAuthenticated()">
         <form name="logoutForm" th:hidden="true" method="post" th:action="@{/logout}">
             <input type="submit" value="Logout" />
         </form>
         <a href="javascript: logoutForm.submit();">Sign Out</a>
     </div>
+    <div sec:authorize="hasRole('ROLE_ADMIN') or hasRole('ROLE_ADVANCED_USER')">
+        <a href="/telescope">Telescope panel</a>
+    </div>
+
+    <div sec:authorize="!isAuthenticated()">
+        <a href="/login">Login</a>
+    </div>
+
+    <p><span th:text="${buildName}"></span> v<span th:text="${buildVersion}"></span></p>
 </body>
 
 </html>
