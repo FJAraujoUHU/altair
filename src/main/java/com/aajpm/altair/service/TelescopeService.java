@@ -6,14 +6,15 @@ import com.aajpm.altair.utility.exception.*;
 
 
 // TODO : Add other useful methods to this class
+// slewing, syncing, shutter control, tracking, abort slewing, focuser, camera.
 public abstract class TelescopeService {
 
     public enum State {
         OFF,        // Telescope is off
-        PARKED,     // Telescope is parked
         IDLE,       // Telescope is unparked, but not doing anything
         AUTO,       // Telescope is performing a job from the queue
         MANUAL,     // Telescope is being used manually by an advanced user
+        BUSY,       // Telescope is slewing or performing a job that can't be interrupted
         ERROR       // Telescope has encountered an error, must be reset by an admin
     }
 
@@ -28,6 +29,19 @@ public abstract class TelescopeService {
      * @return The current state of the telescope as a string.
      */
     public String getState() { return state.name(); }
+
+    /**
+     * Returns true if the telescope is connected.
+     * @return True if the telescope is connected, false otherwise.
+     */
+    public abstract boolean connected();
+
+    /**
+     * Returns true if the server is connected to the specified device.
+     * @param device The device to check.
+     * @return True if the server is connected to the specified device, false otherwise.
+     */
+    public abstract boolean connected(String device);
     
     /**
      * Starts the telescope and sets it up ready for use.
@@ -47,6 +61,54 @@ public abstract class TelescopeService {
      * @throws TelescopeException If the telescope is in use, or if there is an error.
      */
     public abstract void park() throws TelescopeException;
+
+    /**
+     * Unparks the telescope. If it was already unparked, this does nothing.
+     * @throws TelescopeException If the telescope is in use, or if there is an error.
+     */
+    public abstract void unpark() throws TelescopeException;
+
+    /**
+     * Returns true if the telescope is parked.
+     * @return True if the telescope is parked, false otherwise.
+     * @throws TelescopeException If there was an error getting the parked status.
+     */
+    public abstract boolean isParked() throws TelescopeException;
+
+    /**
+     * Checks if the specified device is parked.
+     * @return True if the device is parked, false otherwise.
+     * @throws TelescopeException If there was an error getting the parked status or the device can't be checked.
+     */
+    public abstract boolean isParked(String device) throws TelescopeException;
+
+    /**
+     * Returns true if the telescope is at the designated home position.
+     * @return True if the telescope is at the designated home position, false otherwise.
+     * @throws TelescopeException If there was an error getting the AtHome status.
+     */
+    public abstract boolean isAtHome() throws TelescopeException;
+
+    /**
+     * Checks if the specified device is at the designated home position.
+     * @param device The device to check.
+     * @return True if the device is at the designated home position, false otherwise.
+     * @throws TelescopeException If there was an error getting the AtHome status or the device can't be checked.
+     */
+    public abstract boolean isAtHome(String device) throws TelescopeException;
+
+    /**
+     * Returns true if the telescope and the dome are slaved together.
+     * @return True if the telescope and the dome are slaved together, false otherwise.
+     * @throws TelescopeException If there was an error getting the slaved status.
+     */
+    public abstract boolean isSlaved() throws TelescopeException;
+
+    /**
+     * Slaves/unslaves the telescope and the dome together.
+     * @throws TelescopeException If there was an error slaving the telescope and the dome.
+     */
+    public abstract void setSlaved(boolean slaved) throws TelescopeException;
 
     /**
      * Returns the current job being performed by the telescope, if any.
