@@ -3,6 +3,7 @@ package com.aajpm.altair.service;
 import com.aajpm.altair.entity.Job;
 import com.aajpm.altair.security.account.AltairUser;
 import com.aajpm.altair.utility.exception.*;
+import com.aajpm.altair.utility.statusreporting.TelescopeStatus;
 
 
 // TODO : Add other useful methods to this class
@@ -157,5 +158,12 @@ public abstract class TelescopeService {
      * @throws TelescopeException If the user does not have control, or if there was an error releasing control.
      */
     public abstract void releaseControl(AltairUser user) throws TelescopeException;
+
+    /**
+     * Returns the current status of the telescope.
+     * @return A POJO containing the current status of the telescope.
+     * @throws TelescopeException If there was an error getting the status.
+     */
+    public abstract TelescopeStatus getTelescopeStatus() throws TelescopeException;
 
 }

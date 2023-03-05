@@ -1,8 +1,11 @@
 package com.aajpm.altair.service;
 
+import java.time.LocalDateTime;
+
 import com.aajpm.altair.security.account.AltairUser;
 import com.aajpm.altair.utility.exception.TelescopeException;
 import com.aajpm.altair.utility.exception.TelescopeUnavailableException;
+import com.aajpm.altair.utility.statusreporting.TelescopeStatus;
 
 /**
  * Dummy class to test the logic of the application. Do not use under normal operation.
@@ -13,6 +16,7 @@ public class DummyTelescopeService extends TelescopeService {
 
     boolean isSlaved = false;
     boolean isParked = true;
+    boolean isTracking = false;
 
     double tsAzimuth = 0;
     double tsAltitude = 45;
@@ -126,8 +130,7 @@ public class DummyTelescopeService extends TelescopeService {
 
     @Override
     public boolean isAtHome() throws TelescopeException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'isAtHome'");
+        return isAtHome("telescope");
     }
 
     @Override
@@ -139,6 +142,25 @@ public class DummyTelescopeService extends TelescopeService {
             return dmAzimuth == 0;
 
         throw new TelescopeException("Invalid device name");
+    }
+
+    @Override
+    public TelescopeStatus getTelescopeStatus() throws TelescopeException {
+        TelescopeStatus status = new TelescopeStatus();
+        status.setAzimuth(tsAzimuth);
+        status.setAltitude(tsAltitude);
+        status.setRightAscension(0);
+        status.setDeclination(0);
+        status.setParked(isParked);
+        status.setAtHome(isAtHome());
+        status.setConnected(connected());
+        status.setLatitude(40);
+        status.setLongitude(-4);
+        status.setElevation(400);
+        status.setSiderealTime(LocalDateTime.now().getHour() + (LocalDateTime.now().getMinute() / 60.0));
+        status.setSlewing(isTracking);
+
+        return status;
     }
     
 }

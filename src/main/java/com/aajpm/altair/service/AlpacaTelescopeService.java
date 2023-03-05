@@ -14,6 +14,7 @@ import com.aajpm.altair.security.account.AltairUser;
 import com.aajpm.altair.utility.exception.ASCOMException;
 import com.aajpm.altair.utility.exception.TelescopeException;
 import com.aajpm.altair.utility.exception.TelescopeUnavailableException;
+import com.aajpm.altair.utility.statusreporting.TelescopeStatus;
 import com.fasterxml.jackson.databind.JsonNode;
 
 import io.netty.channel.ChannelOption;
@@ -326,6 +327,58 @@ public class AlpacaTelescopeService extends TelescopeService {
             throw new ASCOMException(errorNumber);
         }
         return response.findValue("Value").asBoolean();
+    }
+
+    public double[] getAltAz() throws TelescopeException {
+        if (this.state == State.OFF || this.state == State.ERROR)
+            throw new TelescopeException("Telescope is not available");
+
+        double azimuth, altitude;
+        
+        JsonNode response = makeGetReq("/api/v1/telescope/0/azimuth");
+        int errorNumber = response.findValue("ErrorNumber").asInt();
+        if (errorNumber != 0) {
+            throw new ASCOMException(errorNumber);
+        }
+        azimuth = response.findValue("Value").asDouble();
+
+        response = makeGetReq("/api/v1/telescope/0/altitude");
+        errorNumber = response.findValue("ErrorNumber").asInt();
+        if (errorNumber != 0) {
+            throw new ASCOMException(errorNumber);
+        }
+        altitude = response.findValue("Value").asDouble();
+
+        return new double[] { azimuth, altitude };
+    }
+
+    public double[] getRADec() {
+        if (this.state == State.OFF || this.state == State.ERROR)
+            throw new TelescopeException("Telescope is not available");
+
+        double rightAscension, declination;
+        
+        JsonNode response = makeGetReq("/api/v1/telescope/0/rightascension");
+        int errorNumber = response.findValue("ErrorNumber").asInt();
+        if (errorNumber != 0) {
+            throw new ASCOMException(errorNumber);
+        }
+        rightAscension = response.findValue("Value").asDouble();
+
+        response = makeGetReq("/api/v1/telescope/0/declination");
+        errorNumber = response.findValue("ErrorNumber").asInt();
+        if (errorNumber != 0) {
+            throw new ASCOMException(errorNumber);
+        }
+        declination = response.findValue("Value").asDouble();
+
+        return new double[] { rightAscension, declination };
+    }
+
+    @Override
+    public TelescopeStatus getTelescopeStatus() throws TelescopeException {
+        // TODO Auto-generated method stub
+        return null;
     }
 
 }

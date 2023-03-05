@@ -7,10 +7,10 @@ public class TelescopeStatus {
     boolean connected;
     double azimuth;
     double altitude;
-    double aightAscension;
+    double rightAscension;
     double declination;
     boolean atHome;
-    boolean atPark;
+    boolean parked;
     boolean slewing;
     double siderealTime;
     boolean tracking;
@@ -36,11 +36,11 @@ public class TelescopeStatus {
     public void setAltitude(double altitude) {
         this.altitude = altitude;
     }
-    public double getAightAscension() {
-        return aightAscension;
+    public double getRightAscension() {
+        return rightAscension;
     }
-    public void setAightAscension(double aightAscension) {
-        this.aightAscension = aightAscension;
+    public void setRightAscension(double rightAscension) {
+        this.rightAscension = rightAscension;
     }
     public double getDeclination() {
         return declination;
@@ -54,11 +54,11 @@ public class TelescopeStatus {
     public void setAtHome(boolean atHome) {
         this.atHome = atHome;
     }
-    public boolean isAtPark() {
-        return atPark;
+    public boolean isParked() {
+        return parked;
     }
-    public void setAtPark(boolean atPark) {
-        this.atPark = atPark;
+    public void setParked(boolean parked) {
+        this.parked = parked;
     }
     public boolean isSlewing() {
         return slewing;
