@@ -1,6 +1,6 @@
 package com.aajpm.altair.utility.exception;
 
-public class ASCOMException extends TelescopeException {
+public class ASCOMException extends DeviceException {
     private int errorCode = 0x4FF;
 
     /**
@@ -64,5 +64,9 @@ public class ASCOMException extends TelescopeException {
 
     public int getErrorCode() {
         return errorCode;
+    }
+
+    public String getErrorMessage() {
+        return messageGenerator(errorCode);
     }
 }

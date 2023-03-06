@@ -5,18 +5,15 @@ package com.aajpm.altair.utility.statusreporting;
  */
 public class TelescopeStatus {
     boolean connected;
-    double azimuth;
     double altitude;
+    double azimuth;
     double rightAscension;
     double declination;
     boolean atHome;
     boolean parked;
     boolean slewing;
-    double siderealTime;
     boolean tracking;
-    double latitude;
-    double longitude;
-    double elevation;
+    double siderealTime;
 
     public boolean isConnected() {
         return connected;
@@ -77,23 +74,5 @@ public class TelescopeStatus {
     }
     public void setTracking(boolean tracking) {
         this.tracking = tracking;
-    }
-    public double getLatitude() {
-        return latitude;
-    }
-    public void setLatitude(double latitude) {
-        this.latitude = latitude;
-    }
-    public double getLongitude() {
-        return longitude;
-    }
-    public void setLongitude(double longitude) {
-        this.longitude = longitude;
-    }
-    public double getElevation() {
-        return elevation;
-    }
-    public void setElevation(double elevation) {
-        this.elevation = elevation;
     }
 }
