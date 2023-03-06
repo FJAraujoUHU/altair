@@ -6,15 +6,20 @@ import com.aajpm.altair.utility.exception.DeviceException;
 import com.aajpm.altair.utility.webutils.AlpacaClient;
 import com.fasterxml.jackson.databind.JsonNode;
 
-// TODO : Migrate from AlpacaObservatoryService to ASCOMTelescopeService
 public class ASCOMTelescopeService extends TelescopeService {
 
     AlpacaClient client;
 
-    final int deviceNumber = 0;
+    final int deviceNumber;
 
     public ASCOMTelescopeService(AlpacaClient client) {
         this.client = client;
+        this.deviceNumber = 0;
+    }
+
+    public ASCOMTelescopeService(AlpacaClient client, int deviceNumber) {
+        this.client = client;
+        this.deviceNumber = deviceNumber;
     }
 
     private JsonNode get(String action) {
@@ -24,6 +29,13 @@ public class ASCOMTelescopeService extends TelescopeService {
     private void put(String action, MultiValueMap<String, String> params) {
         client.put("telescope", deviceNumber, action, params);
     }
+
+    private void execute(String action, MultiValueMap<String, String> params) {
+        client.execute("telescope", deviceNumber, action, params);
+    }
+
+    ///////////////////////////////// GETTERS /////////////////////////////////
+    //<editor-fold defaultstate="collapsed" desc="Getters">
 
     @Override
     public boolean isConnected() {
@@ -69,6 +81,10 @@ public class ASCOMTelescopeService extends TelescopeService {
         return this.get("siderealtime").asDouble();
     }
 
+    //</editor-fold>
+    ///////////////////////////// SETTERS/ACTIONS /////////////////////////////
+    //<editor-fold defaultstate="collapsed" desc="Setters/Actions">
+
     @Override
     public void connect() throws DeviceException {
         MultiValueMap<String, String> args = new LinkedMultiValueMap<>(1);
@@ -90,62 +106,72 @@ public class ASCOMTelescopeService extends TelescopeService {
 
     @Override
     public void parkAsync() throws DeviceException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'parkAsync'");
+        this.execute("park", null);
     }
 
     @Override
     public void unpark() throws DeviceException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'unpark'");
+        this.put("unpark", null);
+    }
+
+    @Override
+    public void unparkAsync() throws DeviceException {
+        this.execute("unpark", null);
     }
 
     @Override
     public void findHome() throws DeviceException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'findHome'");
+        this.put("findhome", null);
     }
 
     @Override
     public void findHomeAsync() throws DeviceException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'findHomeAsync'");
+        this.execute("findhome", null);
     }
 
     @Override
     public void slewToCoords(double ra, double dec) throws DeviceException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'slewToCoords'");
+        MultiValueMap<String, String> args = new LinkedMultiValueMap<>(2);
+        args.add("RightAscension", String.valueOf(ra));
+        args.add("Declination", String.valueOf(dec));
+        this.put("slewtocoordinates", args);
     }
 
     @Override
     public void slewToCoordsAsync(double rightAscension, double declination) throws DeviceException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'slewToCoordsAsync'");
+        MultiValueMap<String, String> args = new LinkedMultiValueMap<>(2);
+        args.add("RightAscension", String.valueOf(rightAscension));
+        args.add("Declination", String.valueOf(declination));
+        this.execute("slewtocoordinates", args);
     }
 
     @Override
     public void slewToAltAz(double altitude, double azimuth) throws DeviceException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'slewToAltAz'");
+        MultiValueMap<String, String> args = new LinkedMultiValueMap<>(2);
+        args.add("Altitude", String.valueOf(altitude));
+        args.add("Azimuth", String.valueOf(azimuth));
+        this.put("slewtoaltaz", args);
     }
 
     @Override
     public void slewToAltAzAsync(double altitude, double azimuth) throws DeviceException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'slewToAltAzAsync'");
+        MultiValueMap<String, String> args = new LinkedMultiValueMap<>(2);
+        args.add("Altitude", String.valueOf(altitude));
+        args.add("Azimuth", String.valueOf(azimuth));
+        this.execute("slewtoaltaz", args);
     }
 
     @Override
     public void abortSlew() throws DeviceException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'abortSlew'");
+        this.put("abortslew", null);
     }
 
     @Override
     public void setTracking(boolean tracking) throws DeviceException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'setTracking'");
+        MultiValueMap<String, String> args = new LinkedMultiValueMap<>(1);
+        args.add("Tracking", String.valueOf(tracking));
+        this.put("tracking", args);
     }
     
+    //</editor-fold>
 }

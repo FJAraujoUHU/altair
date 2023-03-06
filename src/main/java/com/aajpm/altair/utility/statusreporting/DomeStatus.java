@@ -6,9 +6,9 @@ package com.aajpm.altair.utility.statusreporting;
 public class DomeStatus {
     boolean connected;
     double azimuth;
-    double altitude;
+    int shutter;
     boolean atHome;
-    boolean atPark;
+    boolean parked;
     boolean slewing;
     boolean slaved;
     String shutterStatus;
@@ -26,11 +26,11 @@ public class DomeStatus {
     public void setAzimuth(double azimuth) {
         this.azimuth = azimuth;
     }
-    public double getAltitude() {
-        return altitude;
+    public double getShutter() {
+        return shutter;
     }
-    public void setAltitude(double altitude) {
-        this.altitude = altitude;
+    public void setShutter(int porcentage) {
+        this.shutter = porcentage;
     }
     public boolean isAtHome() {
         return atHome;
@@ -38,11 +38,11 @@ public class DomeStatus {
     public void setAtHome(boolean atHome) {
         this.atHome = atHome;
     }
-    public boolean isAtPark() {
-        return atPark;
+    public boolean isParked() {
+        return parked;
     }
-    public void setAtPark(boolean atPark) {
-        this.atPark = atPark;
+    public void setParked(boolean parked) {
+        this.parked = parked;
     }
     public boolean isSlewing() {
         return slewing;

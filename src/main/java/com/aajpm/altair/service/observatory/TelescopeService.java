@@ -4,8 +4,18 @@ import com.aajpm.altair.utility.exception.DeviceException;
 import com.aajpm.altair.utility.statusreporting.TelescopeStatus;
 
 public abstract class TelescopeService {
+
+    /////////////////////////////// CONSTANTS /////////////////////////////////
+    //<editor-fold defaultstate="collapsed" desc="Constants">
+
+    public static final int DIRECTION_NORTH = 0;
+    public static final int DIRECTION_EAST = 1;
+    public static final int DIRECTION_SOUTH = 2;
+    public static final int DIRECTION_WEST = 3;
     
+    //</editor-fold>
     ///////////////////////////////// GETTERS /////////////////////////////////
+    //<editor-fold defaultstate="collapsed" desc="Getters">
     
     /**
      * Returns true if the telescope is connected.
@@ -27,8 +37,18 @@ public abstract class TelescopeService {
      */
     public abstract boolean isAtHome() throws DeviceException;
 
+    /**
+     * Returns true if the telescope is currently slewing.
+     * @return True if the telescope is currently slewing, false otherwise.
+     * @throws DeviceException If there was an error polling the data.
+     */
     public abstract boolean isSlewing() throws DeviceException;
 
+    /**
+     * Returns true if the telescope is currently tracking an object.
+     * @return True if the telescope is currently tracking an object, false otherwise.
+     * @throws DeviceException If there was an error polling the data.
+     */
     public abstract boolean isTracking() throws DeviceException;
 
     /**
@@ -60,10 +80,12 @@ public abstract class TelescopeService {
     public TelescopeStatus getTelescopeStatus() throws DeviceException {
         TelescopeStatus status = new TelescopeStatus();
         status.setConnected(isConnected());
-        status.setAltitude(getAltAz()[0]);
-        status.setAzimuth(getAltAz()[1]);
-        status.setRightAscension(getCoordinates()[0]);
-        status.setDeclination(getCoordinates()[1]);
+        double[] altAz = getAltAz();
+        status.setAltitude(altAz[0]);
+        status.setAzimuth(altAz[1]);
+        double[] coordinates = getCoordinates();
+        status.setRightAscension(coordinates[0]);
+        status.setDeclination(coordinates[1]);
         status.setAtHome(isAtHome());
         status.setParked(isParked());
         status.setSlewing(isSlewing());
@@ -74,8 +96,9 @@ public abstract class TelescopeService {
     }
 
 
-
+    //</editor-fold>
     ///////////////////////////// SETTERS/ACTIONS /////////////////////////////
+    //<editor-fold defaultstate="collapsed" desc="Setters/Actions">
 
     /**
      * Connects to the telescope.
@@ -106,6 +129,12 @@ public abstract class TelescopeService {
      * @throws DeviceException If there was an error unparking the telescope.
      */
     public abstract void unpark() throws DeviceException;
+
+    /**
+     * Unparks the telescope asynchronously.
+     * @throws DeviceException If there was an error unparking the telescope.
+     */
+    public abstract void unparkAsync() throws DeviceException;
 
     /**
      * Sets the telescope to the designated home position synchronously.
@@ -152,6 +181,60 @@ public abstract class TelescopeService {
     public abstract void slewToAltAzAsync(double altitude, double azimuth) throws DeviceException;
 
     /**
+     * Slew the telescope relative to its current position synchronously.
+     * @param degrees The number of degrees to slew.
+     * @param direction The direction to slew in (0 = North, 1 = East, 2 = South, 3 = West).
+     * @throws DeviceException If there was an error slewing the telescope.
+     * @throws IllegalArgumentException If the direction is not valid.
+     */
+    public void slewRelative(double degrees, int direction) throws DeviceException, IllegalArgumentException {
+        double[] altAz = getAltAz();
+        switch (direction) {
+            case DIRECTION_NORTH:
+                slewToAltAz(altAz[0] + degrees, altAz[1]);
+                break;
+            case DIRECTION_SOUTH:
+                slewToAltAz(altAz[0] - degrees, altAz[1]);
+                break;
+            case DIRECTION_EAST:
+                slewToAltAz(altAz[0], altAz[1] + degrees);
+                break;
+            case DIRECTION_WEST:
+                slewToAltAz(altAz[0], altAz[1] - degrees);
+                break;
+            default:
+                throw new IllegalArgumentException("Direction must be between 0 and 3.");
+        }
+    }
+
+    /**
+     * Slew the telescope relative to its current position asynchronously.
+     * @param degrees The number of degrees to slew.
+     * @param direction The direction to slew in (0 = North, 1 = East, 2 = South, 3 = West).
+     * @throws DeviceException If there was an error slewing the telescope.
+     * @throws IllegalArgumentException If the direction is not valid.
+     */
+    public void slewRelativeAsync(double degrees, int direction) throws DeviceException, IllegalArgumentException {
+        double[] altAz = getAltAz();
+        switch (direction) {
+            case DIRECTION_NORTH:
+                slewToAltAzAsync(altAz[0] + degrees, altAz[1]);
+                break;
+            case DIRECTION_SOUTH:
+                slewToAltAzAsync(altAz[0] - degrees, altAz[1]);
+                break;
+            case DIRECTION_EAST:
+                slewToAltAzAsync(altAz[0], altAz[1] + degrees);
+                break;
+            case DIRECTION_WEST:
+                slewToAltAzAsync(altAz[0], altAz[1] - degrees);
+                break;
+            default:
+                throw new IllegalArgumentException("Direction must be between 0 and 3.");
+        }
+    }
+
+    /**
      * Aborts the current slew, if there is one.
      * @throws DeviceException If there was an error aborting the current slew.
      */
@@ -163,4 +246,6 @@ public abstract class TelescopeService {
      * @throws DeviceException If there was an error setting the tracking.
      */
     public abstract void setTracking(boolean tracking) throws DeviceException;
+
+    //</editor-fold>
 }
