@@ -133,6 +133,18 @@ public abstract class DomeService {
     //<editor-fold defaultstate="collapsed" desc="Setters/Actions">
 
     /**
+     * Connects to the dome.
+     * @throws DeviceException If there was an error connecting to the dome.
+     */
+    public abstract void connect() throws DeviceException;
+
+    /**
+     * Disconnects from the dome.
+     * @throws DeviceException If there was an error disconnecting from the dome.
+     */
+    public abstract void disconnect() throws DeviceException;
+
+    /**
      * Opens the shutter.
      * @throws DeviceException If there was an error opening the shutter.
      */

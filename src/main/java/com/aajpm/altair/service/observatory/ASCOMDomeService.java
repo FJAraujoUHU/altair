@@ -73,6 +73,21 @@ public class ASCOMDomeService extends DomeService {
     //</editor-fold>
     ///////////////////////////// SETTERS/ACTIONS /////////////////////////////
     //<editor-fold defaultstate="collapsed" desc="Setters/Actions">
+
+    @Override
+    public void connect() throws DeviceException {
+        MultiValueMap<String, String> params = new LinkedMultiValueMap<>(1);
+        params.add("Connected", String.valueOf(true));
+        this.put("connected", params);
+    }
+
+    @Override
+    public void disconnect() throws DeviceException {
+        MultiValueMap<String, String> params = new LinkedMultiValueMap<>(1);
+        params.add("Connected", String.valueOf(false));
+        this.put("connected", params);
+    }
+
     @Override
     public void closeShutter() throws DeviceException {
         this.put("closeshutter", null);

@@ -22,18 +22,6 @@ public class ASCOMTelescopeService extends TelescopeService {
         this.deviceNumber = deviceNumber;
     }
 
-    private JsonNode get(String action) {
-        return client.get("telescope", deviceNumber, action);
-    }
-
-    private void put(String action, MultiValueMap<String, String> params) {
-        client.put("telescope", deviceNumber, action, params);
-    }
-
-    private void execute(String action, MultiValueMap<String, String> params) {
-        client.execute("telescope", deviceNumber, action, params);
-    }
-
     ///////////////////////////////// GETTERS /////////////////////////////////
     //<editor-fold defaultstate="collapsed" desc="Getters">
 
@@ -173,5 +161,21 @@ public class ASCOMTelescopeService extends TelescopeService {
         this.put("tracking", args);
     }
     
+    //</editor-fold>
+    ///////////////////////////////// HELPERS /////////////////////////////////
+    //<editor-fold defaultstate="collapsed" desc="Helpers">
+
+    private JsonNode get(String action) {
+        return client.get("telescope", deviceNumber, action);
+    }
+
+    private void put(String action, MultiValueMap<String, String> params) {
+        client.put("telescope", deviceNumber, action, params);
+    }
+
+    private void execute(String action, MultiValueMap<String, String> params) {
+        client.execute("telescope", deviceNumber, action, params);
+    }
+
     //</editor-fold>
 }

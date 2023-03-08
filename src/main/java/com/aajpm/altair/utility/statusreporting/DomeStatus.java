@@ -26,7 +26,7 @@ public class DomeStatus {
     public void setAzimuth(double azimuth) {
         this.azimuth = azimuth;
     }
-    public double getShutter() {
+    public int getShutter() {
         return shutter;
     }
     public void setShutter(int porcentage) {

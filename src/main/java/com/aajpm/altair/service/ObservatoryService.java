@@ -3,9 +3,11 @@ package com.aajpm.altair.service;
 import com.aajpm.altair.entity.Job;
 import com.aajpm.altair.security.account.AltairUser;
 import com.aajpm.altair.utility.exception.*;
+import com.aajpm.altair.utility.statusreporting.*;
 
 
 // TODO : Add other useful methods to this class
+// TODO : make devices services public?
 // slewing, syncing, shutter control, tracking, abort slewing, focuser, camera.
 public abstract class ObservatoryService {
 
@@ -39,46 +41,35 @@ public abstract class ObservatoryService {
     
     /**
      * Starts the observatory and sets it up ready for use.
+     * It should unpark the telescope and dome, set them at their home positions,
+     * and start chilling the camera.
+     * This method will block until the telescope is ready to be used.
      * @throws DeviceUnavailableException If the telescope is unaccessible.
     */
     public abstract void start() throws DeviceUnavailableException;
 
     /**
+     * Starts the observatory and sets it up ready for use.
+     * It should unpark the telescope and dome, set them at their home positions,
+     * and start chilling the camera.
+     * This method will not block and will return immediately.
+     * @throws DeviceUnavailableException If the telescope is unaccessible.
+     */
+    public abstract void startAsync() throws DeviceUnavailableException;
+
+    /**
      * Starts the observatory, and optionally unparks the telescope and dome.
+     * If parked is set to false, acts like {@link #start()}.
      * @param parked True if the devices should be left parked, false otherwise.
      * @throws DeviceUnavailableException If the telescope is unaccessible.
      */
     public abstract void start(boolean parked) throws DeviceUnavailableException;
 
     /**
-     * Checks if the specified device is parked.
-     * @return True if the device is parked, false otherwise.
-     * @throws DeviceException If there was an error getting the parked status or the device can't be checked.
+     * Stops the observatory and puts it into a safe state.
+     * @throws DeviceUnavailableException If the telescope is unaccessible.
      */
-    public abstract boolean isParked(String device) throws DeviceException;
-
-    /**
-     * Checks if the specified device is at the designated home position.
-     * @param device The device to check.
-     * @return True if the device is at the designated home position, false otherwise.
-     * @throws DeviceException If there was an error getting the AtHome status or the device can't be checked.
-     */
-    public abstract boolean isAtHome(String device) throws DeviceException;
-
-    /**
-     * Returns true if the telescope and the dome are slaved together.
-     * @return True if the telescope and the dome are slaved together, false otherwise.
-     * @throws DeviceException If there was an error getting the slaved status.
-     */
-    // TODO : This should be moved to the dome service
-    public abstract boolean isSlaved() throws DeviceException;
-
-    /**
-     * Slaves/unslaves the telescope and the dome together.
-     * @throws DeviceException If there was an error slaving the telescope and the dome.
-     */
-    // TODO : This should be moved to the dome service
-    public abstract void setSlaved(boolean slaved) throws DeviceException;
+    public abstract void stop() throws DeviceUnavailableException;
 
     /**
      * Returns the current job being performed by the telescope, if any.
@@ -122,12 +113,32 @@ public abstract class ObservatoryService {
     public abstract boolean takeControl(AltairUser user) throws DeviceException;
 
     /**
+     * Takes manual control of the telescope for the given user.
+     * If force is set to true, the current user will be kicked out.
+     * @param user The user to get control for.
+     * @param force If true, the current user will be kicked out.
+     * @return True if the user got control, false if the telescope is already in use.
+     * @throws DeviceException If there was an error getting control.
+     */
+    public abstract boolean takeControl(AltairUser user, boolean force) throws DeviceException;
+
+    /**
+     * Releases manual control of the telescope. This is only intended to be called by an admin.
+     */
+    public abstract void releaseControl();
+
+    /**
      * Releases manual control of the telescope for the given user.
      * @param user The user to release control for.
      * @throws DeviceException If the user does not have control, or if there was an error releasing control.
      */
     public abstract void releaseControl(AltairUser user) throws DeviceException;
 
-    
+    /**
+     * Gets the current status of the observatory.
+     * @return The current status of the observatory.
+     * @throws DeviceException If there was an error getting the status.
+     */
+    public abstract ObservatoryStatus getStatus() throws DeviceException;
 
 }
