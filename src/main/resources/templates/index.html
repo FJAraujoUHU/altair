@@ -14,9 +14,9 @@
         </form>
         <a href="javascript: logoutForm.submit();">Sign Out</a>
     </div>
-    <div sec:authorize="hasRole('ROLE_ADMIN') or hasRole('ROLE_ADVANCED_USER')">
-        <a href="/telescope">Telescope panel</a>
-    </div>
+    <!-- div sec:authorize="hasRole('ROLE_ADMIN') or hasRole('ROLE_ADVANCED_USER')" -->
+        <a href="/altair/observatory/dashboard">Telescope panel</a>
+    <!-- /div -->
 
     <div sec:authorize="!isAuthenticated()">
         <a href="/login">Login</a>

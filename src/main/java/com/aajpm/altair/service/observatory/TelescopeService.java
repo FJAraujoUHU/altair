@@ -77,7 +77,7 @@ public abstract class TelescopeService {
      * @return A POJO containing the current status of the telescope.
      * @throws DeviceException If there was an error polling the data.
      */
-    public TelescopeStatus getTelescopeStatus() throws DeviceException {
+    public TelescopeStatus getStatus() throws DeviceException {
         TelescopeStatus status = new TelescopeStatus();
         status.setConnected(isConnected());
         double[] altAz = getAltAz();

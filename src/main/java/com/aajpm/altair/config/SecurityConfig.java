@@ -27,15 +27,18 @@ public class SecurityConfig {
     @Autowired
     private AltairUserService userDetailsService;
 
+    // TODO: Review authorization rules
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         return http.authorizeHttpRequests(auths -> auths
             .requestMatchers("/index.html").permitAll()
             .requestMatchers("/").permitAll()
             .requestMatchers("/favicon.ico").permitAll()
+            .requestMatchers("/css/**").permitAll()
+            .requestMatchers("/js/**").permitAll()
             .requestMatchers("/login*").permitAll() // asterisk so that error messages can be appended
             .requestMatchers("/error").permitAll()
-            .requestMatchers("/telescope**").hasAnyRole("ADMIN", "ADVANCED_USER")
+            .requestMatchers("/altair/**").permitAll()
             .anyRequest().denyAll()
         ).formLogin()
         .loginPage("/login")

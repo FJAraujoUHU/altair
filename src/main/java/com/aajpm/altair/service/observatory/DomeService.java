@@ -97,7 +97,7 @@ public abstract class DomeService {
      * @return A POJO containing the current status of the dome.
      * @throws DeviceException If there was an error polling the data.
      */
-    public DomeStatus getDomeStatus() throws DeviceException {
+    public DomeStatus getStatus() throws DeviceException {
         DomeStatus status = new DomeStatus();
         status.setConnected(isConnected());
         status.setAzimuth(getAz());

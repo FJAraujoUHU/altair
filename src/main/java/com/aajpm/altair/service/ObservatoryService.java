@@ -4,10 +4,10 @@ import com.aajpm.altair.entity.Job;
 import com.aajpm.altair.security.account.AltairUser;
 import com.aajpm.altair.utility.exception.*;
 import com.aajpm.altair.utility.statusreporting.*;
+import com.aajpm.altair.service.observatory.*;
 
 
 // TODO : Add other useful methods to this class
-// TODO : make devices services public?
 // slewing, syncing, shutter control, tracking, abort slewing, focuser, camera.
 public abstract class ObservatoryService {
 
@@ -139,6 +139,22 @@ public abstract class ObservatoryService {
      * @return The current status of the observatory.
      * @throws DeviceException If there was an error getting the status.
      */
-    public abstract ObservatoryStatus getStatus() throws DeviceException;
+    public ObservatoryStatus getStatus() throws DeviceException {
+        return new ObservatoryStatus(getTelescope().getStatus(), getDome().getStatus());
+    }
+
+    /**
+     * Returns the telescope service.
+     * @return The telescope service.
+     * @throws DeviceUnavailableException If the telescope is unaccessible/not configured.
+     */
+    public abstract TelescopeService getTelescope() throws DeviceUnavailableException;
+
+    /**
+     * Returns the dome service.
+     * @return The dome service.
+     * @throws DeviceUnavailableException If the dome is unaccessible/not configured.
+     */
+    public abstract DomeService getDome();
 
 }

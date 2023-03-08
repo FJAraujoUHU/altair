@@ -1,14 +1,10 @@
 package com.aajpm.altair.service;
 
-import java.time.Duration;
-
 import com.aajpm.altair.security.account.AltairUser;
-import com.aajpm.altair.service.observatory.ASCOMDomeService;
-import com.aajpm.altair.service.observatory.ASCOMTelescopeService;
+import com.aajpm.altair.service.observatory.*;
 import com.aajpm.altair.utility.webutils.AlpacaClient;
 import com.aajpm.altair.utility.exception.DeviceException;
 import com.aajpm.altair.utility.exception.DeviceUnavailableException;
-import com.aajpm.altair.utility.statusreporting.ObservatoryStatus;
 
 // TODO : Add camera support and Job stuff
 public class ASCOMObservatoryService extends ObservatoryService {
@@ -27,6 +23,13 @@ public class ASCOMObservatoryService extends ObservatoryService {
         dome = new ASCOMDomeService(alpaca);
     }
 
+    public TelescopeService getTelescope() {
+        return telescope;
+    }
+
+    public DomeService getDome() {
+        return dome;
+    }
 
     @Override
     public void start() throws DeviceUnavailableException {
@@ -189,11 +192,6 @@ public class ASCOMObservatoryService extends ObservatoryService {
             throw new DeviceException("User does not have control of observatory");
         }
         releaseControl();
-    }
-
-    @Override
-    public ObservatoryStatus getStatus() throws DeviceException {
-        return new ObservatoryStatus(telescope.getTelescopeStatus(), dome.getDomeStatus());
     }
 
 }
