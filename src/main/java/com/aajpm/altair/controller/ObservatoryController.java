@@ -14,7 +14,6 @@ import com.aajpm.altair.service.ObservatoryService;
 import com.aajpm.altair.utility.statusreporting.ObservatoryStatus;
 
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
 
 @Controller
 @RequestMapping("/altair/observatory")
@@ -31,6 +30,7 @@ public class ObservatoryController {
     @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     @ResponseBody
     public Flux<ObservatoryStatus> getStatus() {
-        throw new UnsupportedOperationException("Not implemented yet");
+        return Flux.interval(Duration.ofSeconds(1))
+                .flatMap(i -> observatory.getStatus());
     }
 }

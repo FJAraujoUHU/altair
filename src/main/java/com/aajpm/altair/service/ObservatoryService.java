@@ -4,6 +4,9 @@ import com.aajpm.altair.entity.Job;
 import com.aajpm.altair.security.account.AltairUser;
 import com.aajpm.altair.utility.exception.*;
 import com.aajpm.altair.utility.statusreporting.*;
+
+import reactor.core.publisher.Mono;
+
 import com.aajpm.altair.service.observatory.*;
 
 
@@ -31,13 +34,6 @@ public abstract class ObservatoryService {
      * @return The current state of the telescope as a string.
      */
     public String getState() { return state.name(); }
-
-    /**
-     * Returns true if the server is connected to the specified device.
-     * @param device The device to check.
-     * @return True if the server is connected to the specified device, false otherwise.
-     */
-    public abstract boolean connected(String device);
     
     /**
      * Starts the observatory and sets it up ready for use.
@@ -46,7 +42,7 @@ public abstract class ObservatoryService {
      * This method will block until the telescope is ready to be used.
      * @throws DeviceUnavailableException If the telescope is unaccessible.
     */
-    public abstract void start() throws DeviceUnavailableException;
+    public abstract void startAwait() throws DeviceUnavailableException;
 
     /**
      * Starts the observatory and sets it up ready for use.
@@ -55,11 +51,11 @@ public abstract class ObservatoryService {
      * This method will not block and will return immediately.
      * @throws DeviceUnavailableException If the telescope is unaccessible.
      */
-    public abstract void startAsync() throws DeviceUnavailableException;
+    public abstract void start() throws DeviceUnavailableException;
 
     /**
      * Starts the observatory, and optionally unparks the telescope and dome.
-     * If parked is set to false, acts like {@link #start()}.
+     * If parked is set to false, acts like {@link #startAwait()}.
      * @param parked True if the devices should be left parked, false otherwise.
      * @throws DeviceUnavailableException If the telescope is unaccessible.
      */
@@ -69,7 +65,7 @@ public abstract class ObservatoryService {
      * Stops the observatory and puts it into a safe state.
      * @throws DeviceUnavailableException If the telescope is unaccessible.
      */
-    public abstract void stop() throws DeviceUnavailableException;
+    public abstract void stopAwait() throws DeviceUnavailableException;
 
     /**
      * Returns the current job being performed by the telescope, if any.
@@ -139,8 +135,8 @@ public abstract class ObservatoryService {
      * @return The current status of the observatory.
      * @throws DeviceException If there was an error getting the status.
      */
-    public ObservatoryStatus getStatus() throws DeviceException {
-        return new ObservatoryStatus(getTelescope().getStatus(), getDome().getStatus());
+    public Mono<ObservatoryStatus> getStatus() throws DeviceException {
+        return Mono.zip(getTelescope().getStatus(), getDome().getStatus(), ObservatoryStatus::new);      
     }
 
     /**

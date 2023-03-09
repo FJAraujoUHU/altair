@@ -2,9 +2,15 @@ package com.aajpm.altair.service.observatory;
 
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
+import org.springframework.web.reactive.function.client.WebClientException;
+
+import com.aajpm.altair.utility.exception.ASCOMException;
 import com.aajpm.altair.utility.exception.DeviceException;
+import com.aajpm.altair.utility.exception.DeviceUnavailableException;
 import com.aajpm.altair.utility.webutils.AlpacaClient;
 import com.fasterxml.jackson.databind.JsonNode;
+
+import reactor.core.publisher.Mono;
 
 public class ASCOMTelescopeService extends TelescopeService {
 
@@ -26,47 +32,50 @@ public class ASCOMTelescopeService extends TelescopeService {
     //<editor-fold defaultstate="collapsed" desc="Getters">
 
     @Override
-    public boolean isConnected() {
-        return this.get("connected").asBoolean();
+    public Mono<Boolean> isConnected() {
+        return this.get("connected").map(JsonNode::asBoolean);
     }
 
     @Override
-    public boolean isParked() throws DeviceException {
-        return this.get("atpark").asBoolean();
+    public Mono<Boolean> isParked() throws DeviceException {
+        return this.get("atpark").map(JsonNode::asBoolean);
     }
 
     @Override
-    public boolean isAtHome() throws DeviceException {
-        return this.get("athome").asBoolean();
+    public Mono<Boolean> isAtHome() throws DeviceException {
+        return this.get("athome").map(JsonNode::asBoolean);
     }
 
     @Override
-    public boolean isSlewing() throws DeviceException {
-        return this.get("slewing").asBoolean();
+    public Mono<Boolean> isSlewing() throws DeviceException {
+        return this.get("slewing").map(JsonNode::asBoolean);
     }
 
     @Override
-    public boolean isTracking() throws DeviceException {
-        return this.get("tracking").asBoolean();
+    public Mono<Boolean> isTracking() throws DeviceException {
+        return this.get("tracking").map(JsonNode::asBoolean);
     }
 
     @Override
-    public double[] getAltAz() throws DeviceException {
-        double altitude = this.get("altitude").asDouble();
-        double azimuth = this.get("azimuth").asDouble();
-        return new double[] { altitude, azimuth };
+    public Mono<double[]> getAltAz() throws DeviceException {
+        return this
+            .get("altitude").map(JsonNode::asDouble)
+            .zipWith(this.get("azimuth").map(JsonNode::asDouble))
+            .map(tuple -> new double[] { tuple.getT1(), tuple.getT2() });
+
     }
 
     @Override
-    public double[] getCoordinates() throws DeviceException {
-        double rightAscension = this.get("rightascension").asDouble();
-        double declination = this.get("declination").asDouble();
-        return new double[] { rightAscension, declination };
+    public Mono<double[]> getCoordinates() throws DeviceException {
+        return this
+            .get("rightascension").map(JsonNode::asDouble)
+            .zipWith(this.get("declination").map(JsonNode::asDouble))
+            .map(tuple -> new double[] { tuple.getT1(), tuple.getT2() });
     }
 
     @Override
-    public double getSiderealTime() throws DeviceException {
-        return this.get("siderealtime").asDouble();
+    public Mono<Double> getSiderealTime() throws DeviceException {
+        return this.get("siderealtime").map(JsonNode::asDouble);
     }
 
     //</editor-fold>
@@ -77,56 +86,56 @@ public class ASCOMTelescopeService extends TelescopeService {
     public void connect() throws DeviceException {
         MultiValueMap<String, String> args = new LinkedMultiValueMap<>(1);
         args.add("Connected", "true");
-        this.put("connected", args);
+        this.execute("connected", args);
     }
 
     @Override
     public void disconnect() throws DeviceException {
         MultiValueMap<String, String> args = new LinkedMultiValueMap<>(1);
         args.add("Connected", "false");
-        this.put("connected", args);
+        this.execute("connected", args);
+    }
+
+    @Override
+    public void parkAwait() throws DeviceException {
+        this.put("park", null).block();
     }
 
     @Override
     public void park() throws DeviceException {
-        this.put("park", null);
-    }
-
-    @Override
-    public void parkAsync() throws DeviceException {
         this.execute("park", null);
     }
 
     @Override
-    public void unpark() throws DeviceException {
-        this.put("unpark", null);
+    public void unparkAwait() throws DeviceException {
+        this.put("unpark", null).block();
     }
 
     @Override
-    public void unparkAsync() throws DeviceException {
+    public void unpark() throws DeviceException {
         this.execute("unpark", null);
     }
 
     @Override
-    public void findHome() throws DeviceException {
-        this.put("findhome", null);
+    public void findHomeAwait() throws DeviceException {
+        this.put("findhome", null).block();
     }
 
     @Override
-    public void findHomeAsync() throws DeviceException {
+    public void findHome() throws DeviceException {
         this.execute("findhome", null);
     }
 
     @Override
-    public void slewToCoords(double ra, double dec) throws DeviceException {
+    public void slewToCoordsAwait(double ra, double dec) throws DeviceException {
         MultiValueMap<String, String> args = new LinkedMultiValueMap<>(2);
         args.add("RightAscension", String.valueOf(ra));
         args.add("Declination", String.valueOf(dec));
-        this.put("slewtocoordinates", args);
+        this.put("slewtocoordinates", args).block();
     }
 
     @Override
-    public void slewToCoordsAsync(double rightAscension, double declination) throws DeviceException {
+    public void slewToCoords(double rightAscension, double declination) throws DeviceException {
         MultiValueMap<String, String> args = new LinkedMultiValueMap<>(2);
         args.add("RightAscension", String.valueOf(rightAscension));
         args.add("Declination", String.valueOf(declination));
@@ -134,15 +143,15 @@ public class ASCOMTelescopeService extends TelescopeService {
     }
 
     @Override
-    public void slewToAltAz(double altitude, double azimuth) throws DeviceException {
+    public void slewToAltAzAwait(double altitude, double azimuth) throws DeviceException {
         MultiValueMap<String, String> args = new LinkedMultiValueMap<>(2);
         args.add("Altitude", String.valueOf(altitude));
         args.add("Azimuth", String.valueOf(azimuth));
-        this.put("slewtoaltaz", args);
+        this.put("slewtoaltaz", args).block();
     }
 
     @Override
-    public void slewToAltAzAsync(double altitude, double azimuth) throws DeviceException {
+    public void slewToAltAz(double altitude, double azimuth) throws DeviceException {
         MultiValueMap<String, String> args = new LinkedMultiValueMap<>(2);
         args.add("Altitude", String.valueOf(altitude));
         args.add("Azimuth", String.valueOf(azimuth));
@@ -151,30 +160,30 @@ public class ASCOMTelescopeService extends TelescopeService {
 
     @Override
     public void abortSlew() throws DeviceException {
-        this.put("abortslew", null);
+        this.execute("abortslew", null);
     }
 
     @Override
     public void setTracking(boolean tracking) throws DeviceException {
         MultiValueMap<String, String> args = new LinkedMultiValueMap<>(1);
         args.add("Tracking", String.valueOf(tracking));
-        this.put("tracking", args);
+        this.execute("tracking", args);
     }
     
     //</editor-fold>
     ///////////////////////////////// HELPERS /////////////////////////////////
     //<editor-fold defaultstate="collapsed" desc="Helpers">
 
-    private JsonNode get(String action) {
+    private Mono<JsonNode> get(String action) {
         return client.get("telescope", deviceNumber, action);
     }
 
-    private void put(String action, MultiValueMap<String, String> params) {
-        client.put("telescope", deviceNumber, action, params);
+    private Mono<JsonNode> put(String action, MultiValueMap<String, String> params) {
+        return client.put("telescope", deviceNumber, action, params);
     }
 
-    private void execute(String action, MultiValueMap<String, String> params) {
-        client.execute("telescope", deviceNumber, action, params);
+    private void execute(String action, MultiValueMap<String, String> params) throws DeviceUnavailableException, ASCOMException, WebClientException {
+        client.put("telescope", deviceNumber, action, params).subscribe();
     }
 
     //</editor-fold>

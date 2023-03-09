@@ -3,8 +3,9 @@ package com.aajpm.altair.service.observatory;
 import com.aajpm.altair.utility.exception.DeviceException;
 import com.aajpm.altair.utility.statusreporting.DomeStatus;
 
-public abstract class DomeService {
+import reactor.core.publisher.Mono;
 
+public abstract class DomeService {
 
     /////////////////////////////// CONSTANTS /////////////////////////////////
     //<editor-fold defaultstate="collapsed" desc="Constants">
@@ -23,35 +24,35 @@ public abstract class DomeService {
      * Returns true if the dome is connected.
      * @return True if the dome is connected, false otherwise.
      */
-    public abstract boolean isConnected();
+    public abstract Mono<Boolean> isConnected();
 
     /**
      * Returns true if the dome is parked.
      * @return True if the dome is parked, false otherwise.
      * @throws DeviceException If there was an error polling the data.
      */
-    public abstract boolean isParked() throws DeviceException;
+    public abstract Mono<Boolean> isParked() throws DeviceException;
 
     /**
      * Returns true if the dome is at the designated home position.
      * @return True if the dome is at the designated home position, false otherwise.
      * @throws DeviceException If there was an error polling the data.
      */
-    public abstract boolean isAtHome() throws DeviceException;
+    public abstract Mono<Boolean> isAtHome() throws DeviceException;
 
     /**
      * Returns true if the dome is currently slewing.
      * @return True if the dome is currently slewing, false otherwise.
      * @throws DeviceException If there was an error polling the data.
      */
-    public abstract boolean isSlewing() throws DeviceException;
+    public abstract Mono<Boolean> isSlewing() throws DeviceException;
 
     /**
      * Returns true if the dome is currently slaved to the telescope.
      * @return True if the dome is currently slaved to the telescope, false otherwise.
      * @throws DeviceException If there was an error polling the data.
      */
-    public abstract boolean isSlaved() throws DeviceException;
+    public abstract Mono<Boolean> isSlaved() throws DeviceException;
 
     /**
      * Returns true if the shutter is open. Note that if the shutter is able to change
@@ -59,21 +60,21 @@ public abstract class DomeService {
      * @return True if the shutter is open, false otherwise.
      * @throws DeviceException If there was an error polling the data.
      */
-    public abstract boolean isShutterOpen() throws DeviceException;
+    public abstract Mono<Boolean> isShutterOpen() throws DeviceException;
 
     /**
      * Returns the azimuth the dome is pointing at.
      * @return The azimuth the dome is pointing at, in degrees, clockwise positive from North.
      * @throws DeviceException If there was an error polling the data.
      */
-    public abstract double getAz() throws DeviceException;
+    public abstract Mono<Double> getAz() throws DeviceException;
 
     /**
      * Returns the altitude the shutter is set to.
      * @return The altitude the shutter is set to, in degrees, 0 being horizontal.
      * @throws DeviceException If there was an error polling the data.
      */
-    public abstract double getAlt() throws DeviceException;
+    public abstract Mono<Double> getAlt() throws DeviceException;
 
     /**
      * Returns the status of the shutter.
@@ -81,15 +82,15 @@ public abstract class DomeService {
      * @throws DeviceException If there was an error polling the data.
      * @see #SHUTTER_OPEN
      */
-    public abstract int getShutterStatus() throws DeviceException;
+    public abstract Mono<Integer> getShutterStatus() throws DeviceException;
 
     /**
      * Returns the shutter position as a fraction of the total range.
      * @return The shutter position as a fraction of the total range, 0 being closed and 1 being open.
      * @throws DeviceException If there was an error polling the data.
      */
-    public double getShutter() throws DeviceException {
-        return getAlt()/90.0;
+    public Mono<Double> getShutter() throws DeviceException {
+        return getAlt().map(alt -> alt/90.0);
     }
 
     /**
@@ -97,35 +98,45 @@ public abstract class DomeService {
      * @return A POJO containing the current status of the dome.
      * @throws DeviceException If there was an error polling the data.
      */
-    public DomeStatus getStatus() throws DeviceException {
-        DomeStatus status = new DomeStatus();
-        status.setConnected(isConnected());
-        status.setAzimuth(getAz());
-        status.setShutter((int) (getShutter()*100));
-        switch (getShutterStatus()) {
-            case SHUTTER_OPEN:
-                status.setShutterStatus("Open");
-                break;
-            case SHUTTER_CLOSED:
-                status.setShutterStatus("Closed");
-                break;
-            case SHUTTER_OPENING:
-                status.setShutterStatus("Opening");
-                break;
-            case SHUTTER_CLOSING:
-                status.setShutterStatus("Closing");
-                break;
-            default:
-                status.setShutterStatus("Error");
-                break;
-        }
-        status.setAtHome(isAtHome());
-        status.setParked(isParked());
-        status.setSlaved(isSlaved());
-        status.setSlewing(isSlewing());
+    public Mono<DomeStatus> getStatus() throws DeviceException {
+        Mono<DomeStatus> ret;
 
-        return status;
-        
+        Mono<Boolean> connected = isConnected();
+        Mono<Double> az = getAz();
+        Mono<Double> shutter = getShutter();
+        Mono<String> shutterStatus = getShutterStatus()
+            .map(status -> {
+                switch (status) {
+                    case SHUTTER_OPEN:
+                        return "Open";
+                    case SHUTTER_CLOSED:
+                        return "Closed";
+                    case SHUTTER_OPENING:
+                        return "Opening";
+                    case SHUTTER_CLOSING:
+                        return "Closing";
+                    default:
+                        return "Error";
+                }});
+        Mono<Boolean> atHome = isAtHome();
+        Mono<Boolean> parked = isParked();
+        Mono<Boolean> slaved = isSlaved();
+        Mono<Boolean> slewing = isSlewing();
+
+        ret = Mono.zip(connected, az, shutter, shutterStatus, atHome, parked, slaved, slewing)
+                .map(tuple -> {
+                    DomeStatus status = new DomeStatus();
+                    status.setConnected(tuple.getT1());
+                    status.setAzimuth(tuple.getT2());
+                    status.setShutter((int) (tuple.getT3()*100));
+                    status.setShutterStatus(tuple.getT4());
+                    status.setAtHome(tuple.getT5());
+                    status.setParked(tuple.getT6());
+                    status.setSlaved(tuple.getT7());
+                    status.setSlewing(tuple.getT8());
+                    return status;
+                });
+        return ret;
     }
 
     //</editor-fold>
@@ -145,31 +156,31 @@ public abstract class DomeService {
     public abstract void disconnect() throws DeviceException;
 
     /**
-     * Opens the shutter.
+     * Opens the shutter asynchronously.
      * @throws DeviceException If there was an error opening the shutter.
      */
     public abstract void openShutter() throws DeviceException;
 
     /**
-     * Opens the shutter asynchronously.
+     * Opens the shutter.
      * @throws DeviceException If there was an error opening the shutter.
      */
-    public abstract void openShutterAsync() throws DeviceException;
-
-    /**
-     * Closes the shutter.
-     * @throws DeviceException If there was an error closing the shutter.
-     */
-    public abstract void closeShutter() throws DeviceException;
+    public abstract void openShutterAwait() throws DeviceException;
 
     /**
      * Closes the shutter asynchronously.
      * @throws DeviceException If there was an error closing the shutter.
      */
-    public abstract void closeShutterAsync() throws DeviceException;
+    public abstract void closeShutter() throws DeviceException;
 
     /**
-     * Sets the shutter to the specified position.
+     * Closes the shutter.
+     * @throws DeviceException If there was an error closing the shutter.
+     */
+    public abstract void closeShutterAwait() throws DeviceException;
+
+    /**
+     * Sets the shutter to the specified position asynchronously.
      * @param position The position to set the shutter to, as a fraction of the total range, 0 being closed and 1 being open.
      * @throws DeviceException If there was an error setting the shutter.
      */
@@ -181,24 +192,21 @@ public abstract class DomeService {
             position = 1;
         }
         setAlt(position*90.0);
-    }
+    } 
 
     /**
-     * Sets the shutter to the specified position relative to its current position.
-     * @param rate The position to set the shutter to, as a fraction of the total range, positive opening the shutter and negative closing it.
+     * Sets the shutter to the specified position.
+     * @param position The position to set the shutter to, as a fraction of the total range, 0 being closed and 1 being open.
      * @throws DeviceException If there was an error setting the shutter.
      */
-    public void setShutterRelative(double rate) throws DeviceException {
-        double oldShutter = getShutter();
-        double newShutter = oldShutter + rate;
-        if (newShutter < 0) {
-            newShutter = 0;
+    public void setShutterAwait(double position) throws DeviceException {
+        if (position < 0) {
+            position = 0;
         }
-        if (newShutter > 1) {
-            newShutter = 1;
+        if (position > 1) {
+            position = 1;
         }
-
-        setShutter(newShutter);
+        setAltAwait(position*90.0);
     }
 
     /**
@@ -206,8 +214,27 @@ public abstract class DomeService {
      * @param rate The position to set the shutter to, as a fraction of the total range, 0 being closed and 1 being open.
      * @throws DeviceException If there was an error setting the shutter.
      */
-    public void setShutterRelativeAsync(double rate) throws DeviceException {
-        double oldShutter = getShutter();
+    public void setShutterRelative(double rate) throws DeviceException {
+        getShutter().subscribe(oldShutter -> {
+            double newShutter = oldShutter + rate;
+            if (newShutter < 0) {
+                newShutter = 0;
+            }
+            if (newShutter > 1) {
+                newShutter = 1;
+            }
+
+            setShutter(newShutter);
+        });
+    }
+
+    /**
+     * Sets the shutter to the specified position relative to its current position.
+     * @param rate The position to set the shutter to, as a fraction of the total range, positive opening the shutter and negative closing it.
+     * @throws DeviceException If there was an error setting the shutter.
+     */
+    public void setShutterRelativeAwait(double rate) throws DeviceException {
+        double oldShutter = getShutter().block();
         double newShutter = oldShutter + rate;
         if (newShutter < 0) {
             newShutter = 0;
@@ -216,46 +243,7 @@ public abstract class DomeService {
             newShutter = 1;
         }
 
-        setShutterAsync(newShutter);
-    }
-
-    /**
-     * Sets the shutter to the specified position asynchronously.
-     * @param position The position to set the shutter to, as a fraction of the total range, 0 being closed and 1 being open.
-     * @throws DeviceException If there was an error setting the shutter.
-     */
-    public void setShutterAsync(double position) throws DeviceException {
-        if (position < 0) {
-            position = 0;
-        }
-        if (position > 1) {
-            position = 1;
-        }
-        setAltAsync(position*90.0);
-    }    
-
-    /**
-     * Sets the altitude the shutter is set to.
-     * @param degrees The altitude the shutter is set to, in degrees, 0 being horizontal.
-     * @throws DeviceException If there was an error setting the altitude.
-     */
-    public abstract void setAlt(double degrees) throws DeviceException;
-
-    /**
-     * Sets the altitude the shutter is set to relative to its current position.
-     * @param degreesDelta The amount of degrees to change the altitude of the shutter by. Positive values will open the shutter, negative values will close it.
-     * @throws DeviceException If there was an error setting the altitude.
-     */
-    public void setAltRelative(double degreesDelta) throws DeviceException {
-        double oldAlt = getAlt();
-        double newAlt = oldAlt + degreesDelta;
-        if (newAlt < 0) {
-            newAlt = 0;
-        }
-        if (newAlt > 90) {
-            newAlt = 90;
-        }
-        setAlt(newAlt);
+        setShutterAwait(newShutter);
     }
 
     /**
@@ -263,15 +251,40 @@ public abstract class DomeService {
      * @param degrees The altitude the shutter is set to, in degrees, 0 being horizontal.
      * @throws DeviceException If there was an error setting the altitude.
      */
-    public abstract void setAltAsync(double degrees) throws DeviceException;
+    public abstract void setAlt(double degrees) throws DeviceException;
+    
+    /**
+     * Sets the altitude the shutter is set to.
+     * @param degrees The altitude the shutter is set to, in degrees, 0 being horizontal.
+     * @throws DeviceException If there was an error setting the altitude.
+     */
+    public abstract void setAltAwait(double degrees) throws DeviceException;
 
     /**
      * Sets the altitude the shutter is set to relative to its current position asynchronously.
      * @param degreesDelta The amount of degrees to change the altitude of the shutter by. Positive values will open the shutter, negative values will close it.
      * @throws DeviceException If there was an error setting the altitude.
      */
-    public void setAltRelativeAsync(double degreesDelta) throws DeviceException {
-        double oldAlt = getAlt();
+    public void setAltRelative(double degreesDelta) throws DeviceException {
+        getAlt().subscribe(oldAlt -> {
+            double newAlt = oldAlt + degreesDelta;
+            if (newAlt < 0) {
+                newAlt = 0;
+            }
+            if (newAlt > 90) {
+                newAlt = 90;
+            }
+            setAlt(newAlt);
+        });
+    }
+
+    /**
+     * Sets the altitude the shutter is set to relative to its current position.
+     * @param degreesDelta The amount of degrees to change the altitude of the shutter by. Positive values will open the shutter, negative values will close it.
+     * @throws DeviceException If there was an error setting the altitude.
+     */
+    public void setAltRelativeAwait(double degreesDelta) throws DeviceException {
+        double oldAlt = getAlt().block();
         double newAlt = oldAlt + degreesDelta;
         if (newAlt < 0) {
             newAlt = 0;
@@ -279,64 +292,66 @@ public abstract class DomeService {
         if (newAlt > 90) {
             newAlt = 90;
         }
-        setAltAsync(newAlt);
+        setAltAwait(newAlt);
     }
-
-    /**
-     * Sets the azimuth the dome is pointing at.
-     * @param az The azimuth the dome is pointing at, in degrees, clockwise positive from North.
-     * @throws DeviceException If there was an error setting the azimuth.
-     */
-    public abstract void slew(double az) throws DeviceException;
 
     /**
      * Sets the azimuth the dome is pointing at asynchronously.
      * @param az The azimuth the dome is pointing at, in degrees, clockwise positive from North.
      * @throws DeviceException If there was an error setting the azimuth.
      */
-    public abstract void slewAsync(double az) throws DeviceException;
+    public abstract void slew(double az) throws DeviceException;
 
     /**
-     * Slew the dome relative to its current position.
-     * @param degrees The number of degrees to slew the dome, positive being clockwise.
+     * Sets the azimuth the dome is pointing at.
+     * @param az The azimuth the dome is pointing at, in degrees, clockwise positive from North.
      * @throws DeviceException If there was an error setting the azimuth.
      */
-    public void slewRelative(double degrees) throws DeviceException {
-        slew(getAz() + degrees);
-    }
+    public abstract void slewAwait(double az) throws DeviceException;
 
     /**
      * Slew the dome relative to its current position asynchronously.
      * @param degrees The number of degrees to slew the dome, positive being clockwise.
      * @throws DeviceException If there was an error setting the azimuth.
      */
-    public void slewRelativeAsync(double degrees) throws DeviceException {
-        slewAsync(getAz() + degrees);
+    public void slewRelative(double degrees) throws DeviceException {
+        getAz().subscribe(azimuth -> {
+            slew(azimuth + degrees);
+        });
     }
 
     /**
-     * Parks the dome.
-     * @throws DeviceException If there was an error parking the dome.
+     * Slew the dome relative to its current position.
+     * @param degrees The number of degrees to slew the dome, positive being clockwise.
+     * @throws DeviceException If there was an error setting the azimuth.
      */
-    public abstract void park() throws DeviceException;
+    public void slewRelativeAwait(double degrees) throws DeviceException {
+        slewAwait(getAz().block() + degrees);
+    }
 
     /**
      * Parks the dome asynchronously. Note that parking does not involve closing the shutter.
      * @throws DeviceException If there was an error parking the dome.
      */
-    public abstract void parkAsync() throws DeviceException;
+    public abstract void park() throws DeviceException;
 
     /**
-     * Unparks the dome.
-     * @throws DeviceException If there was an error unparking the telescope.
+     * Parks the dome.
+     * @throws DeviceException If there was an error parking the dome.
      */
-    public abstract void unpark() throws DeviceException;
+    public abstract void parkAwait() throws DeviceException;
 
     /**
      * Unparks the dome asynchronously.
      * @throws DeviceException If there was an error unparking the telescope.
      */
-    public abstract void unparkAsync() throws DeviceException;
+    public abstract void unpark() throws DeviceException;
+
+    /**
+     * Unparks the dome.
+     * @throws DeviceException If there was an error unparking the telescope.
+     */
+    public abstract void unparkAwait() throws DeviceException;
 
     /**
      * Sets if the dome is slaved to the telescope.
@@ -345,16 +360,16 @@ public abstract class DomeService {
     public abstract void setSlaved(boolean slaved) throws DeviceException;
 
     /**
-     * Sets the dome to the designated home position synchronously.
+     * Sets the dome to the designated home position asynchronously.
      * @throws DeviceException If there was an error setting the telescope to the designated home position.
      */
     public abstract void findHome() throws DeviceException;
 
     /**
-     * Sets the dome to the designated home position asynchronously.
+     * Sets the dome to the designated home position synchronously.
      * @throws DeviceException If there was an error setting the telescope to the designated home position.
      */
-    public abstract void findHomeAsync() throws DeviceException;
+    public abstract void findHomeAwait() throws DeviceException;
 
     /**
      * Halts the dome. This should stop the dome from rotating, the shutter from moving, and should

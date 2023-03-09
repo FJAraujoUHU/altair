@@ -57,21 +57,54 @@ public class AlpacaClient {
     }
 
     /**
+     * Gets the server description asynchronously, which contains the server name, manufacturer, version, and location.
+     * @return A Mono that will return the server description
+     */
+    public Mono<JsonNode> getServerDescription() {
+        return makeManualGetReq("/management/v1/description").map(node -> node.findValue("Value"));
+    }
+
+    /**
      * Gets the server description, which contains the server name, manufacturer, version, and location.
+     * Warning: This method is synchronous and will not throw an exception if the server returns an error.
      * @return The server description
      */
-    public JsonNode getServerDescription() {
-        return makeManualGetReq("/management/v1/description").findValue("Value");
+    public JsonNode getServerDescriptionBlocking() {
+        return getServerDescription().block();
+    }
+
+    /**
+     * Gets the list of available devices on the server asynchronously.
+     * @return A Mono that will return the list of available devices
+     * @throws WebClientException If the command could not be processed by the server
+     */
+    public Mono<JsonNode> getAvailableDevices() throws WebClientException {
+        return makeManualGetReq("/management/v1/configureddevices").map(node -> node.findValue("Value"));
     }
 
     /**
      * Gets the list of available devices on the server.
      * @return The list of available devices
      */
-    public JsonNode getAvailableDevices() {
-        return makeManualGetReq("/management/v1/configureddevices").findValue("Value");
+    public JsonNode getAvailableDevicesAwait() {
+        return getAvailableDevices().block();
     }
 
+
+    /**
+     * Runs a manual GET request to the specified endpoint asynchronously. This is used for endpoints that are not part of the Alpaca API, or do not follow its standards.
+     * @param endpoint The endpoint to call, e.g. /api/v1/telescope/0/connected
+     * @return A Mono that will return the response from the server
+     * @throws WebClientResponseException If the command could not be processed by the server
+     */
+    public Mono<JsonNode> makeManualGetReq(String endpoint) throws WebClientException {
+        return alpaca.get()
+            .uri(endpoint)
+            .accept(MediaType.APPLICATION_JSON)
+            .retrieve()
+            .bodyToMono(JsonNode.class);
+    }
+    
     /**
      * Runs a manual GET request to the specified endpoint. This is used for endpoints that are not part of the Alpaca API, or do not follow its standards.
      * Warning: This method does not check for errors, is synchronous and will not throw an exception if the server returns an error.
@@ -79,35 +112,8 @@ public class AlpacaClient {
      * @return The response from the server
      * @throws WebClientResponseException If the command could not be processed by the server
      */
-    public JsonNode makeManualGetReq(String endpoint) throws WebClientResponseException {
-        return makeManualGetReqAsync(endpoint).block();
-    }
-
-    /**
-     * Runs a manual GET request to the specified endpoint asynchronously. This is used for endpoints that are not part of the Alpaca API, or do not follow its standards.
-     * Warning: This method does not check for errors, is synchronous and will not throw an exception if the server returns an error.
-     * @param endpoint The endpoint to call, e.g. /api/v1/telescope/0/connected
-     * @return A Mono that will return the response from the server
-     * @throws WebClientResponseException If the command could not be processed by the server
-     */
-    public Mono<JsonNode> makeManualGetReqAsync(String endpoint) throws WebClientException {
-        return alpaca.get()
-            .uri(endpoint)
-            .accept(MediaType.APPLICATION_JSON)
-            .retrieve()
-            .bodyToMono(JsonNode.class);
-    }
-
-    /**
-     * Runs a manual PUT request to the specified endpoint. This is used for endpoints that are not part of the Alpaca API, or do not follow its standards.
-     * Warning: This method does not check for errors, is synchronous and will not throw an exception if the server returns an error.
-     * @param endpoint The endpoint to call, e.g. /api/v1/telescope/0/slewtocoordinates
-     * @param body The body of the request, e.g. a MultiValueMap containing the arguments for the call
-     * @return The response from the server
-     * @throws WebClientResponseException If the command could not be processed by the server
-     */
-    public JsonNode makeManualPutReq(String endpoint, Object body) throws WebClientResponseException {
-        return makeManualPutReqAsync(endpoint, body).block();
+    public JsonNode makeManualGetReqAwait(String endpoint) {
+        return makeManualGetReq(endpoint).block();
     }
 
     /**
@@ -117,7 +123,7 @@ public class AlpacaClient {
      * @return A Mono that can return the response from the server
      * @throws WebClientResponseException If the command could not be processed by the server
      */
-    public Mono<JsonNode> makeManualPutReqAsync(String endpoint, Object body) throws WebClientException {
+    public Mono<JsonNode> makeManualPutReq(String endpoint, Object body) throws WebClientException {
         return alpaca.put()
             .uri(endpoint)
             .contentType(MediaType.APPLICATION_FORM_URLENCODED)
@@ -127,6 +133,49 @@ public class AlpacaClient {
             .bodyToMono(JsonNode.class);
     }
 
+    /**
+     * Runs a manual PUT request to the specified endpoint. This is used for endpoints that are not part of the Alpaca API, or do not follow its standards.
+     * Warning: This method does not check for errors and is synchronous.
+     * @param endpoint The endpoint to call, e.g. /api/v1/telescope/0/slewtocoordinates
+     * @param body The body of the request, e.g. a MultiValueMap containing the arguments for the call
+     * @return The response from the server
+     * @throws WebClientResponseException If the command could not be processed by the server
+     */
+    public JsonNode makeManualPutReqAwait(String endpoint, Object body) throws WebClientResponseException {
+        return makeManualPutReq(endpoint, body).block();
+    }
+
+    /**
+     * Runs an Alpaca compliant GET request to the specified endpoint asynchronously.
+     * @param shortEndpoint The endpoint to call, without prefixes, e.g. telescope/0/connected
+     * @return A Mono that will return the value of the call.
+     * @throws WebClientException If the command could not be processed by the server
+     */
+    public Mono<JsonNode> get(String shortEndpoint) throws WebClientException {
+        String url = "/api/v1/" + shortEndpoint + "?clientid=" + clientID + "&clienttransactionid=" + transactionCounter++;
+
+        return makeManualGetReq(url).flatMap(json -> {
+            if (json == null)
+                return Mono.error(new DeviceUnavailableException("No response from server when calling " + shortEndpoint));
+            
+            int errNo = json.findValue("ErrorNumber").asInt();
+            if (errNo != 0)
+                    return Mono.error(new ASCOMException(errNo, json.findValue("ErrorMessage").asText()));
+            return Mono.just(json.findValue("Value"));
+        });
+    }
+
+    /**
+     * Runs an Alpaca compliant GET request to the specified endpoint asynchronously.
+     * @param deviceType The device type, e.g. "telescope"
+     * @param deviceNumber The device number, e.g. 0
+     * @param action The action to perform, e.g. "connected"
+     * @return A Mono that will return the value of the call.
+     * @throws WebClientException If the command could not be processed by the server
+     */
+    public Mono<JsonNode> get(String deviceType, int deviceNumber, String action) throws WebClientException {
+        return get(deviceType + "/" + deviceNumber + "/" + action);
+    }
 
     /**
      * Runs an Alpaca compliant GET request to the specified endpoint.
@@ -137,10 +186,8 @@ public class AlpacaClient {
      * @throws ASCOMException If the execution of the call returns an error
      * @throws WebClientResponseException If the command could not be processed by the server
      */
-    public JsonNode get(String shortEndpoint) throws DeviceUnavailableException, ASCOMException, WebClientResponseException {
-        String url = "/api/v1/" + shortEndpoint + "?clientid=" + clientID + "&clienttransactionid=" + transactionCounter++;
-        
-        JsonNode response = makeManualGetReq(url);
+    public JsonNode getAwait(String shortEndpoint) throws DeviceUnavailableException, ASCOMException, WebClientResponseException {
+        JsonNode response = get(shortEndpoint).block();
 
         if (response == null) {
             throw new DeviceUnavailableException("No response from server when calling " + shortEndpoint);
@@ -162,20 +209,19 @@ public class AlpacaClient {
      * @throws ASCOMException If the execution of the call returns an error
      * @throws WebClientResponseException If the command could not be processed by the server
      */
-    public JsonNode get(String deviceType, int deviceNumber, String action) throws DeviceUnavailableException, ASCOMException, WebClientResponseException {
-        return get(deviceType + "/" + deviceNumber + "/" + action);
+    public JsonNode getAwait(String deviceType, int deviceNumber, String action) throws DeviceUnavailableException, ASCOMException, WebClientResponseException {
+        return getAwait(deviceType + "/" + deviceNumber + "/" + action);
     }
 
     /**
-     * Runs an Alpaca compliant PUT request to the specified endpoint.
-     * Warning: This method is synchronous
+     * Runs an Alpaca compliant PUT request to the specified endpoint asynchronously.
+     * Warning: This method does not check for errors, those must be checked when using the Mono returned by this method.
      * @param shortEndpoint The endpoint to call, without prefixes, e.g. telescope/0/slewtocoordinates
      * @param args The arguments to pass to the call
-     * @throws DeviceUnavailableException If the server is not available
-     * @throws ASCOMException If the execution of the call returns an error
+     * @return A Mono that can return the response from the server
      * @throws WebClientResponseException If the command could not be processed by the server
      */
-    public void put(String shortEndpoint, MultiValueMap<String, String> args) throws DeviceUnavailableException, ASCOMException, WebClientResponseException {
+    public Mono<JsonNode> put(String shortEndpoint, MultiValueMap<String, String> args) throws DeviceUnavailableException, ASCOMException, WebClientResponseException {
         String url = "/api/v1/" + shortEndpoint;
 
         MultiValueMap<String, String> body;
@@ -188,7 +234,54 @@ public class AlpacaClient {
         body.add("ClientID", Integer.toString(clientID));
         body.add("ClientTransactionID", Integer.toString(transactionCounter++));
 
-        JsonNode response = makeManualPutReq(url, body);
+        return makeManualPutReq(url, body).flatMap(json -> {
+            if (json == null)
+                return Mono.error(new DeviceUnavailableException("No response from server when calling " + shortEndpoint));
+            
+            int errNo = json.findValue("ErrorNumber").asInt();
+            if (errNo != 0)
+                    return Mono.error(new ASCOMException(errNo, json.findValue("ErrorMessage").asText()));
+            return Mono.just(json.findValue("Value"));
+        });
+    }
+
+    /**
+     * Runs an Alpaca compliant PUT request asynchronously.
+     * Warning: This method does not check for errors, those must be checked when using the Mono returned by this method.
+     * @param deviceType The type of device, e.g. "telescope"
+     * @param deviceNumber The zero based index of the device as set on the server
+     * @param action The action to poll, e.g. "slewtocoordinates"
+     * @param args The arguments to pass to the call
+     * @return A Mono that can return the response from the server
+     * @throws WebClientResponseException
+     */
+    public Mono<JsonNode> put(String deviceType, int deviceNumber, String action, MultiValueMap<String, String> args) throws WebClientResponseException {
+        return put(deviceType + "/" + deviceNumber + "/" + action, args);
+    }
+
+    /**
+     * Runs an Alpaca compliant PUT request to the specified endpoint.
+     * Warning: This method is synchronous
+     * @param shortEndpoint The endpoint to call, without prefixes, e.g. telescope/0/slewtocoordinates
+     * @param args The arguments to pass to the call
+     * @throws DeviceUnavailableException If the server is not available
+     * @throws ASCOMException If the execution of the call returns an error
+     * @throws WebClientResponseException If the command could not be processed by the server
+     */
+    public void putAwait(String shortEndpoint, MultiValueMap<String, String> args) throws DeviceUnavailableException, ASCOMException, WebClientResponseException {
+        String url = "/api/v1/" + shortEndpoint;
+
+        MultiValueMap<String, String> body;
+
+        if (args == null)
+            body = new LinkedMultiValueMap<>(2);
+        else
+            body = new LinkedMultiValueMap<>(args);
+        
+        body.add("ClientID", Integer.toString(clientID));
+        body.add("ClientTransactionID", Integer.toString(transactionCounter++));
+
+        JsonNode response = makeManualPutReqAwait(url, body);
 
         if (response == null) {
             throw new DeviceUnavailableException("No response from server when calling " + shortEndpoint);
@@ -209,77 +302,11 @@ public class AlpacaClient {
      * @throws ASCOMException If the execution of the call returns an error
      * @throws WebClientResponseException If the command could not be processed by the server
      */
-    public void put(String deviceType, int deviceNumber, String action, MultiValueMap<String, String> args) throws DeviceUnavailableException, ASCOMException, WebClientResponseException {
-        put(deviceType + "/" + deviceNumber + "/" + action, args);
+    public void putAwait(String deviceType, int deviceNumber, String action, MultiValueMap<String, String> args) throws DeviceUnavailableException, ASCOMException, WebClientResponseException {
+        putAwait(deviceType + "/" + deviceNumber + "/" + action, args);
     }
-
-    /**
-     * Runs an Alpaca compliant PUT request to the specified endpoint asynchronously.
-     * Warning: This method does not check for errors, those must be checked when using the Mono returned by this method.
-     * @param shortEndpoint The endpoint to call, without prefixes, e.g. telescope/0/slewtocoordinates
-     * @param args The arguments to pass to the call
-     * @return A Mono that can return the response from the server
-     * @throws WebClientResponseException If the command could not be processed by the server
-     */
-    public Mono<JsonNode> putAsync(String shortEndpoint, MultiValueMap<String, String> args) throws WebClientResponseException {
-        String url = "/api/v1/" + shortEndpoint;
-
-        MultiValueMap<String, String> body;
-
-        if (args == null)
-            body = new LinkedMultiValueMap<>(2);
-        else
-            body = new LinkedMultiValueMap<>(args);
-        
-        body.add("ClientID", Integer.toString(clientID));
-        body.add("ClientTransactionID", Integer.toString(transactionCounter++));
-
-        return makeManualPutReqAsync(url, body);
-    }
-
-    /**
-     * Runs an Alpaca compliant PUT request asynchronously.
-     * Warning: This method does not check for errors, those must be checked when using the Mono returned by this method.
-     * @param deviceType The type of device, e.g. "telescope"
-     * @param deviceNumber The zero based index of the device as set on the server
-     * @param action The action to poll, e.g. "slewtocoordinates"
-     * @param args The arguments to pass to the call
-     * @return A Mono that can return the response from the server
-     * @throws WebClientResponseException
-     */
-    public Mono<JsonNode> putAsync(String deviceType, int deviceNumber, String action, MultiValueMap<String, String> args) throws WebClientResponseException {
-        return putAsync(deviceType + "/" + deviceNumber + "/" + action, args);
-    }
-
-    /**
-     * Runs an Alpaca compliant PUT request asynchronously and discards the server's response.
-     * Warning: There is no way to check for errors with this method.
-     * @param shortEndpoint The endpoint to call, without prefixes, e.g. telescope/0/slewtocoordinates
-     * @param args The arguments to pass to the call
-     * @throws WebClientResponseException If the command could not be processed by the server
-     */
-    public void execute(String shortEndpoint, MultiValueMap<String, String> args) throws WebClientResponseException {
-        Mono<JsonNode> response = putAsync(shortEndpoint, args);
-        response.subscribe();
-    }
-
-    /**
-     * Runs an Alpaca compliant PUT request asynchronously and discards the server's response.
-     * @param deviceType The type of device, e.g. "telescope"
-     * @param deviceNumber The zero based index of the device as set on the server
-     * @param action The action to poll, e.g. "slewtocoordinates"
-     * @param args The arguments to pass to the call
-     * @throws WebClientResponseException If the command could not be processed by the server
-     */
-    public void execute(String deviceType, int deviceNumber, String action, MultiValueMap<String, String> args) throws WebClientResponseException {
-        execute(deviceType + "/" + deviceNumber + "/" + action, args);
-    }
-
 
     public Object cameraPhoto() {
-        // TODO A way to get the image from a pic. Maybe there's a way to store it in a file?
         throw new UnsupportedOperationException("Not implemented yet");
     }
-
-    
 }

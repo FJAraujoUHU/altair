@@ -6,6 +6,8 @@ import com.aajpm.altair.utility.exception.DeviceException;
 import com.aajpm.altair.utility.webutils.AlpacaClient;
 import com.fasterxml.jackson.databind.JsonNode;
 
+import reactor.core.publisher.Mono;
+
 public class ASCOMDomeService extends DomeService {
     
     AlpacaClient client;
@@ -26,48 +28,48 @@ public class ASCOMDomeService extends DomeService {
     //<editor-fold defaultstate="collapsed" desc="Getters">
     
     @Override
-    public double getAlt() throws DeviceException {
-        return this.get("altitude").asDouble();
+    public Mono<Double> getAlt() throws DeviceException {
+        return this.get("altitude").map(JsonNode::asDouble);
     }
 
     @Override
-    public double getAz() throws DeviceException {
-        return this.get("azimuth").asDouble();
+    public Mono<Double> getAz() throws DeviceException {
+        return this.get("azimuth").map(JsonNode::asDouble);
     }
 
     @Override
-    public int getShutterStatus() throws DeviceException {
-        return this.get("shutterstatus").asInt();
+    public Mono<Integer> getShutterStatus() throws DeviceException {
+        return this.get("shutterstatus").map(JsonNode::asInt);
     }
 
     @Override
-    public boolean isAtHome() throws DeviceException {
-        return this.get("athome").asBoolean();
+    public Mono<Boolean> isAtHome() throws DeviceException {
+        return this.get("athome").map(JsonNode::asBoolean);
     }
 
     @Override
-    public boolean isConnected() {
-        return this.get("connected").asBoolean();
+    public Mono<Boolean> isConnected() {
+        return this.get("connected").map(JsonNode::asBoolean);
     }
 
     @Override
-    public boolean isParked() throws DeviceException {
-        return this.get("atpark").asBoolean();
+    public Mono<Boolean> isParked() throws DeviceException {
+        return this.get("atpark").map(JsonNode::asBoolean);
     }
 
     @Override
-    public boolean isShutterOpen() throws DeviceException {
-        return this.getShutterStatus() == 0;
+    public Mono<Boolean> isShutterOpen() throws DeviceException {
+        return this.getShutterStatus().map(status -> status == DomeService.SHUTTER_OPEN);
     }
 
     @Override
-    public boolean isSlaved() throws DeviceException {
-        return this.get("slaved").asBoolean();
+    public Mono<Boolean> isSlaved() throws DeviceException {
+        return this.get("slaved").map(JsonNode::asBoolean);
     }
 
     @Override
-    public boolean isSlewing() throws DeviceException {
-        return this.get("slewing").asBoolean();
+    public Mono<Boolean> isSlewing() throws DeviceException {
+        return this.get("slewing").map(JsonNode::asBoolean);
     }
 
     //</editor-fold>
@@ -78,64 +80,64 @@ public class ASCOMDomeService extends DomeService {
     public void connect() throws DeviceException {
         MultiValueMap<String, String> params = new LinkedMultiValueMap<>(1);
         params.add("Connected", String.valueOf(true));
-        this.put("connected", params);
+        this.execute("connected", params);
     }
 
     @Override
     public void disconnect() throws DeviceException {
         MultiValueMap<String, String> params = new LinkedMultiValueMap<>(1);
         params.add("Connected", String.valueOf(false));
-        this.put("connected", params);
+        this.execute("connected", params);
     }
 
     @Override
-    public void closeShutter() throws DeviceException {
-        this.put("closeshutter", null);
+    public void closeShutterAwait() throws DeviceException {
+        this.put("closeshutter", null).block();
         
     }
     @Override
-    public void closeShutterAsync() throws DeviceException {
+    public void closeShutter() throws DeviceException {
         this.execute("closeshutter", null);
         
     }
 
     @Override
-    public void findHome() throws DeviceException {
-        this.put("findhome", null);
+    public void findHomeAwait() throws DeviceException {
+        this.put("findhome", null).block();
     }
 
     @Override
-    public void findHomeAsync() throws DeviceException {
+    public void findHome() throws DeviceException {
         this.execute("findhome", null);
     }
 
     @Override
     public void halt() throws DeviceException {
-        this.put("abortslew", null);
+        this.execute("abortslew", null);
+    }
+
+    @Override
+    public void openShutterAwait() throws DeviceException {
+        this.put("openshutter", null).block();
     }
 
     @Override
     public void openShutter() throws DeviceException {
-        this.put("openshutter", null);
-    }
-
-    @Override
-    public void openShutterAsync() throws DeviceException {
         this.execute("openshutter", null);
     }
 
     @Override
-    public void park() throws DeviceException {
-        this.put("park", null);
+    public void parkAwait() throws DeviceException {
+        this.put("park", null).block();
     }
 
     @Override
-    public void parkAsync() throws DeviceException {
+    public void park() throws DeviceException {
         this.execute("park", null); 
     }
 
     @Override
-    public void setAlt(double degrees) throws DeviceException {
+    public void setAltAwait(double degrees) throws DeviceException {
         if (degrees < 0) {
             degrees = 0;
         } else if (degrees > 90) {
@@ -143,11 +145,11 @@ public class ASCOMDomeService extends DomeService {
         }
         MultiValueMap<String, String> params = new LinkedMultiValueMap<>(1);
         params.add("Altitude", String.valueOf(degrees));
-        this.put("slewtoaltitude", params);
+        this.put("slewtoaltitude", params).block();
     }
 
     @Override
-    public void setAltAsync(double degrees) throws DeviceException {
+    public void setAlt(double degrees) throws DeviceException {
         if (degrees < 0) {
             degrees = 0;
         } else if (degrees > 90) {
@@ -162,7 +164,21 @@ public class ASCOMDomeService extends DomeService {
     public void setSlaved(boolean slaved) throws DeviceException {
         MultiValueMap<String, String> params = new LinkedMultiValueMap<>(1);
         params.add("Slaved", String.valueOf(slaved));
-        this.put("slaved", params);
+        this.execute("slaved", params);
+    }
+
+    @Override
+    public void slewAwait(double az) throws DeviceException {
+        az = az % 360;
+        if (az < 0) {
+            az += 360;
+        }
+        if (az == 360) {
+            az = 0;
+        }
+        MultiValueMap<String, String> params = new LinkedMultiValueMap<>(1);
+        params.add("Azimuth", String.valueOf(az));
+        this.put("slewtoazimuth", params).block();
     }
 
     @Override
@@ -176,49 +192,35 @@ public class ASCOMDomeService extends DomeService {
         }
         MultiValueMap<String, String> params = new LinkedMultiValueMap<>(1);
         params.add("Azimuth", String.valueOf(az));
-        this.put("slewtoazimuth", params);
+        this.execute("slewtoazimuth", params);  
     }
 
     @Override
-    public void slewAsync(double az) throws DeviceException {
-        az = az % 360;
-        if (az < 0) {
-            az += 360;
-        }
-        if (az == 360) {
-            az = 0;
-        }
-        MultiValueMap<String, String> params = new LinkedMultiValueMap<>(1);
-        params.add("Azimuth", String.valueOf(az));
-        this.execute("slewtoazimuth", params);  
+    public void unparkAwait() throws DeviceException {
+        // ASCOM does not have an unpark method, so we call findHome instead.
+        this.findHomeAwait();
     }
 
     @Override
     public void unpark() throws DeviceException {
         // ASCOM does not have an unpark method, so we call findHome instead.
-        this.findHome();
-    }
-
-    @Override
-    public void unparkAsync() throws DeviceException {
-        // ASCOM does not have an unpark method, so we call findHome instead.
-        this.findHomeAsync(); 
+        this.findHome(); 
     }
 
     //</editor-fold>
     ///////////////////////////////// HELPERS /////////////////////////////////
     //<editor-fold defaultstate="collapsed" desc="Helpers">
 
-    private JsonNode get(String action) {
+    private Mono<JsonNode> get(String action) {
         return client.get("dome", deviceNumber, action);
     }
 
-    private void put(String action, MultiValueMap<String, String> params) {
-        client.put("dome", deviceNumber, action, params);
+    private Mono<JsonNode> put(String action, MultiValueMap<String, String> params) {
+        return client.put("dome", deviceNumber, action, params);
     }
 
     private void execute(String action, MultiValueMap<String, String> params) {
-        client.execute("dome", deviceNumber, action, params);
+        client.put("dome", deviceNumber, action, params).subscribe();
     }
 
     //</editor-fold>

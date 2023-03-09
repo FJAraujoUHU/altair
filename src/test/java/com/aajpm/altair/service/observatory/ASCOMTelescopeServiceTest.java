@@ -23,28 +23,28 @@ public class ASCOMTelescopeServiceTest {
         client = new AlpacaClient(url, 5000, 60000);
         service = new ASCOMTelescopeService(client, deviceNumber);
 
-        if (!service.isConnected()) {
+        if (!service.isConnected().block()) {
             service.connect();
         }
-        if (service.isTracking()) {
+        if (service.isTracking().block()) {
             service.setTracking(false);
         }
-        if (!service.isParked()) {
-            service.park();
+        if (!service.isParked().block()) {
+            service.parkAwait();
         }
         service.disconnect();
     }
 
     @BeforeEach
     void beforeEach() {
-        if (!service.isConnected()) {
+        if (!service.isConnected().block()) {
             service.connect();
         }
     }
 
     @AfterAll
     static void afterClass() {
-        if (service.isConnected()) {
+        if (service.isConnected().block()) {
             service.disconnect();
         }
     }
@@ -52,15 +52,15 @@ public class ASCOMTelescopeServiceTest {
     @Test
     void testAbortSlew() throws Exception {
         service.connect();
-        if (service.isParked()) {
-            service.unpark();
+        if (service.isParked().block()) {
+            service.unparkAwait();
         }
-        service.slewToAltAzAsync(45, 90);
+        service.slewToAltAz(45, 90);
         Thread.sleep(1000);
-        assertTrue(service.isSlewing());
+        assertTrue(service.isSlewing().block());
         service.abortSlew();
         Thread.sleep(100);
-        assertFalse(service.isSlewing());
+        assertFalse(service.isSlewing().block());
     }
 
     @Test
@@ -69,10 +69,10 @@ public class ASCOMTelescopeServiceTest {
         System.out.println("--- testSlewToAltAz -> error tolerance: " + maxError + " degrees ---");
 
         service.connect();
-        if (service.isParked()) {
-            service.unpark();
+        if (service.isParked().block()) {
+            service.unparkAwait();
         }
-        double altAz[] = service.getAltAz();
+        double altAz[] = service.getAltAz().block();
 
         double startAlt = altAz[0];
         double startAz = altAz[1];
@@ -82,8 +82,8 @@ public class ASCOMTelescopeServiceTest {
         System.out.println("\tTarget position: " + targetAlt + "º, " + targetAz + "º");
         System.out.println("\tSlewing...");
 
-        service.slewToAltAz(targetAlt, targetAz);
-        altAz = service.getAltAz();
+        service.slewToAltAzAwait(targetAlt, targetAz);
+        altAz = service.getAltAz().block();
         double actualAlt = altAz[0];
         double actualAz = altAz[1];
         System.out.println("\tActual position: " + actualAlt + "º, " + actualAz + "º");
@@ -100,10 +100,10 @@ public class ASCOMTelescopeServiceTest {
         System.out.println("--- testSlewToAltAzAsync ---");
 
         service.connect();
-        if (service.isParked()) {
-            service.unpark();
+        if (service.isParked().block()) {
+            service.unparkAwait();
         }
-        double altAz[] = service.getAltAz();
+        double altAz[] = service.getAltAz().block();
 
         double startAlt = altAz[0];
         double startAz = altAz[1];
@@ -113,10 +113,10 @@ public class ASCOMTelescopeServiceTest {
         System.out.println("\tTarget position: " + targetAlt + "º, " + targetAz + "º");
         System.out.println("\tSlewing...");
 
-        service.slewToAltAzAsync(targetAlt, targetAz);
+        service.slewToAltAz(targetAlt, targetAz);
         Thread.sleep(waitTime);
         
-        altAz = service.getAltAz();
+        altAz = service.getAltAz().block();
         double actualAlt = altAz[0];
         double actualAz = altAz[1];
         System.out.println("\tActual position: " + actualAlt + "º, " + actualAz + "º");

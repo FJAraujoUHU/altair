@@ -3,6 +3,9 @@ package com.aajpm.altair.service;
 import com.aajpm.altair.security.account.AltairUser;
 import com.aajpm.altair.service.observatory.*;
 import com.aajpm.altair.utility.webutils.AlpacaClient;
+
+import reactor.core.publisher.Mono;
+
 import com.aajpm.altair.utility.exception.DeviceException;
 import com.aajpm.altair.utility.exception.DeviceUnavailableException;
 
@@ -32,19 +35,19 @@ public class ASCOMObservatoryService extends ObservatoryService {
     }
 
     @Override
-    public void start() throws DeviceUnavailableException {
+    public void startAwait() throws DeviceUnavailableException {
         telescope.connect();
         dome.connect();
 
-        telescope.unparkAsync();
-        telescope.findHomeAsync();
-        dome.findHome();
+        telescope.unpark();
+        telescope.findHome();
+        dome.findHomeAwait();
 
         int tries = 0;
         int waitTime = 1000;
 
         // Wait for dome and telescope to find home
-        while(!(dome.isAtHome() && telescope.isAtHome()) && tries++ < responseTimeout/waitTime) {
+        while(!(dome.isAtHome().block() && telescope.isAtHome().block()) && tries++ < responseTimeout/waitTime) {
             try {
                 Thread.sleep(1000);
             } catch (InterruptedException e) {
@@ -62,7 +65,7 @@ public class ASCOMObservatoryService extends ObservatoryService {
     @Override
     public void start(boolean parked) throws DeviceUnavailableException {
         if (!parked) {
-            start();
+            startAwait();
         } else {
             telescope.connect();
             dome.connect();
@@ -72,30 +75,30 @@ public class ASCOMObservatoryService extends ObservatoryService {
     }
 
     @Override
-    public void startAsync() {
+    public void start() {
         telescope.connect();
         dome.connect();
 
-        dome.findHomeAsync();
-        telescope.unparkAsync();
-        telescope.findHomeAsync();
+        dome.findHome();
+        telescope.unpark();
+        telescope.findHome();
 
         this.state = ObservatoryService.State.IDLE;
     }
 
     @Override
-    public void stop() {
+    public void stopAwait() {
         dome.setSlaved(false);
-        dome.closeShutterAsync();
-        dome.parkAsync();
-        telescope.parkAsync();
+        dome.closeShutter();
+        dome.park();
+        telescope.park();
 
 
         int tries = 0;
         int waitTime = 1000;
 
         // Wait for dome and telescope to find home
-        while(!(dome.isParked() && telescope.isParked()) && tries++ < responseTimeout/waitTime) {
+        while(!(dome.isParked().block() && telescope.isParked().block()) && tries++ < responseTimeout/waitTime) {
             try {
                 Thread.sleep(1000);
             } catch (InterruptedException e) {
@@ -111,18 +114,6 @@ public class ASCOMObservatoryService extends ObservatoryService {
         telescope.disconnect();
         dome.disconnect();
         this.state = ObservatoryService.State.OFF;
-    }
-
-    @Override
-    public boolean connected(String device) {
-        switch (device.toUpperCase()) {
-            case "TELESCOPE":
-                return telescope.isConnected();
-            case "DOME":
-                return dome.isConnected();
-            default:
-                throw new IllegalArgumentException("Invalid device name");
-        }
     }
 
     @Override
