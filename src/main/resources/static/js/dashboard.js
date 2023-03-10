@@ -3,6 +3,8 @@ $(document).ready(function () {
     source.onmessage = function (event) {
         let data = JSON.parse(event.data);
         console.log(data);
+
+        // Telescope
         $("#tsConnected").text(data.tsConnected);
         $("#tsSiderealTime").text(toHMS(data.tsSiderealTime));
         $("#tsRightAscension").text(toHMS(data.tsRightAscension));
@@ -13,6 +15,8 @@ $(document).ready(function () {
         $("#tsTracking").text(data.tsTracking);
         $("#tsAtHome").text(data.tsAtHome);
         $("#tsParked").text(data.tsParked);
+        
+        // Dome
         $("#dmConnected").text(data.dmConnected);
         $("#dmAzimuth").text(toDMS(data.dmAzimuth));
 

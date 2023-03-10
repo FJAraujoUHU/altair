@@ -15,27 +15,27 @@ public class ASCOMException extends DeviceException {
             return "ASCOM Driver Error 0x" + Integer.toHexString(errorCode);
         }
         switch(errorCode) {
-            case 0x400:
+            case 0x400: // 1024
                 return "ASCOM Error: Method not implemented (0x400)";
-            case 0x401:
+            case 0x401: // 1025
                 return "ASCOM Error: Invalid value (0x401)";
-            case 0x402:
+            case 0x402: // 1026
                 return "ASCOM Error: Value not set (0x402)";
-            case 0x407:
+            case 0x407: // 1031
                 return "ASCOM Error: Not connected (0x407)";
-            case 0x408:
+            case 0x408: // 1032
                 return "ASCOM Error: Invalid while parked (0x408)";
-            case 0x409:
+            case 0x409: // 1033
                 return "ASCOM Error: Invalid while slaved (0x409)";
-            case 0x40A:
+            case 0x40A: // 1034
                 return "ASCOM Error: Settings related error (0x40A)";
-            case 0x40B:
+            case 0x40B: // 1035
                 return "ASCOM Error: Invalid operation (0x40B)";
-            case 0x40C:
+            case 0x40C: // 1036
                 return "ASCOM Error: Action not implemented (0x40C)";
-            case 0x40D:
+            case 0x40D: // 1037
                 return "ASCOM Error: Item not present in the ASCOM cache (0x40D)";
-            case 0x4FF:
+            case 0x4FF: // 1279
                 return "ASCOM Error: Unspecified error (0x4FF)";
             default:
                 return "ASCOM Error: Unknown error (0x" + Integer.toHexString(errorCode) + ")";

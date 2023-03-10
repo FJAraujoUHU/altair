@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/thymeleaf-extras-springsecurity6"
+    data-bs-theme="dark">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-GLhlTQ8iRABdZLl6O3oVMWSktQOp6b7In1Zl3/Jr59b6EGGoI1aFkw7cmDA6j6gD" crossorigin="anonymous">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <link href="/css/noArrowsOnInput.css" rel="stylesheet">
+    <title>Telescope</title>
+</head>
+
+<body style="padding-top: 60px">
+    <nav class="navbar fixed-top bg-primary flex-md-nowrap p-0 shadow">
+        <div class="container-fluid">
+            <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasNavbar"
+                aria-controls="offcanvasNavbar">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <a class="navbar-brand" href="/altair/observatory/dashboard">Altair</a>
+            <ul class="navbar-nav">
+                <li class="nav-item" sec:authorize="isAuthenticated()">
+                    <a class="nav-link" href="javascript: logoutForm.submit();">Sign Out</a>
+                </li>
+                <li class="nav-item" sec:authorize="!isAuthenticated()">
+                    <a class="nav-link" href="/login" sec:authorize="!isAuthenticated()">Login</a>
+                </li>
+            </ul>
+        </div>
+        <div class="offcanvas offcanvas-start" tabindex="-1" id="offcanvasNavbar">
+            <div class="offcanvas-header">
+                <h5 class="offcanvas-title" id="offcanvasNavbarLabel">Devices</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+            </div>
+            <div class="offcanvas-body">
+                <ul class="navbar-nav justify-content-end flex-grow-1 pe-3">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/altair/observatory/dashboard">Dashboard</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/altair/observatory/telescope">Telescope</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/altair/observatory/dome">Dome</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <main style="padding-left: 1.5rem; padding-right: 1.5rem">
+        <div class="row row-cols-1 row-cols-sm-2 row-cols-xl-3 g-3">
+            <div class="col mx-auto">
+                <div class="card h-100 text-bg-primary mx-auto" style="max-width: 32rem; min-width: 15rem">
+                    <div class="card-header"><h5 class="card-title">Status</h5></div>
+                    <div class="card-body text-bg-light">
+                        <div class="row flex-nowrap">
+                            <div class="col-auto">
+                                <p class="card-text">
+                                    Connected: <br>
+                                    LST: <br>
+                                    RA: <br>
+                                    DEC: <br>
+                                    Altitude: <br>
+                                    Azimuth: <br>
+                                    Slewing: <br>
+                                    Tracking: <br>
+                                    At Home: <br>
+                                    Parked: <br>
+                                </p>
+                            </div>
+                            <div class="col">
+                                <p class="card-text">
+                                    <span id="tsConnected">???</span><br>
+                                    <span id="tsSiderealTime">???</span><br>
+                                    <span id="tsRightAscension">???</span><br>
+                                    <span id="tsDeclination">???</span><br>
+                                    <span id="tsAltitude">???</span><br>
+                                    <span id="tsAzimuth">???</span><br>
+                                    <span id="tsSlewing">???</span><br>
+                                    <span id="tsTracking">???</span><br>
+                                    <span id="tsAtHome">???</span><br>
+                                    <span id="tsParked">???</span><br>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div> 
+            </div>
+            <div class="col mx-auto" sec:authorize="hasRole('ADVANCED_USER')">
+                <div class="card h-100 text-bg-primary" style="max-width: 32rem; min-width: 15rem" id="controlPanel">
+                    <div class="card-header"><h5 class="card-title">Control</h5></div>
+                    <div class="card-body text-bg-light">
+                        <div class="container-fluid">
+                            <div class="d-flex flex-row justify-content-between p-1">
+                                <div class="col-3">
+                                    <button type="button" class="btn btn-primary w-100 text-nowrap" id="tsPark" disabled>Park</button>
+                                </div>
+                                <div class="col-4">
+                                    <button type="button" class="btn btn-primary w-100 text-nowrap" id="tsConnect" disabled>Connect</button>
+                                </div>
+                                <div class="col-3">
+                                    <button type="button" class="btn btn-primary w-100 text-nowrap" id="tsGoHome" disabled>Home</button>
+                                </div>
+                            </div>
+                            <div class="d-flex flex-row justify-content-center p-1">
+                                <div class="col-3">
+                                    <button type="button" class="btn btn-primary w-100 tsslew" id="tsSlewN" disabled>N</button>
+                                </div>
+                            </div>
+                            <div class="d-flex flex-row justify-content-center">
+                                <div class="col-3">
+                                    <button type="button" class="btn btn-primary w-100 tsslew" id="tsSlewW" disabled>W</button>
+                                </div>
+                                <div class="col-3">
+                                    <button type="button" class="btn btn-primary w-100 text-bg-danger" id="tsAbort" disabled>
+                                        <i class="bi bi-sign-stop"></i>
+                                    </button>
+                                </div>
+                                <div class="col-3">
+                                    <button type="button" class="btn btn-primary w-100 tsslew" id="tsSlewE" disabled>E</button>
+                                </div>
+                            </div>
+                            <div class="d-flex flex-row justify-content-center p-1">
+                                <div class="col-3">
+                                    <button type="button" class="btn btn-primary w-100 tsslew" id="tsSlewS" disabled>S</button>
+                                </div>
+                            </div>
+                            <div class="d-flex flex-row justify-content-between align-items-center p-1">
+                                <div class="col-5 ">
+                                    <div class="form-check form-switch w-100">
+                                        <input class="form-check-input" type="checkbox" role="switch" id="tsTrack">
+                                        <label class="form-check-label" for="tsTrack">Tracking</label>
+                                    </div>
+                                </div>
+                                <div class="col-5 justify-content-between align-items-center p-1">
+                                    <div class="row align-items-center justify-content-end flex-nowrap">
+                                        <div class="col-auto">
+                                            <label class="form-label" for="tsRate">Rate</label>
+                                        </div>
+                                        <div class="col-auto">
+                                            <select class="form-select text-bg-primary" id="tsRate">
+                                                <option value="0.00416666">15"</option>
+                                                <option value="0.00833333">30"</option>
+                                                <option value="0.01666666">1'</option>
+                                                <option value="0.08333333">5'</option>
+                                                <option value="0.25000000" selected>15'</option>
+                                                <option value="0.50000000">30'</option>
+                                                <option value="1.00000000">1°</option>
+                                                <option value="5.00000000">5°</option>
+                                                <option value="15.00000000">15°</option>
+                                                <option value="30.00000000">30°</option>
+                                            </select>
+                                        </div>    
+                                    </div>  
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col mx-auto" sec:authorize="hasRole('ADVANCED_USER')">
+                <div class="card h-100 text-bg-primary" style="max-width: 32rem; min-width: 15rem" id="slewPanel">
+                    <div class="card-header">
+                        <div class="d-flex flex-row justify-content-between align-items-center">
+                            <div class="col-auto">
+                                <h5 class="card-title">Slew to</h5>
+                            </div>
+                            <div class="col-auto">
+                                <ul class="nav nav-tabs card-header-tabs" data-bs-tabs="tabs" id="tsSlewTabs">
+                                    <li class="nav-item">
+                                        <a class="nav-link active" aria-current="true" data-bs-toggle="tab" href="#raDec">RA/DEC</a>
+                                    </li>
+                                    <li class="nav-item">
+                                        <a class="nav-link" data-bs-toggle="tab" href="#altAz">Alt/Az</a>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    <form class="card-body tab-content text-bg-light" id="tsSlewAbs">
+                        <div class="tab-pane active" id="raDec">
+                            <div class="d-flex flex-row justify-content-between">
+                                <div class="col-9">
+                                    <div class="row">
+                                        <div class="input-group mb-3">
+                                            <div class="d-flex">
+                                                <span class="input-group-text text-center">RA</span>
+                                                <input type="number" class="form-control flex-fill tsslewra" placeholder="--" min="0" max="23" id="tsSlewRAhours">
+                                                <span class="input-group-text">H</span>
+                                                <input type="number" class="form-control flex-fill tsslewra" placeholder="--" min="0" max="59" id="tsSlewRAmins">
+                                                <span class="input-group-text">M</span>
+                                                <input type="number" class="form-control flex-fill tsslewra" placeholder="--" min="0" max="59" id="tsSlewRAsecs">
+                                                <span class="input-group-text">S</span>
+                                            </div>
+                                        </div>
+                                        <div class="input-group mb-3">
+                                            <div class="d-flex">
+                                                <span class="input-group-text text-center">Dec</span>
+                                                <input type="text" class="form-control flex-fill tsslewdec" placeholder="---" id="tsSlewDECdegs">
+                                                <span class="input-group-text">°</span>
+                                                <input type="number" class="form-control flex-fill tsslewdec" placeholder="--" min="0" max="59" id="tsSlewDECmins">
+                                                <span class="input-group-text">&#39;</span>
+                                                <input type="number" class="form-control flex-fill tsslewdec" placeholder="--" min="0" max="59" id="tsSlewDECsecs">
+                                                <span class="input-group-text">&quot;</span>   
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-2 mb-3">
+                                    <button class="btn btn-primary w-100 h-100" type="submit" id="tsSlewRaDecBtn" disabled>Slew</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="tab-pane" id="altAz">   
+                            <div class="d-flex flex-row justify-content-between">
+                                <div class="col-9">
+                                    <div class="row">
+                                        <div class="input-group mb-3">
+                                            <div class="d-flex">
+                                                <span class="input-group-text text-center">Alt</span>
+                                                <input type="number" class="form-control flex-fill tsslewalt" placeholder="---" min="0" max="90" id="tsSlewALTdegs">
+                                                <span class="input-group-text">H</span>
+                                                <input type="number" class="form-control flex-fill tsslewalt" placeholder="--" min="0" max="59" id="tsSlewALTmins">
+                                                <span class="input-group-text">M</span>
+                                                <input type="number" class="form-control flex-fill tsslewalt" placeholder="--" min="0" max="59" id="tsSlewALTsecs">
+                                                <span class="input-group-text">S</span>
+                                            </div>
+                                        </div>
+                                        <div class="input-group mb-3">
+                                            <div class="d-flex">
+                                                <span class="input-group-text text-center">Az</span>
+                                                <input type="number" class="form-control flex-fill tsslewaz" placeholder="---" min="0" max="360" id="tsSlewAZdegs">
+                                                <span class="input-group-text">°</span>
+                                                <input type="number" class="form-control flex-fill tsslewaz" placeholder="--" min="0" max="59" id="tsSlewAZmins">
+                                                <span class="input-group-text">&#39;</span>
+                                                <input type="number" class="form-control flex-fill tsslewaz" placeholder="--" min="0" max="59" id="tsSlewAZsecs">
+                                                <span class="input-group-text">&quot;</span>   
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-2 mb-3">
+                                    <button class="btn btn-primary w-100 h-100" type="submit" id="tsSlewAltAzBtn" disabled>Slew</button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>      
+    </main>
+
+
+    <form type="hidden" name="logoutForm" th:hidden="true" method="post" th:action="@{/logout}">
+        <input type="submit" value="Logout" />
+    </form>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-w76AqPfDkMBDXo30jS1Sgez6pr3x5MlQ1ZAGC+nuZB+EYdgRZgiwxhTBTkF7CXvN"
+        crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.4/dist/jquery.min.js"
+        integrity="sha256-oP6HI9z1XaZNBrJURtCoUT5SUnxFr8s3BzRl+cbzUq8=" crossorigin="anonymous"></script>
+    <script src="/js/telescope.js"></script>
+</body>
+
+</html>
