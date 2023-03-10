@@ -59,7 +59,8 @@ $(document).ready(function () {
         $('#controlPanel').find('button:not(#tsConnect)').prop('disabled', !connected);
         $("#tsTrack").prop('disabled', !connected);
         $("#tsSlewRaDecBtn").prop('disabled', !tracking || !couldSlew());
-        $("#tsSlewAltAzBtn").prop('disabled', !couldSlew());
+        $("#tsSlewAltAzBtn").prop('disabled', tracking || !couldSlew());
+        $(".tsslew").prop('disabled', tracking || !couldSlew());
     };
 
     // Set up controls
@@ -186,7 +187,7 @@ $(document).ready(function () {
                 }
             });
 
-        } else if (mode === "#radec") {
+        } else if (mode === "#raDec") {
             let rahours = parseFloat($("#tsSlewRAhours").val());
             let ramins = parseFloat($("#tsSlewRAmins").val());
             let rasecs = parseFloat($("#tsSlewRAsecs").val());
