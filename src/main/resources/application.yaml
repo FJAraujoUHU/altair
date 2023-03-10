@@ -16,7 +16,7 @@ spring:
 logging:
     level:
         org:
-            springframework: DEBUG
+            springframework: INFO
 altair:
     security:
         maxAttempts: 3

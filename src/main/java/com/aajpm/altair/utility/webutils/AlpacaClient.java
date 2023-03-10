@@ -16,8 +16,12 @@ import com.aajpm.altair.utility.exception.DeviceUnavailableException;
 import com.fasterxml.jackson.databind.JsonNode;
 
 import io.netty.channel.ChannelOption;
+import reactor.core.publisher.Hooks;
 import reactor.core.publisher.Mono;
 import reactor.netty.http.client.HttpClient;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 public class AlpacaClient {
@@ -26,6 +30,8 @@ public class AlpacaClient {
     int transactionCounter = 1;
     
     int clientID = 0;
+
+    private final Logger logger = LoggerFactory.getLogger(AlpacaClient.class.getName());
     
     /**
      * Create a new AlpacaClient with the specified timeouts
@@ -42,6 +48,12 @@ public class AlpacaClient {
                             .responseTimeout(Duration.ofMillis(responseTimeout))
                             .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, connTimeout)))
                 .build();
+
+        Hooks.onErrorDropped(error -> {
+            if (!(error instanceof java.lang.IllegalStateException))    // Ignore, a bug in WebClient reports them twice.
+                logger.warn("Exception happened : ", error);
+        });
+        
     }
 
     /**
@@ -102,7 +114,8 @@ public class AlpacaClient {
             .uri(endpoint)
             .accept(MediaType.APPLICATION_JSON)
             .retrieve()
-            .bodyToMono(JsonNode.class);
+            .bodyToMono(JsonNode.class)
+            .doOnCancel(() -> {});
     }
     
     /**
@@ -130,7 +143,8 @@ public class AlpacaClient {
             .accept(MediaType.APPLICATION_JSON)
             .bodyValue(body)
             .retrieve()
-            .bodyToMono(JsonNode.class);
+            .bodyToMono(JsonNode.class)
+            .doOnCancel(() -> {});
     }
 
     /**

@@ -12,7 +12,6 @@ public class DomeStatus {
     boolean slewing;
     boolean slaved;
     String shutterStatus;
-
     
     public boolean isConnected() {
         return connected;
@@ -63,5 +62,16 @@ public class DomeStatus {
         this.shutterStatus = shutterStatus;
     }
 
-    
+    public static DomeStatus getErrorStatus() {
+        DomeStatus status = new DomeStatus();
+        status.setConnected(false);
+        status.setAzimuth(0);
+        status.setShutter(0);
+        status.setAtHome(false);
+        status.setParked(false);
+        status.setSlewing(false);
+        status.setSlaved(false);
+        status.setShutterStatus("Error");
+        return status;
+    }
 }

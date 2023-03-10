@@ -38,6 +38,8 @@ public class SecurityConfig {
             .requestMatchers("/js/**").permitAll()
             .requestMatchers("/login*").permitAll() // asterisk so that error messages can be appended
             .requestMatchers("/error").permitAll()
+            .requestMatchers("/altair/api/*/stream").permitAll()
+            .requestMatchers("/altair/api/**").hasRole("ADVANCED_USER")
             .requestMatchers("/altair/**").permitAll()
             .anyRequest().denyAll()
         ).formLogin()
@@ -51,7 +53,6 @@ public class SecurityConfig {
         .permitAll()
         .and()
         .build();
-
     }
 
     @Bean

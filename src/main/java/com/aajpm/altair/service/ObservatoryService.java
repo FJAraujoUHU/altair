@@ -136,7 +136,8 @@ public abstract class ObservatoryService {
      * @throws DeviceException If there was an error getting the status.
      */
     public Mono<ObservatoryStatus> getStatus() throws DeviceException {
-        return Mono.zip(getTelescope().getStatus(), getDome().getStatus(), ObservatoryStatus::new);      
+        return Mono.zip(getTelescope().getStatus(), getDome().getStatus(), ObservatoryStatus::new)
+                    .onErrorReturn(ObservatoryStatus.getErrorStatus());      
     }
 
     /**

@@ -6,33 +6,26 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 
 import com.aajpm.altair.service.ObservatoryService;
-import com.aajpm.altair.service.observatory.TelescopeService;
+import com.aajpm.altair.service.observatory.DomeService;
 
 import jakarta.annotation.PostConstruct;
 
 @Controller
-@RequestMapping("/altair/observatory/telescope")
-public class TelescopeController {
-
+@RequestMapping("/altair/observatory/dome")
+public class DomeController {
+    
     @Autowired
     ObservatoryService observatory;
-
-    TelescopeService telescope;
-
+    
+    DomeService dome;
+    
     @PostConstruct
     public void init() {
-        telescope = observatory.getTelescope();
+        dome = observatory.getDome();
     }
-
+    
     @GetMapping("")
     public String dashboard() {
-        return "observatory/telescope.html";
+        return "observatory/dome.html";
     }
-
-    
-    
-    // TODO: Implement "Job" class
-    // TODO: Implement API Controller to handle info requests and commands to the telescope
-    // TODO: Implement views
-    
 }

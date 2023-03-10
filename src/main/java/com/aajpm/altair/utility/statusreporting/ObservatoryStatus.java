@@ -1,5 +1,8 @@
 package com.aajpm.altair.utility.statusreporting;
 
+import com.aajpm.altair.utility.statusreporting.DomeStatus;
+import com.aajpm.altair.utility.statusreporting.TelescopeStatus;
+
 /**
  * POJO for reporting the general status of the observatory
  */
@@ -151,6 +154,10 @@ public class ObservatoryStatus {
     }
     public void setDmShutterStatus(String dmShutterStatus) {
         this.dmShutterStatus = dmShutterStatus;
+    }
+
+    public static ObservatoryStatus getErrorStatus() {
+        return new ObservatoryStatus(TelescopeStatus.getErrorStatus(), DomeStatus.getErrorStatus());
     }
 
 }

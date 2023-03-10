@@ -135,7 +135,7 @@ public abstract class DomeService {
                     status.setSlaved(tuple.getT7());
                     status.setSlewing(tuple.getT8());
                     return status;
-                });
+                }).onErrorReturn(DomeStatus.getErrorStatus());
         return ret;
     }
 

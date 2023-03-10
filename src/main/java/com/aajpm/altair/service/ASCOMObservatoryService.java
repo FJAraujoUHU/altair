@@ -4,8 +4,6 @@ import com.aajpm.altair.security.account.AltairUser;
 import com.aajpm.altair.service.observatory.*;
 import com.aajpm.altair.utility.webutils.AlpacaClient;
 
-import reactor.core.publisher.Mono;
-
 import com.aajpm.altair.utility.exception.DeviceException;
 import com.aajpm.altair.utility.exception.DeviceUnavailableException;
 

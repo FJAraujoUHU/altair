@@ -105,8 +105,7 @@ public abstract class TelescopeService {
                     status.setTracking(tuple.getT7());
                     status.setSiderealTime(tuple.getT8());
                     return status;
-                });
-
+                }).onErrorReturn(TelescopeStatus.getErrorStatus());
         return ret;
     }
 
