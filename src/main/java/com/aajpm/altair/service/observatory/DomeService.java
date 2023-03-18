@@ -8,7 +8,7 @@ import reactor.core.publisher.Mono;
 public abstract class DomeService {
 
     /////////////////////////////// CONSTANTS /////////////////////////////////
-    //<editor-fold defaultstate="collapsed" desc="Constants">
+    //#region Constants
 
     public static final int SHUTTER_OPEN = 0;
     public static final int SHUTTER_CLOSED = 1;
@@ -16,9 +16,9 @@ public abstract class DomeService {
     public static final int SHUTTER_CLOSING = 3;
     public static final int SHUTTER_ERROR = 4;
 
-    //</editor-fold>
+    //#endregion
     ///////////////////////////////// GETTERS /////////////////////////////////
-    //<editor-fold defaultstate="collapsed" desc="Getters">
+    //#region Getters
 
     /**
      * Returns true if the dome is connected.
@@ -139,9 +139,9 @@ public abstract class DomeService {
         return ret;
     }
 
-    //</editor-fold>
+    //#endregion
     ///////////////////////////// SETTERS/ACTIONS /////////////////////////////
-    //<editor-fold defaultstate="collapsed" desc="Setters/Actions">
+    //#region Setters/Actions
 
     /**
      * Connects to the dome.
@@ -316,7 +316,9 @@ public abstract class DomeService {
      */
     public void slewRelative(double degrees) throws DeviceException {
         getAz().subscribe(azimuth -> {
-            slew(azimuth + degrees);
+            double newAzimuth = azimuth + degrees;
+            newAzimuth = newAzimuth % 360; // Wrap around
+            slew(newAzimuth);
         });
     }
 
@@ -326,7 +328,10 @@ public abstract class DomeService {
      * @throws DeviceException If there was an error setting the azimuth.
      */
     public void slewRelativeAwait(double degrees) throws DeviceException {
-        slewAwait(getAz().block() + degrees);
+        double currentAz = getAz().block();
+        double newAzimuth = currentAz + degrees;
+        newAzimuth = newAzimuth % 360; // Wrap around
+        slewAwait(newAzimuth);
     }
 
     /**
@@ -378,5 +383,5 @@ public abstract class DomeService {
      */
     public abstract void halt() throws DeviceException;
 
-    //</editor-fold>
+    //#endregion
 }
