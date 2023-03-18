@@ -27,6 +27,16 @@ public class ObservatoryController {
         return "observatory/dashboard.html";
     }
 
+    @GetMapping("/telescope")
+    public String telescope(Model model) {
+        return "observatory/telescope.html";
+    }
+
+    @GetMapping("/dome")
+    public String dome(Model model) {
+        return "observatory/dome.html";
+    }
+
     @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     @ResponseBody
     public Flux<ObservatoryStatus> getStatus() {

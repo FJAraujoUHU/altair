@@ -1,8 +1,5 @@
 package com.aajpm.altair.utility.statusreporting;
 
-import com.aajpm.altair.utility.statusreporting.DomeStatus;
-import com.aajpm.altair.utility.statusreporting.TelescopeStatus;
-
 /**
  * POJO for reporting the general status of the observatory
  */
