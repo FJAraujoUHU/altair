@@ -1,7 +1,7 @@
 package com.aajpm.altair.utility.statusreporting;
 
 /**
- * POJO for reporting telescope status
+ * DTO for reporting telescope status
  */
 public class TelescopeStatus {
     boolean connected;

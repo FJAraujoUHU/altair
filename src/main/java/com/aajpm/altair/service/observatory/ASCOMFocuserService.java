@@ -63,9 +63,10 @@ public class ASCOMFocuserService extends FocuserService {
     public void connect() throws DeviceException {
         MultiValueMap<String, String> params = new LinkedMultiValueMap<>(1);
         params.add("Connected", String.valueOf(true));
-        this.put("connected", params).subscribe(ret -> {
-            absolute = this.get("absolute").map(JsonNode::asBoolean).block();
-        });
+        this.put("connected", params)
+            .subscribe(ret ->
+            absolute = this.get("absolute").map(JsonNode::asBoolean).block()
+            );
     }
 
     @Override

@@ -19,6 +19,10 @@ logging:
             springframework: INFO
 altair:
     security:
-        maxAttempts: 3
-        lockoutTime: 300
+        max-attempts: 3
+        lockout-time: 300
+        default-password: hikoboshi
+    observatory:
+        status-update-interval: 2500
+
 

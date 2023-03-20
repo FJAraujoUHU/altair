@@ -24,6 +24,13 @@ public class SetupDataLoader implements ApplicationListener<ContextRefreshedEven
     @Autowired
     private PasswordEncoder encoder;
 
+    private AltairSecurityConfig securityConfig;
+
+    @Autowired
+    public SetupDataLoader(AltairSecurityConfig securityConfig) {
+        this.securityConfig = securityConfig;
+    }
+
 
     // Makes sure that the database is populated with the right roles and
     // creates a default Admin account.
@@ -46,9 +53,8 @@ public class SetupDataLoader implements ApplicationListener<ContextRefreshedEven
             adminUser = new AltairUser();
             adminUser.setUsername("admin");
             adminUser.setEnabled(true);
-            // Please, change this default password before deploying to production,
-            // as it is a major security risk.
-            adminUser.setPassword(encoder.encode("hikoboshi"));
+            // Please, change this default password before rolling out to production.
+            adminUser.setPassword(encoder.encode(securityConfig.getDefaultPassword()));
             adminUser.addRole(adminRole);
             adminUser.addRole(advUserRole);
             adminUser.addRole(basicUserRole);

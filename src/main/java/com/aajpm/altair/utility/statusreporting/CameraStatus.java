@@ -1,11 +1,14 @@
 package com.aajpm.altair.utility.statusreporting;
 
+/**
+ * DTO for reporting the status of a camera
+ */
+// TODO: Add more fields as needed
 public class CameraStatus {
     boolean connected;
     double temperature;
     double coolerPower;
     String status;
-
 
     public boolean isConnected() {
         return connected;

@@ -23,7 +23,6 @@ public class AltairApplication {
 
 	@RequestMapping(value={"/index.html", "/", "/index"})
     public String hello(Model model) {
-		System.out.println("buildName: " + buildProperties.getName() + " buildVersion: " + buildProperties.getVersion());
 		model.addAttribute("buildName", buildProperties.getName());
 		model.addAttribute("buildVersion", buildProperties.getVersion());
     	return "index.html";

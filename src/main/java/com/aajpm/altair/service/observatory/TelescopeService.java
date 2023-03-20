@@ -8,16 +8,16 @@ import reactor.core.publisher.Mono;
 public abstract class TelescopeService {
 
     /////////////////////////////// CONSTANTS /////////////////////////////////
-    //<editor-fold defaultstate="collapsed" desc="Constants">
+    //#region Constants
 
     public static final int DIRECTION_NORTH = 0;
     public static final int DIRECTION_EAST = 1;
     public static final int DIRECTION_SOUTH = 2;
     public static final int DIRECTION_WEST = 3;
     
-    //</editor-fold>
+    //#endregion
     ///////////////////////////////// GETTERS /////////////////////////////////
-    //<editor-fold defaultstate="collapsed" desc="Getters">
+    //#region Getters
     
     /**
      * Returns true if the telescope is connected.
@@ -110,9 +110,9 @@ public abstract class TelescopeService {
     }
 
 
-    //</editor-fold>
+    //#endregion
     ///////////////////////////// SETTERS/ACTIONS /////////////////////////////
-    //<editor-fold defaultstate="collapsed" desc="Setters/Actions">
+    //#region Setters/Actions
 
     /**
      * Connects to the telescope.
@@ -268,5 +268,5 @@ public abstract class TelescopeService {
      */
     public abstract void setTracking(boolean tracking) throws DeviceException;
 
-    //</editor-fold>
+    //#endregion
 }

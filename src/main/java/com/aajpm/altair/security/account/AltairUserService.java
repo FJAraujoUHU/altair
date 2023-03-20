@@ -9,8 +9,8 @@ import java.time.LocalDateTime;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import org.springframework.beans.factory.annotation.Value;
 
+import com.aajpm.altair.config.AltairSecurityConfig;
 import com.aajpm.altair.utility.exception.UsernameTakenException;
 
 import jakarta.transaction.Transactional;
@@ -24,11 +24,12 @@ public class AltairUserService implements UserDetailsService {
     @Autowired
     private RoleRepository roleRepository;
 
-    @Value("${altair.security.lockoutTime:300}")
-    private int lockoutTime;
+    private AltairSecurityConfig securityConfig;
 
-    @Value("${altair.security.maxAttempts:3}")
-    private int maxAttempts;
+    @Autowired
+    public AltairUserService(AltairSecurityConfig securityConfig) {
+        this.securityConfig = securityConfig;
+    }
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
@@ -68,7 +69,7 @@ public class AltairUserService implements UserDetailsService {
     @Scheduled(fixedDelay = 60000)
     @Transactional
     public void resetFailedLoginAttempts() {
-        userRepository.findTimeoutDoneUsers(LocalDateTime.now().minusSeconds(lockoutTime))
+        userRepository.findTimeoutDoneUsers(LocalDateTime.now().minusSeconds(securityConfig.getLockoutTime()))
                 .forEach(user -> {
                     user.setFailedLoginAttempts(0);
                     user.setLocked(false);
@@ -89,7 +90,7 @@ public class AltairUserService implements UserDetailsService {
         if (user.isAccountNonLocked()) {    // so that timeouts don't stack
             user.setLastLoginAttempt(LocalDateTime.now());
         }
-        if (attempts >= maxAttempts) {
+        if (attempts >= securityConfig.getMaxAttempts()) {
             user.setLocked(true);
         }
         userRepository.save(user);

@@ -136,8 +136,9 @@ public abstract class ObservatoryService {
      * @throws DeviceException If there was an error getting the status.
      */
     public Mono<ObservatoryStatus> getStatus() throws DeviceException {
-        return Mono.zip(getTelescope().getStatus(), getDome().getStatus(), ObservatoryStatus::new)
-                    .onErrorReturn(ObservatoryStatus.getErrorStatus());      
+        return Mono.zip(getTelescope().getStatus(), getDome().getStatus(), getFocuser().getStatus())
+                .map(tuple -> new ObservatoryStatus(tuple.getT1(), tuple.getT2(), tuple.getT3()))
+                .onErrorReturn(ObservatoryStatus.getErrorStatus()); 
     }
 
     /**
@@ -153,5 +154,12 @@ public abstract class ObservatoryService {
      * @throws DeviceUnavailableException If the dome is unaccessible/not configured.
      */
     public abstract DomeService getDome();
+
+    /**
+     * Returns the focuser service.
+     * @return The focuser service.
+     * @throws DeviceUnavailableException If the focuser is unaccessible/not configured.
+     */
+    public abstract FocuserService getFocuser();
 
 }

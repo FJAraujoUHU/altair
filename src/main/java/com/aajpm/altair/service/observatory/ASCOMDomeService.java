@@ -25,7 +25,7 @@ public class ASCOMDomeService extends DomeService {
     }
 
     ///////////////////////////////// GETTERS /////////////////////////////////
-    //<editor-fold defaultstate="collapsed" desc="Getters">
+    //#region Getters
     
     @Override
     public Mono<Double> getAlt() throws DeviceException {
@@ -72,9 +72,9 @@ public class ASCOMDomeService extends DomeService {
         return this.get("slewing").map(JsonNode::asBoolean);
     }
 
-    //</editor-fold>
+    //#endregion
     ///////////////////////////// SETTERS/ACTIONS /////////////////////////////
-    //<editor-fold defaultstate="collapsed" desc="Setters/Actions">
+    //#region Setters/Actions
 
     @Override
     public void connect() throws DeviceException {
@@ -207,9 +207,9 @@ public class ASCOMDomeService extends DomeService {
         this.findHome(); 
     }
 
-    //</editor-fold>
+    //#endregion
     ///////////////////////////////// HELPERS /////////////////////////////////
-    //<editor-fold defaultstate="collapsed" desc="Helpers">
+    //#region Helpers
 
     private Mono<JsonNode> get(String action) {
         return client.get("dome", deviceNumber, action);
@@ -223,5 +223,5 @@ public class ASCOMDomeService extends DomeService {
         client.put("dome", deviceNumber, action, params).subscribe();
     }
 
-    //</editor-fold>
+    //#endregion
 }

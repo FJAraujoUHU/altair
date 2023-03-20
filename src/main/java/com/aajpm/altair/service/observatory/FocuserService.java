@@ -7,9 +7,8 @@ import reactor.core.publisher.Mono;
 
 public abstract class FocuserService {
     
-
     ///////////////////////////////// GETTERS /////////////////////////////////
-    ////#region Getters
+    //#region Getters
 
     /**
      * Returns whether the focuser is connected
@@ -69,9 +68,9 @@ public abstract class FocuserService {
             }).onErrorReturn(FocuserStatus.getErrorStatus());
     }
 
-    ////#endregion Getters
+    //#endregion Getters
     ///////////////////////////// SETTERS/ACTIONS /////////////////////////////
-    ////#region Setters/Actions
+    //#region Setters/Actions
 
     /**
      * Connects the focuser
@@ -137,5 +136,5 @@ public abstract class FocuserService {
      */
     public abstract void setTempComp(boolean enable) throws DeviceException;
 
-    ////#endregion Setters
+    //#endregion Setters
 }

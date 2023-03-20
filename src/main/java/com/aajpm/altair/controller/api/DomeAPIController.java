@@ -4,6 +4,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.aajpm.altair.config.ObservatoryConfig;
 import com.aajpm.altair.service.ObservatoryService;
 import com.aajpm.altair.service.observatory.DomeService;
 
@@ -26,6 +27,9 @@ public class DomeAPIController {
     @Autowired
     ObservatoryService observatory;
 
+    @Autowired
+    ObservatoryConfig config;
+
     DomeService dome;
 
     @PostConstruct
@@ -35,7 +39,7 @@ public class DomeAPIController {
 
     @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<DomeStatus> getStatus() {
-        return Flux.interval(Duration.ofSeconds(1))
+        return Flux.interval(Duration.ofMillis(config.getStatusUpdateInterval()))
                 .flatMap(i -> dome.getStatus());
     }
 

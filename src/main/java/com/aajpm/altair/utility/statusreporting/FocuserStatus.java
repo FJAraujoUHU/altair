@@ -1,7 +1,7 @@
 package com.aajpm.altair.utility.statusreporting;
 
 /**
- * POJO for reporting the status of a focuser
+ * DTO for reporting the status of a focuser
  */
 public class FocuserStatus {
     boolean connected;

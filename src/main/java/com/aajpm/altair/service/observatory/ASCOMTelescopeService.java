@@ -29,7 +29,7 @@ public class ASCOMTelescopeService extends TelescopeService {
     }
 
     ///////////////////////////////// GETTERS /////////////////////////////////
-    //<editor-fold defaultstate="collapsed" desc="Getters">
+    //#region Getters
 
     @Override
     public Mono<Boolean> isConnected() {
@@ -78,9 +78,9 @@ public class ASCOMTelescopeService extends TelescopeService {
         return this.get("siderealtime").map(JsonNode::asDouble);
     }
 
-    //</editor-fold>
+    //#endregion
     ///////////////////////////// SETTERS/ACTIONS /////////////////////////////
-    //<editor-fold defaultstate="collapsed" desc="Setters/Actions">
+    //#region Setters/Actions
 
     @Override
     public void connect() throws DeviceException {
@@ -170,9 +170,9 @@ public class ASCOMTelescopeService extends TelescopeService {
         this.execute("tracking", args);
     }
     
-    //</editor-fold>
+    //#endregion
     ///////////////////////////////// HELPERS /////////////////////////////////
-    //<editor-fold defaultstate="collapsed" desc="Helpers">
+    //#region Helpers
 
     private Mono<JsonNode> get(String action) {
         return client.get("telescope", deviceNumber, action);
@@ -186,5 +186,5 @@ public class ASCOMTelescopeService extends TelescopeService {
         client.put("telescope", deviceNumber, action, params).subscribe();
     }
 
-    //</editor-fold>
+    //#endregion
 }

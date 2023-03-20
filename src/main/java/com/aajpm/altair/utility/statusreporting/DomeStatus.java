@@ -1,7 +1,7 @@
 package com.aajpm.altair.utility.statusreporting;
 
 /**
- * POJO for reporting the status of a dome
+ * DTO for reporting the status of a dome
  */
 public class DomeStatus {
     boolean connected;

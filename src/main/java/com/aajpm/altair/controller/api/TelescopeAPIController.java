@@ -4,6 +4,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.aajpm.altair.config.ObservatoryConfig;
 import com.aajpm.altair.service.ObservatoryService;
 import com.aajpm.altair.service.observatory.TelescopeService;
 
@@ -26,6 +27,9 @@ public class TelescopeAPIController {
     @Autowired
     ObservatoryService observatory;
 
+    @Autowired
+    ObservatoryConfig config;
+
     TelescopeService telescope;
 
     @PostConstruct
@@ -35,7 +39,7 @@ public class TelescopeAPIController {
 
     @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<TelescopeStatus> getStatus() {
-        return Flux.interval(Duration.ofSeconds(1))
+        return Flux.interval(Duration.ofMillis(config.getStatusUpdateInterval()))
                 .flatMap(i -> telescope.getStatus());
     }
 

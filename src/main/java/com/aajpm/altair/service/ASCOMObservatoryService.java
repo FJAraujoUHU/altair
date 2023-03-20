@@ -17,11 +17,13 @@ public class ASCOMObservatoryService extends ObservatoryService {
 
     ASCOMTelescopeService telescope;
     ASCOMDomeService dome;
+    ASCOMFocuserService focuser;
 
     public ASCOMObservatoryService(String baseURL) {
         alpaca = new AlpacaClient(baseURL, connTimeout, responseTimeout);
         telescope = new ASCOMTelescopeService(alpaca);
         dome = new ASCOMDomeService(alpaca);
+        focuser = new ASCOMFocuserService(alpaca);
     }
 
     public TelescopeService getTelescope() {
@@ -30,6 +32,10 @@ public class ASCOMObservatoryService extends ObservatoryService {
 
     public DomeService getDome() {
         return dome;
+    }
+
+    public FocuserService getFocuser() {
+        return focuser;
     }
 
     @Override

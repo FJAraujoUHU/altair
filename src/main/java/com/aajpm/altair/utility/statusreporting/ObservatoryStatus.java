@@ -1,9 +1,10 @@
 package com.aajpm.altair.utility.statusreporting;
 
 /**
- * POJO for reporting the general status of the observatory
+ * DTO for reporting the general status of the observatory
  */
 public class ObservatoryStatus {
+    // Telescope status
     boolean tsConnected;
     double tsAltitude;
     double tsAzimuth;
@@ -14,6 +15,7 @@ public class ObservatoryStatus {
     boolean tsSlewing;
     boolean tsTracking;
     double tsSiderealTime;
+    // Dome status
     boolean dmConnected;
     double dmAzimuth;
     int dmShutter;
@@ -22,9 +24,17 @@ public class ObservatoryStatus {
     boolean dmSlewing;
     boolean dmSlaved;
     String dmShutterStatus;
+    // Focuser status
+    boolean fcConnected;
+    int fcPosition;
+    double fcTemperature;
+    boolean fcTempComp;
+    boolean fcMoving;
+    
 
     public ObservatoryStatus() {}
-    public ObservatoryStatus(TelescopeStatus ts, DomeStatus ds) {
+    public ObservatoryStatus(TelescopeStatus ts, DomeStatus ds, FocuserStatus fs) {
+        // Telescope status
         tsConnected = ts.isConnected();
         tsAltitude = ts.getAltitude();
         tsAzimuth = ts.getAzimuth();
@@ -35,6 +45,7 @@ public class ObservatoryStatus {
         tsSlewing = ts.isSlewing();
         tsTracking = ts.isTracking();
         tsSiderealTime = ts.getSiderealTime();
+        // Dome status
         dmConnected = ds.isConnected();
         dmAzimuth = ds.getAzimuth();
         dmShutter = ds.getShutter();
@@ -43,6 +54,12 @@ public class ObservatoryStatus {
         dmSlewing = ds.isSlewing();
         dmSlaved = ds.isSlaved();
         dmShutterStatus = ds.getShutterStatus();
+        // Focuser status
+        fcConnected = fs.isConnected();
+        fcPosition = fs.getPosition();
+        fcTemperature = fs.getTemperature();
+        fcTempComp = fs.isTempComp();
+        fcMoving = fs.isMoving();
     }
     public boolean isTsConnected() {
         return tsConnected;
@@ -153,8 +170,39 @@ public class ObservatoryStatus {
         this.dmShutterStatus = dmShutterStatus;
     }
 
+    public boolean isFcConnected() {
+        return fcConnected;
+    }
+    public void setFcConnected(boolean fcConnected) {
+        this.fcConnected = fcConnected;
+    }
+    public int getFcPosition() {
+        return fcPosition;
+    }
+    public void setFcPosition(int fcPosition) {
+        this.fcPosition = fcPosition;
+    }
+    public double getFcTemperature() {
+        return fcTemperature;
+    }
+    public void setFcTemperature(double fcTemperature) {
+        this.fcTemperature = fcTemperature;
+    }
+    public boolean isFcTempComp() {
+        return fcTempComp;
+    }
+    public void setFcTempComp(boolean fcTempComp) {
+        this.fcTempComp = fcTempComp;
+    }
+    public boolean isFcMoving() {
+        return fcMoving;
+    }
+    public void setFcMoving(boolean fcMoving) {
+        this.fcMoving = fcMoving;
+    }
+
     public static ObservatoryStatus getErrorStatus() {
-        return new ObservatoryStatus(TelescopeStatus.getErrorStatus(), DomeStatus.getErrorStatus());
+        return new ObservatoryStatus(TelescopeStatus.getErrorStatus(), DomeStatus.getErrorStatus(), FocuserStatus.getErrorStatus());
     }
 
 }
