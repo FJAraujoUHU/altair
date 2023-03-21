@@ -9,7 +9,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-GLhlTQ8iRABdZLl6O3oVMWSktQOp6b7In1Zl3/Jr59b6EGGoI1aFkw7cmDA6j6gD" crossorigin="anonymous">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.3/font/bootstrap-icons.min.css" rel="stylesheet">
     <link href="/css/noArrowsOnInput.css" rel="stylesheet">
-    <title>Dome</title>
+    <title>Focuser</title>
 </head>
 
 <body style="padding-top: 60px">
@@ -43,53 +43,49 @@
                         <a class="nav-link" href="/altair/observatory/telescope">Telescope</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link active" href="/altair/observatory/dome">Dome</a>
+                        <a class="nav-link" href="/altair/observatory/dome">Dome</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="/altair/observatory/focuser">Focuser</a>
+                        <a class="nav-link active" href="/altair/observatory/focuser">Focuser</a>
                     </li>
                 </ul>
             </div>
         </div>
     </nav>
     <main style="padding-left: 1.5rem; padding-right: 1.5rem">
-        <div class="row row-cols-1 row-cols-sm-2 row-cols-xl-3 g-3">
+        <div class="row row-cols-1 row-cols-sm-2 g-3">
             <div class="col mx-auto">
-                <div class="card h-100 text-bg-primary mx-auto" style="max-width: 32rem; min-width: 15rem">
+                <div class="card h-100 text-bg-primary" style="max-width: 32rem; min-width: 15rem">
                     <div class="card-header"><h5 class="card-title">Status</h5></div>
                     <div class="card-body text-bg-light">
                         <div class="row flex-nowrap">
                             <div class="col-auto">
                                 <p class="card-text">
                                     Connected: <br>
-                                    Azimuth: <br>
-                                    Shutter: <br>
-                                    Slaved: <br>
-                                    Slewing: <br>
-                                    At Home: <br>
-                                    Parked: <br>
+                                    Position: <br>
+                                    Temperature: <br>
+                                    Compensation: <br>
+                                    Moving: <br>
                                 </p>
                             </div>
                             <div class="col">
                                 <p class="card-text">
-                                    <span id="dmConnected">???</span><br>
-                                    <span id="dmAzimuth">???</span><br>
-                                    <span id="dmShutter">???</span><br>
-                                    <span id="dmSlaved">???</span><br>
-                                    <span id="dmSlewing">???</span><br>
-                                    <span id="dmAtHome">???</span><br>
-                                    <span id="dmParked">???</span><br>
+                                    <span id="fcConnected">???</span><br>
+                                    <span id="fcPosition">???</span> steps<br>
+                                    <span id="fcTemperature">???</span> °C<br>
+                                    <span id="fcTempComp">???</span><br>
+                                    <span id="fcMoving">???</span><br>
                                 </p>
                             </div>
                         </div>
                     </div>
-                </div> 
+                </div>
             </div>
             <div class="col mx-auto" sec:authorize="hasRole('ADVANCED_USER')">
                 <div class="card h-100 text-bg-primary" style="max-width: 32rem; min-width: 15rem" id="controlPanel">
                     <div class="card-header"><h5 class="card-title">Control</h5></div>
                     <div class="card-body text-bg-light">
-                        <div class="container-fluid">
+                        <!--<div class="container-fluid">
                             <div class="d-flex flex-row justify-content-between p-1">
                                 <div class="col-3">
                                     <button type="button" class="btn btn-primary w-100 text-nowrap" id="dmPark" disabled>Park</button>
@@ -166,47 +162,7 @@
                                 </div>
                             </div>
                         </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col mx-auto" sec:authorize="hasRole('ADVANCED_USER')">
-                <div class="card h-100 text-bg-primary" style="max-width: 32rem; min-width: 15rem" id="slewPanel">
-                    <div class="card-header"><h5 class="card-title">Move to</h5></div>
-
-                    <div class="card-body text-bg-light container-fluid">
-                        <form class="row" id="dmSlewAbs">
-                            <div class="col-9">
-                                <p class="card-text">Slew dome</p>
-                                <div class="input-group mb-3">
-                                    <div class="d-flex flex-row justify-content-between">
-                                        <span class="input-group-text text-center">Az</span>
-                                        <input type="number" class="form-control flex-fill dmslewaz" placeholder="---" min="0" max="360" id="dmSlewDegs">
-                                        <span class="input-group-text">°</span>
-                                        <input type="number" class="form-control flex-fill dmslewaz" placeholder="--" min="0" max="59" id="dmSlewMins">
-                                        <span class="input-group-text">&#39;</span>
-                                        <input type="number" class="form-control flex-fill dmslewaz" placeholder="--" min="0" max="59" id="dmSlewSecs">
-                                        <span class="input-group-text">&quot;</span>   
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-3 align-items-center">
-                                <div class="d-flex flex-column justify-content-center align-items-center h-100">
-                                    <button type="submit" class="btn btn-primary w-100 dmslewaz" id="dmSlewTo" disabled>Slew</button>
-                                </div>
-                            </div>    
-                        </form>
-                        <div class="row">
-                            <div class="col-9">
-                                <label for="dmShutterSlider" class="form-label">Set shutter</label>
-                                <input type="range" class="form-range dmmoveshutterabs" min="0" max="1.0" step="0.01" value="0" id="dmShutterSlider">
-                            </div>
-                            <div class="col-3 align-items-center">
-                                <div class="d-flex flex-column justify-content-center align-items-center h-100">
-                                    <button type="button" class="btn btn-primary w-100 dmmoveshutterabs" id="dmSetTo" disabled>Set</button>
-                                </div>
-                            </div>  
-                        </div>
-                    </div>
+                    </div>-->
                 </div>
             </div>
         </div>      
@@ -222,7 +178,7 @@
         crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.4/dist/jquery.min.js"
         integrity="sha256-oP6HI9z1XaZNBrJURtCoUT5SUnxFr8s3BzRl+cbzUq8=" crossorigin="anonymous"></script>
-    <script src="/js/dome.js"></script>
+    <script src="/js/focuser.js"></script>
 </body>
 
 </html>

@@ -1,6 +1,7 @@
 let connected, azimuth, shutter, shutterStatus, slaved, slewing, atHome, parked;
 
 $(document).ready(function () {
+    // Set up CSRF token
     let token = $("meta[name='_csrf']").attr("content");
     let header = $("meta[name='_csrf_header']").attr("content");
     $(document).ajaxSend(function (e, xhr, options) {

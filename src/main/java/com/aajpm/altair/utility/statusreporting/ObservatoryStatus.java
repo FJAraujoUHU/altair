@@ -61,6 +61,15 @@ public class ObservatoryStatus {
         fcTempComp = fs.isTempComp();
         fcMoving = fs.isMoving();
     }
+
+    public static ObservatoryStatus getErrorStatus() {
+        return new ObservatoryStatus(TelescopeStatus.getErrorStatus(), DomeStatus.getErrorStatus(), FocuserStatus.getErrorStatus());
+    }
+    
+    /////////////////////////// Getters and Setters ///////////////////////////
+    //#region Getters and Setters
+    
+    // Telescope status
     public boolean isTsConnected() {
         return tsConnected;
     }
@@ -121,6 +130,8 @@ public class ObservatoryStatus {
     public void setTsSiderealTime(double tsSiderealTime) {
         this.tsSiderealTime = tsSiderealTime;
     }
+
+    // Dome status
     public boolean isDmConnected() {
         return dmConnected;
     }
@@ -170,6 +181,7 @@ public class ObservatoryStatus {
         this.dmShutterStatus = dmShutterStatus;
     }
 
+    // Focuser status
     public boolean isFcConnected() {
         return fcConnected;
     }
@@ -200,9 +212,6 @@ public class ObservatoryStatus {
     public void setFcMoving(boolean fcMoving) {
         this.fcMoving = fcMoving;
     }
-
-    public static ObservatoryStatus getErrorStatus() {
-        return new ObservatoryStatus(TelescopeStatus.getErrorStatus(), DomeStatus.getErrorStatus(), FocuserStatus.getErrorStatus());
-    }
+    //#endregion
 
 }

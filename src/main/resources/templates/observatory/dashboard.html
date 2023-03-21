@@ -43,12 +43,16 @@
                     <li class="nav-item">
                         <a class="nav-link" href="/altair/observatory/dome">Dome</a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/altair/observatory/focuser">Focuser</a>
+                    </li>
+                </ul>
                 </ul>
             </div>
         </div>
     </nav>
     <main style="padding-left: 1.5rem; padding-right: 1.5rem">
-        <div class="row row-cols-1 row-cols-sm-2 g-3">
+        <div class="row row-cols-1 row-cols-sm-2  row-cols-xl-3 g-3">
             <div class="col mx-auto">
                 <div class="card h-100 text-bg-primary" style="max-width: 32rem; min-width: 15rem">
                     <div class="card-header"><h5 class="card-title">Telescope</h5></div>
@@ -111,6 +115,33 @@
                                     <span id="dmSlewing">???</span><br>
                                     <span id="dmAtHome">???</span><br>
                                     <span id="dmParked">???</span><br>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col mx-auto">
+                <div class="card h-100 text-bg-primary" style="max-width: 32rem; min-width: 15rem">
+                    <div class="card-header"><h5 class="card-title">Focuser</h5></div>
+                    <div class="card-body text-bg-light">
+                        <div class="row flex-nowrap">
+                            <div class="col-auto">
+                                <p class="card-text">
+                                    Connected: <br>
+                                    Position: <br>
+                                    Temperature: <br>
+                                    Compensation: <br>
+                                    Moving: <br>
+                                </p>
+                            </div>
+                            <div class="col">
+                                <p class="card-text">
+                                    <span id="fcConnected">???</span><br>
+                                    <span id="fcPosition">???</span> steps<br>
+                                    <span id="fcTemperature">???</span> °C<br>
+                                    <span id="fcTempComp">???</span><br>
+                                    <span id="fcMoving">???</span><br>
                                 </p>
                             </div>
                         </div>

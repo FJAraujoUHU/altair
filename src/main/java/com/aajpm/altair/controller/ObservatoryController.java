@@ -45,6 +45,11 @@ public class ObservatoryController {
         return "observatory/dome.html";
     }
 
+    @GetMapping("/focuser")
+    public String focuser(Model model) {
+        return "observatory/focuser.html";
+    }
+
     @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     @ResponseBody
     public Flux<ObservatoryStatus> getStatus() {

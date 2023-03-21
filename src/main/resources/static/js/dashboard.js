@@ -19,18 +19,23 @@ $(document).ready(function () {
         // Dome
         $("#dmConnected").text(data.dmConnected);
         $("#dmAzimuth").text(toDMS(data.dmAzimuth));
-
         let shutter;
         if (data.dmShutterStatus.toUpperCase() === "OPEN")
             shutter = "Open at " + data.dmShutter + "\%";
         else
             shutter = data.dmShutterStatus;
         $("#dmShutter").text(shutter);
-
         $("#dmSlaved").text(data.dmSlaved);
         $("#dmSlewing").text(data.dmSlewing);
         $("#dmAtHome").text(data.dmAtHome);
         $("#dmParked").text(data.dmParked);
+
+        // Focuser
+        $("#fcConnected").text(data.fcConnected);
+        $("#fcPosition").text(data.fcPosition);
+        $("#fcTemperature").text(data.fcTemperature);
+        $("#fcTempComp").text(data.fcTempComp);
+        $("#fcMoving").text(data.fcMoving);
     };
 });
 
