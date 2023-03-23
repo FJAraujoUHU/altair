@@ -74,6 +74,7 @@ $(document).ready(function () {
         $(".dmmoveshutter").prop('disabled', !connected || (shutterStatus !== "OPEN"));
         $("#dmSetTo").prop('disabled', !connected || (shutterStatus !== "OPEN"))
         $(".dmslew, .dmslewaz").prop('disabled', !connected || !couldSlew());
+        $("#dmAbort").prop('disabled', !(slewing && connected));
     };
 
     // Set up controls

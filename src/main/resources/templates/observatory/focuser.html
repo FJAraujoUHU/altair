@@ -53,7 +53,7 @@
         </div>
     </nav>
     <main style="padding-left: 1.5rem; padding-right: 1.5rem">
-        <div class="row row-cols-1 row-cols-sm-2 g-3">
+        <div class="row row-cols-1 row-cols-md-2 g-3">
             <div class="col mx-auto">
                 <div class="card h-100 text-bg-primary" style="max-width: 32rem; min-width: 15rem">
                     <div class="card-header"><h5 class="card-title">Status</h5></div>
@@ -82,87 +82,51 @@
                 </div>
             </div>
             <div class="col mx-auto" sec:authorize="hasRole('ADVANCED_USER')">
-                <div class="card h-100 text-bg-primary" style="max-width: 32rem; min-width: 15rem" id="controlPanel">
+                <div class="card h-100 text-bg-primary" style="max-width: 32rem; min-width: 25rem" id="controlPanel">
                     <div class="card-header"><h5 class="card-title">Control</h5></div>
                     <div class="card-body text-bg-light">
-                        <!--<div class="container-fluid">
-                            <div class="d-flex flex-row justify-content-between p-1">
-                                <div class="col-3">
-                                    <button type="button" class="btn btn-primary w-100 text-nowrap" id="dmPark" disabled>Park</button>
+                        <div class="container text-center">
+                            <div class="row justify-content-around flex-nowrap">
+                                <div class="col-auto align-self-end justify-content-end me-auto">
+                                    <p>Move In<p>
+                                    <div class="btn-group" role="group" id="fcInBtnGroup">
+                                      <button type="button" class="btn btn-primary" id="fcIn3" data-steps="100"><i class="bi bi-skip-backward-fill" disabled></i></button>
+                                      <button type="button" class="btn btn-primary" id="fcIn2" data-steps="10"><i class="bi bi-skip-start-fill" disabled></i></button>
+                                      <button type="button" class="btn btn-primary" id="fcIn1" data-steps="1"><i class="bi bi-caret-left-fill" disabled></i></button>
+                                    </div>
                                 </div>
-                                <div class="col-4">
-                                    <button type="button" class="btn btn-primary w-100 text-nowrap" id="dmConnect" disabled>Connect</button>
-                                </div>
-                                <div class="col-3">
-                                    <button type="button" class="btn btn-primary w-100 text-nowrap" id="dmGoHome" disabled>Home</button>
-                                </div>
-                            </div>
-                            <div class="d-flex flex-row justify-content-center p-1">
-                                <div class="col-3">
-                                    <button type="button" class="btn btn-primary w-100 dmmoveshutter" id="dmSlewOpen" disabled>
-                                        <i class="bi bi-chevron-bar-expand"></i>
-                                    </button>
-                                </div>
-                            </div>
-                            <div class="d-flex flex-row justify-content-center">
-                                <div class="col-3">
-                                    <button type="button" class="btn btn-primary w-100 dmslew" id="dmSlewCCW" disabled>
-                                        <i class="bi bi-arrow-counterclockwise"></i>
-                                    </button>
-                                </div>
-                                <div class="col-3">
-                                    <button type="button" class="btn btn-primary w-100 text-bg-danger" id="dmAbort" disabled>
+                                <div class="col align-self-end d-inline-block">
+                                    <button type="button" class="btn btn-primary w-100 text-nowrap" id="fcConnect" disabled>Connect</button>
+                                    <p>Current position: <span class="form-control" id="fcPositionTxt">???</span></p>
+                                    <button type="button" class="btn btn-primary w-100 text-bg-danger" id="fcAbort" disabled>
                                         <i class="bi bi-sign-stop"></i>
                                     </button>
                                 </div>
-                                <div class="col-3">
-                                    <button type="button" class="btn btn-primary w-100 dmslew" id="dmSlewCW" disabled>
-                                        <i class="bi bi-arrow-clockwise"></i>
-                                    </button>
-                                </div>
-                            </div>
-                            <div class="d-flex flex-row justify-content-center p-1">
-                                <div class="col-3">
-                                    <button type="button" class="btn btn-primary w-100 dmmoveshutter" id="dmSlewClose" disabled>
-                                        <i class="bi bi-chevron-bar-contract"></i>
-                                    </button>
-                                </div>
-                            </div>
-                            <div class="d-flex flex-row justify-content-between align-items-center p-1">
-                                <div class="col-3 ">
-                                    <div class="form-check form-switch w-100">
-                                        <input class="form-check-input" type="checkbox" role="switch" id="dmSlave">
-                                        <label class="form-check-label" for="dmSlave">Slaved</label>
+                                <div class="col-auto align-self-end justify-content-start ms-auto">
+                                    <p>Move Out<p>
+                                    <div class="btn-group" role="group" id="fcOutBtnGroup">
+                                      <button type="button" class="btn btn-primary" id="fcOut1" data-steps="1"><i class="bi bi-caret-right-fill" disabled></i></button>
+                                      <button type="button" class="btn btn-primary" id="fcOut2" data-steps="10"><i class="bi bi-skip-end-fill" disabled></i></button>
+                                      <button type="button" class="btn btn-primary" id="fcOut3" data-steps="100"><i class="bi bi-skip-forward-fill" disabled></i></button>
                                     </div>
                                 </div>
-                                <div class="col-4 ">
-                                    <button type="button" class="btn btn-primary w-100 text-nowrap" id="dmShutterOpen" disabled>Open shutter</button>
+                            </div>
+                        </div>    
+                    </div> 
+                    <ul class="list-group list-group-flush w-100 text-bg-secondary">
+                        <li class="list-group-item text-bg-light">
+                            <div class="row justify-content-center flex-nowrap">
+                                <div class="col-auto align-self-center form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" role="switch" id="fcTempCompToggle" disabled>
+                                    <label class="form-check-label" for="fcTempCompToggle">Compensation</label>
                                 </div>
-                                <div class="col-3 justify-content-between align-items-center p-1">
-                                    <div class="row align-items-center justify-content-end flex-nowrap">
-                                        <div class="col-auto">
-                                            <label class="form-label" for="dmRate">Rate</label>
-                                        </div>
-                                        <div class="col-auto">
-                                            <select class="form-select text-bg-primary" id="dmRate">
-                                                <option value="0.00416666">15"</option>
-                                                <option value="0.00833333">30"</option>
-                                                <option value="0.01666666">1'</option>
-                                                <option value="0.08333333">5'</option>
-                                                <option value="0.25000000" >15'</option>
-                                                <option value="0.50000000">30'</option>
-                                                <option value="1.00000000">1°</option>
-                                                <option value="5.00000000" selected>5°</option>
-                                                <option value="15.00000000">15°</option>
-                                                <option value="30.00000000">30°</option>
-                                                <option value="90.00000000">90°</option>
-                                            </select>
-                                        </div>    
-                                    </div>  
+                                <div class="col align-self-center justify-content-end input-group">
+                                    <input type="number" class="form-control" id="fcMoveToTxt" placeholder="Move to...">
+                                    <button type="button" class="btn btn-primary" id="fcMoveToBtn" disabled>Go</button>
                                 </div>
                             </div>
-                        </div>
-                    </div>-->
+                        </li>
+                    </ul>      
                 </div>
             </div>
         </div>      

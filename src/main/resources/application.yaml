@@ -23,6 +23,6 @@ altair:
         lockout-time: 300
         default-password: hikoboshi
     observatory:
-        status-update-interval: 2500
+        status-update-interval: 500
 
 

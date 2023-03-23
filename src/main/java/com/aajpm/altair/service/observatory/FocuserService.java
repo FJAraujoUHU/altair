@@ -5,7 +5,6 @@ import com.aajpm.altair.utility.statusreporting.FocuserStatus;
 
 import reactor.core.publisher.Mono;
 
-// TODO : Control panel
 public abstract class FocuserService {
     
     ///////////////////////////////// GETTERS /////////////////////////////////

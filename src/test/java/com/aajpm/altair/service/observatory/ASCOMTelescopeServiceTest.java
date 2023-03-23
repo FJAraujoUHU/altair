@@ -3,11 +3,16 @@ package com.aajpm.altair.service.observatory;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestMethodOrder;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.aajpm.altair.utility.webutils.AlpacaClient;
 
+@TestMethodOrder(org.junit.jupiter.api.MethodOrderer.OrderAnnotation.class)
+@SuppressWarnings("java:S2925")
 public class ASCOMTelescopeServiceTest {
 
     static AlpacaClient client;
@@ -50,20 +55,7 @@ public class ASCOMTelescopeServiceTest {
     }
 
     @Test
-    void testAbortSlew() throws Exception {
-        service.connect();
-        if (service.isParked().block()) {
-            service.unparkAwait();
-        }
-        service.slewToAltAz(45, 90);
-        Thread.sleep(1000);
-        assertTrue(service.isSlewing().block());
-        service.abortSlew();
-        Thread.sleep(100);
-        assertFalse(service.isSlewing().block());
-    }
-
-    @Test
+    @Order(1)
     void testSlewToAltAz() throws Exception {
         int maxError = 5;  // max degrees of error between target and actual
         System.out.println("--- testSlewToAltAz -> error tolerance: " + maxError + " degrees ---");
@@ -95,6 +87,7 @@ public class ASCOMTelescopeServiceTest {
     }
 
     @Test
+    @Order(2)
     void testSlewToAltAzAsync() throws Exception {
         int waitTime = 1000;  // time to wait for slew to do something
         System.out.println("--- testSlewToAltAzAsync ---");
@@ -123,6 +116,21 @@ public class ASCOMTelescopeServiceTest {
         assertNotEquals(startAlt, actualAlt);
         assertNotEquals(startAz, actualAz);
         System.out.println("--- testSlewToAltAz -> success ---");
+    }
+
+    @Test
+    @Order(3)
+    void testAbortSlew() throws Exception {
+        service.connect();
+        if (service.isParked().block()) {
+            service.unparkAwait();
+        }
+        service.slewToAltAz(45, 90);
+        Thread.sleep(1000);
+        assertTrue(service.isSlewing().block());
+        service.abortSlew();
+        Thread.sleep(100);
+        assertFalse(service.isSlewing().block());
     }
 
 }

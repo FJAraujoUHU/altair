@@ -7,8 +7,8 @@ import com.aajpm.altair.utility.webutils.AlpacaClient;
 import com.fasterxml.jackson.databind.JsonNode;
 
 import reactor.core.publisher.Mono;
+import reactor.core.publisher.SignalType;
 
-// TODO: Test functionality
 public class ASCOMFocuserService extends FocuserService {
 
     AlpacaClient client;
@@ -64,9 +64,15 @@ public class ASCOMFocuserService extends FocuserService {
         MultiValueMap<String, String> params = new LinkedMultiValueMap<>(1);
         params.add("Connected", String.valueOf(true));
         this.put("connected", params)
-            .subscribe(ret ->
-            absolute = this.get("absolute").map(JsonNode::asBoolean).block()
-            );
+            .doFinally(signalType -> {
+                if (signalType == SignalType.ON_COMPLETE) {
+                    this.get("absolute")
+                        .map(JsonNode::asBoolean)
+                        .subscribe(ret -> this.absolute = ret);
+                }
+                    
+            })
+            .subscribe();
     }
 
     @Override
@@ -79,6 +85,9 @@ public class ASCOMFocuserService extends FocuserService {
     @Override
     public void move(int position) throws DeviceException {
         if (absolute == null) {
+            this.get("absolute")
+                .map(JsonNode::asBoolean)
+                .subscribe(ret -> this.absolute = ret);
             throw new DeviceException("Focuser not connected/ready");
         }
         int newPosition = Math.max(0, position); // Clamp to 0
@@ -97,7 +106,9 @@ public class ASCOMFocuserService extends FocuserService {
     @Override
     public void moveAwait(int position) throws DeviceException {
         if (absolute == null) {
-            throw new DeviceException("Focuser not connected/ready");
+            absolute = this.get("absolute").map(JsonNode::asBoolean).block();
+            if (absolute == null)
+                throw new DeviceException("Focuser not connected/ready");
         }
         int newPosition = Math.max(0, position); // Clamp to 0
         if (!absolute.booleanValue()) { // If the focuser is relative, we need to convert the position to relative

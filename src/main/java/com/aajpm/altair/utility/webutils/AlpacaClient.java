@@ -255,7 +255,10 @@ public class AlpacaClient {
             int errNo = json.findValue("ErrorNumber").asInt();
             if (errNo != 0)
                     return Mono.error(new ASCOMException(errNo, json.findValue("ErrorMessage").asText()));
-            return Mono.just(json.findValue("Value"));
+            JsonNode value = json.findValue("Value");
+            if (value == null)
+                return Mono.empty();
+            return Mono.just(value);
         });
     }
 

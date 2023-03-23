@@ -62,8 +62,8 @@ public class FocuserAPIController {
     }
 
     @PostMapping(value = "/moverelative")
-    public void moveRelative(@RequestParam(value = "position") int position) {
-        focuser.moveRelative(position);
+    public void moveRelative(@RequestParam(value = "steps") int steps) {
+        focuser.moveRelative(steps);
     }
 
     @PostMapping(value = "/tempcomp")

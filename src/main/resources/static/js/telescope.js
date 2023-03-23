@@ -61,6 +61,7 @@ $(document).ready(function () {
         $("#tsSlewRaDecBtn").prop('disabled', !tracking || !couldSlew());
         $("#tsSlewAltAzBtn").prop('disabled', tracking || !couldSlew());
         $(".tsslew").prop('disabled', tracking || !couldSlew());
+        $("#tsAbort").prop('disabled', !(slewing && connected));
     };
 
     // Set up controls
