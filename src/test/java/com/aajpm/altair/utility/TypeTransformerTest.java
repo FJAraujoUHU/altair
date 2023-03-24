@@ -1,4 +1,4 @@
-package com.aajpm.altair.utility.webutils;
+package com.aajpm.altair.utility;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -6,6 +6,7 @@ import java.math.BigInteger;
 
 import org.junit.jupiter.api.Test;
 
+import com.aajpm.altair.utility.TypeTransformer;
 
 public class TypeTransformerTest {
 

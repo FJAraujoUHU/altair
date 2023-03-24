@@ -14,10 +14,10 @@ public class AlpacaClientTest {
     static String url = "http://localhost:11111/";
     static AlpacaClient client = new AlpacaClient(url, 5000, 60000);
     
-    @Test
+    /*@Test
     void testCameraPhoto() {
         Mono<BufferedImage> image = client.cameraPhoto();
         client.cameraPhoto().block();
 
-    }
+    }*/
 }

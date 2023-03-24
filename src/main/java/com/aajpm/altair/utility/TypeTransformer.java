@@ -1,9 +1,9 @@
-package com.aajpm.altair.utility.webutils;
+package com.aajpm.altair.utility;
 
 import java.math.BigInteger;
 
 public class TypeTransformer {
-    enum NumberType {
+    enum NumberVarType {
         // 0 to 3 are used by the Alpaca standard
         UNKNOWN(0), 
         INT16(1),   // gets converted to int
@@ -20,7 +20,7 @@ public class TypeTransformer {
 
         private final int value;
 
-        private NumberType(int value) {
+        private NumberVarType(int value) {
             this.value = value;
         }
 
@@ -28,8 +28,26 @@ public class TypeTransformer {
             return value;
         }
 
-        public static NumberType fromValue(int value) {
-            for (NumberType type : NumberType.values()) {
+        public int getByteCount() {
+            switch (this) {
+                case INT16:
+                case UINT16:
+                    return 2;
+                case INT32:
+                case UINT32:
+                case SINGLE:
+                    return 4;
+                case INT64:
+                case UINT64:
+                case DOUBLE:
+                    return 8;
+                default:
+                    return 0;
+            }
+        }
+
+        public static NumberVarType fromValue(int value) {
+            for (NumberVarType type : NumberVarType.values()) {
                 if (type.getValue() == value)
                     return type;
             }
@@ -37,38 +55,24 @@ public class TypeTransformer {
         }
     }
 
-    public static int convertInt16LE(byte[] bytes) {
-        return (bytes[0] & 0xFF) | ((bytes[1] & 0xFF) << 8);
+    /////////////////////////////// BYTE PARSERS /////////////////////////////////
+    //#region Byte Parsers
+
+    public static int convertByte(byte b) {
+        return b & 0xFF;
     }
-
-    public static int convertInt32LE(byte[] bytes) {
-        return (bytes[0] & 0xFF) | ((bytes[1] & 0xFF) << 8) | ((bytes[2] & 0xFF) << 16) | ((bytes[3] & 0xFF) << 24);
-    }
-
-    public static int convertUInt16LE(byte[] bytes) {
-        return (bytes[0] & 0xFF) | ((bytes[1] & 0xFF) << 8);
-    }
-
-    public static long convertUInt32LE(byte[] bytes) {
-        return ((bytes[0] & 0xFF)) | ((long)(bytes[1] & 0xFF) << 8) | (((long)bytes[2] & 0xFF) << 16) | ((long)(bytes[3] & 0xFF) << 24);
-    }
-
-    public static long convertInt64LE(byte[] bytes) {
-        return ((bytes[0] & 0xFF)) | ((long)(bytes[1] & 0xFF) << 8) | (((long)bytes[2] & 0xFF) << 16) | ((long)(bytes[3] & 0xFF) << 24) | ((long)(bytes[4] & 0xFF) << 32) | ((long)(bytes[5] & 0xFF) << 40) | ((long)(bytes[6] & 0xFF) << 48) | ((long)(bytes[7] & 0xFF) << 56);
-    }
-
-
+    
 
     public static int convertInt16(byte[] bytes) {
         return (bytes[1] & 0xFF) | ((bytes[0] & 0xFF) << 8);
     }
 
-    public static int convertInt32(byte[] bytes) {
-        return (bytes[3] & 0xFF) | ((bytes[2] & 0xFF) << 8) | ((bytes[1] & 0xFF) << 16) | ((bytes[0] & 0xFF) << 24);
-    }
-
     public static int convertUInt16(byte[] bytes) {
         return convertInt16(bytes);
+    }
+
+    public static int convertInt32(byte[] bytes) {
+        return (bytes[3] & 0xFF) | ((bytes[2] & 0xFF) << 8) | ((bytes[1] & 0xFF) << 16) | ((bytes[0] & 0xFF) << 24);
     }
 
     public static long convertUInt32(byte[] bytes) {
@@ -79,27 +83,39 @@ public class TypeTransformer {
         return ((long)(bytes[0] & 0xFF) << 56) | ((long)(bytes[1] & 0xFF) << 48) | ((long)(bytes[2] & 0xFF) << 40) | ((long)(bytes[3] & 0xFF) << 32) | ((long)(bytes[4] & 0xFF) << 24) | ((long)(bytes[5] & 0xFF) << 16) | ((long)(bytes[6] & 0xFF) << 8) | ((bytes[7] & 0xFF));
     }
 
-
-
+    public static BigInteger convertUInt64(byte[] bytes) {
+        return new BigInteger(1, bytes);
+    }
 
     public static double convertDouble(byte[] bytes) {
         return Double.longBitsToDouble(convertInt64(bytes));
-    }
-
-    public static double convertDoubleLE(byte[] bytes) {
-        return Double.longBitsToDouble(convertInt64LE(bytes));
-    }
+    }  
 
     public static float convertSingle(byte[] bytes) {
         return Float.intBitsToFloat(convertInt32(bytes));
     }
 
-    public static float convertSingleLE(byte[] bytes) {
-        return Float.intBitsToFloat(convertInt32LE(bytes));
+
+    // Little Endian
+
+    public static int convertInt16LE(byte[] bytes) {
+        return (bytes[0] & 0xFF) | ((bytes[1] & 0xFF) << 8);
     }
 
-    public static BigInteger convertUInt64(byte[] bytes) {
-        return new BigInteger(1, bytes);
+    public static int convertUInt16LE(byte[] bytes) {
+        return (bytes[0] & 0xFF) | ((bytes[1] & 0xFF) << 8);
+    }
+
+    public static int convertInt32LE(byte[] bytes) {
+        return (bytes[0] & 0xFF) | ((bytes[1] & 0xFF) << 8) | ((bytes[2] & 0xFF) << 16) | ((bytes[3] & 0xFF) << 24);
+    }
+
+    public static long convertUInt32LE(byte[] bytes) {
+        return ((bytes[0] & 0xFF)) | ((long)(bytes[1] & 0xFF) << 8) | (((long)bytes[2] & 0xFF) << 16) | ((long)(bytes[3] & 0xFF) << 24);
+    }
+
+    public static long convertInt64LE(byte[] bytes) {
+        return ((bytes[0] & 0xFF)) | ((long)(bytes[1] & 0xFF) << 8) | (((long)bytes[2] & 0xFF) << 16) | ((long)(bytes[3] & 0xFF) << 24) | ((long)(bytes[4] & 0xFF) << 32) | ((long)(bytes[5] & 0xFF) << 40) | ((long)(bytes[6] & 0xFF) << 48) | ((long)(bytes[7] & 0xFF) << 56);
     }
 
     public static BigInteger convertUInt64LE(byte[] bytes) {
@@ -112,15 +128,23 @@ public class TypeTransformer {
         bytesBE[5] = bytes[2];
         bytesBE[6] = bytes[1];
         bytesBE[7] = bytes[0];
-        return convertUInt64(bytesBE);
+        return convertUInt64(bytesBE);  
     }
 
-    public static int convertByte(byte b) {
-        return b & 0xFF;
+    public static float convertSingleLE(byte[] bytes) {
+        return Float.intBitsToFloat(convertInt32LE(bytes));
     }
 
+    public static double convertDoubleLE(byte[] bytes) {
+        return Double.longBitsToDouble(convertInt64LE(bytes));
+    }
 
-    public static Object convertToNumber(NumberType type, byte[] bytes) {
+    //#endregion
+
+
+    /////////////////////////////// CONVERTERS /////////////////////////////////
+    //#region Converters
+    public static Object convertToNumber(NumberVarType type, byte[] bytes) {
         switch (type) {
             case INT16:
                 return convertInt16(bytes);
@@ -145,11 +169,11 @@ public class TypeTransformer {
         }
     }
 
-    public static Object convertToNumber(NumberType type, byte[] bytes, boolean isLittleEndian) {
+    public static Object convertToNumber(NumberVarType type, byte[] bytes, boolean isLittleEndian) {
         return isLittleEndian ? convertToNumberLE(type, bytes) : convertToNumber(type, bytes);
     }
 
-    private static Object convertToNumberLE(NumberType type, byte[] bytes) {
+    private static Object convertToNumberLE(NumberVarType type, byte[] bytes) {
         switch (type) {
             case INT16:
                 return convertInt16LE(bytes);
@@ -174,7 +198,7 @@ public class TypeTransformer {
         }
     }
 
-    public static int convertToInt(NumberType type, byte[] bytes, boolean isLittleEndian) {
+    public static int convertToInt(NumberVarType type, byte[] bytes, boolean isLittleEndian) {
         switch (type) {
             case INT16:
             case UINT16:
@@ -186,11 +210,11 @@ public class TypeTransformer {
         }
     }
 
-    public static int convertToInt(NumberType type, byte[] bytes) {
+    public static int convertToInt(NumberVarType type, byte[] bytes) {
         return convertToInt(type, bytes, false);
     }
 
-    public static long convertToLong(NumberType type, byte[] bytes, boolean isLittleEndian) {
+    public static long convertToLong(NumberVarType type, byte[] bytes, boolean isLittleEndian) {
         switch (type) {
             case INT16:
             case UINT16:
@@ -205,11 +229,11 @@ public class TypeTransformer {
         }
     }
 
-    public static long convertToLong(NumberType type, byte[] bytes) {
+    public static long convertToLong(NumberVarType type, byte[] bytes) {
         return convertToLong(type, bytes, false);
     }
 
-    public static double convertToDouble(NumberType type, byte[] bytes, boolean isLittleEndian) {
+    public static double convertToDouble(NumberVarType type, byte[] bytes, boolean isLittleEndian) {
         switch (type) {
             case INT16:
             case UINT16:
@@ -224,9 +248,19 @@ public class TypeTransformer {
         }
     }
 
-    public static double convertToDouble(NumberType type, byte[] bytes) {
+    public static double convertToDouble(NumberVarType type, byte[] bytes) {
         return convertToDouble(type, bytes, false);
     }
+
+    //#endregion
+
+    /*public static Object inflate(byte[] bytes, NumberVarType from, NumberVarType to, boolean isOriginLittleEndian) {
+        
+        if (from == to)
+
+
+
+    }*/
 
 
     
