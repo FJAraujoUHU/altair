@@ -18,13 +18,22 @@ public class ASCOMFocuserService extends FocuserService {
     Boolean absolute = null;
 
     public ASCOMFocuserService(AlpacaClient client) {
-        this.client = client;
-        this.deviceNumber = 0;
+        this(client, 0);
     }
 
     public ASCOMFocuserService(AlpacaClient client, int deviceNumber) {
         this.client = client;
         this.deviceNumber = deviceNumber;
+
+        // checks if it's connected, and if it is, sets if it's absolute or relative.
+        // Else, it will be set when the connect method is called.
+        this.isConnected().subscribe(conn -> {
+            if (conn.booleanValue()) {
+                this.get("absolute")
+                    .map(JsonNode::asBoolean)
+                    .subscribe(ret -> this.absolute = ret);
+            }
+        });
     }
 
     ///////////////////////////////// GETTERS /////////////////////////////////

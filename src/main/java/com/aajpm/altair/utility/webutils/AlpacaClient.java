@@ -1,10 +1,18 @@
 package com.aajpm.altair.utility.webutils;
 
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
+import java.io.DataInputStream;
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.time.Duration;
 
+import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MimeType;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientException;
@@ -16,6 +24,7 @@ import com.aajpm.altair.utility.exception.DeviceUnavailableException;
 import com.fasterxml.jackson.databind.JsonNode;
 
 import io.netty.channel.ChannelOption;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Hooks;
 import reactor.core.publisher.Mono;
 import reactor.netty.http.client.HttpClient;
@@ -25,11 +34,14 @@ import org.slf4j.LoggerFactory;
 
 // TODO: Should check which Alpaca calls are really synchronous, and add sleeps to the bad behaving ones.
 public class AlpacaClient {
-    WebClient alpaca;
+
+    WebClient alpaca, cameraClient;
 
     int transactionCounter = 1;
     
     int clientID = 0;
+
+    int imageBufferSize = 256 * 1024 * 1024; // 256 MB
 
     private final Logger logger = LoggerFactory.getLogger(AlpacaClient.class.getName());
     
@@ -49,11 +61,20 @@ public class AlpacaClient {
                             .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, connTimeout)))
                 .build();
 
+        cameraClient = WebClient.builder()
+                .baseUrl(baseURL)
+                .clientConnector(
+                    new ReactorClientHttpConnector(
+                        HttpClient.create()
+                            .responseTimeout(Duration.ofMillis(responseTimeout))
+                            .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, connTimeout)))
+                .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(imageBufferSize))
+                .build();
+
         Hooks.onErrorDropped(error -> {
             if (!(error instanceof java.lang.IllegalStateException))    // Ignore, a bug in WebClient reports them twice.
                 logger.warn("Exception happened : ", error);
         });
-        
     }
 
     /**
@@ -323,7 +344,113 @@ public class AlpacaClient {
         putAwait(deviceType + "/" + deviceNumber + "/" + action, args);
     }
 
-    public Object cameraPhoto() {
+
+
+
+
+
+    /**
+     * Retrieves an image from an Alpaca-compliant camera.
+     * @return TODO
+     */
+    public Mono<BufferedImage> cameraPhoto() {    
+        return cameraClient.get()
+                .uri("api/v1/camera/0/imagearray")
+                .accept(MediaType.parseMediaType("application/imagebytes"))
+                .exchangeToMono(response -> {
+                    if (response.statusCode().is2xxSuccessful()) {
+                        MediaType contentType = response.headers().contentType().orElse(null);
+                        if (contentType == null)
+                            return Mono.error(new RuntimeException(
+                                    "Error when retrieving image from camera: No content type returned"));
+
+                        String typeStr = contentType.toString();
+                        // If the camera supports the Alpaca ImageBytes format
+                        if (typeStr.startsWith("application/imagebytes")) {
+                            return response.bodyToMono(byte[].class)
+                                    .map(AlpacaClient::parseImage);
+                        }
+
+                        // If the camera falls back to standard Alpaca JSON
+                        if (typeStr.startsWith("application/json")) {
+                            return response.bodyToMono(JsonNode.class)
+                                    .map(AlpacaClient::parseImage);
+                        }
+
+                        // If the camera returns an unsupported content type
+                        return Mono.error(new RuntimeException(
+                                "Error when retrieving image from camera: Unsupported content type returned: "
+                                        + typeStr));
+
+                    } else {
+                        return Mono.error(new RuntimeException(
+                                "Error when retrieving image from camera: " + response.statusCode().toString()));
+                    }
+                });
+    }
+
+    private static BufferedImage parseImage(byte[] imageBytes) {
+        ByteArrayInputStream bis = new ByteArrayInputStream(imageBytes);
+        DataInputStream dis = new DataInputStream(bis);
+
+        try {
+        int metadataVersion = readIntLE(dis);
+        int errorNumber = readIntLE(dis);
+        long clientTransactionID = readUIntLE(dis);
+        long serverTransactionID = readUIntLE(dis);
+        int dataStart = readIntLE(dis);
+        ImageArrayType imageElementType = ImageArrayType.fromValue(readIntLE(dis));
+        ImageArrayType transmissionElementType = ImageArrayType.fromValue(readIntLE(dis));
+        int rank = readIntLE(dis);
+        int dim1 = readIntLE(dis);
+        int dim2 = readIntLE(dis);
+        int dim3 = readIntLE(dis);
+
+        if (errorNumber != 0)
+            throw new ASCOMException(errorNumber);
+
+        
+
+        
+        
+        
+
+
+        dis.skipNBytes((dataStart - 44));
+
+        return null;
+
+
+        } catch (IOException e) {
+            throw new RuntimeException("Error when parsing image bytes", e);
+        }
+    }
+
+    private static BufferedImage parseImage(JsonNode json) {
+
+
+
+
+
         throw new UnsupportedOperationException("Not implemented yet");
     }
+
+    /*private static int readIntLE(DataInputStream dis) throws IOException {
+        ByteBuffer buf = ByteBuffer.allocate(4);
+        buf.order(ByteOrder.LITTLE_ENDIAN);
+        buf.putInt(dis.readInt());
+        return buf.getInt(0);
+    }*/
+
+    private static int readIntLE(DataInputStream dis) throws IOException {
+        return ByteBuffer.wrap(dis.readNBytes(4)).order(ByteOrder.LITTLE_ENDIAN).getInt();
+    }
+
+    private static long readUIntLE(DataInputStream dis) throws IOException {
+        // Since Java doesn't have unsigned types,
+        // to get the unsigned value of a signed int, 
+        // we need to mask the sign bit and then cast to long to make up for the lost bit.
+        return readIntLE(dis) & 0xFFFFFFFFL;
+    }
+
 }

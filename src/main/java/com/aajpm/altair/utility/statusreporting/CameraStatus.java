@@ -9,6 +9,7 @@ public class CameraStatus {
     double temperature;
     double coolerPower;
     String status;
+    double statusCompletion;
 
     public boolean isConnected() {
         return connected;
