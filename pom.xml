@@ -37,7 +37,6 @@
 	</pluginRepositories>
 
 	<dependencies>
-
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-actuator</artifactId>
@@ -127,10 +126,17 @@
 		</dependency>
 
 		<!-- JACOB - Java COM Bridge, must install version dependant .DLL from https://github.com/freemansoft/jacob-project/releases -->
-		<dependency>
+		<!--<dependency>
 			<groupId>com.hynnet</groupId>
 			<artifactId>jacob</artifactId>
 			<version>1.18</version>
+		</dependency>-->
+
+		<!-- FITS -->
+		<dependency>
+			<groupId>gov.nasa.gsfc.heasarc</groupId>
+			<artifactId>nom-tam-fits</artifactId>
+			<version>1.17.1</version>
 		</dependency>
 	</dependencies>
 
