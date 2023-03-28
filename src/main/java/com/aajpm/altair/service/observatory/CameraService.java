@@ -3,6 +3,10 @@ package com.aajpm.altair.service.observatory;
 import com.aajpm.altair.utility.exception.DeviceException;
 import com.aajpm.altair.utility.statusreporting.CameraStatus;
 
+import java.util.Optional;
+
+import com.aajpm.altair.config.ObservatoryConfig.CameraConfig;
+
 import nom.tam.fits.Fits;
 import reactor.core.publisher.Mono;
 import reactor.util.function.Tuple2;
@@ -20,8 +24,32 @@ public abstract class CameraService {
     public static final int STATUS_DOWNLOADING = 4; // Downloading to PC
     public static final int STATUS_ERROR = 5;       // Camera disabled due to error
 
-    //
+    // Cooler status codes
+    public static final int COOLER_OFF = 0;         // Cooler is off
+    public static final int COOLER_COOLDOWN = 1;    // Cooler is on and slowly cooling down
+    public static final int COOLER_WARMUP = 2;      // Cooler is on and slowly warming up
+    public static final int COOLER_ACTIVE = 3;      // Cooler is on
+    public static final int COOLER_STABLE = 4;      // Cooler is on and temperature is stable
+    public static final int COOLER_SATURATED = 5;   // Cooler is on but power is very high and temperature might not be stable
+    public static final int COOLER_ERROR = 6;       // Cooler disabled due to error
     
+    //#endregion
+    /////////////////////////////// ATTRIBUTES /////////////////////////////////
+    //#region Attributes
+
+    protected CameraConfig config;
+
+    //#endregion
+    ////////////////////////////// CONSTRUCTOR /////////////////////////////////
+    //#region Constructor
+
+    /**
+     * Creates a new instance of the CameraService class
+     */
+    protected CameraService(CameraConfig config) {
+        this.config = config;
+    }
+
     //#endregion
     //////////////////////////////// GETTERS //////////////////////////////////
     //#region Getters
@@ -33,32 +61,133 @@ public abstract class CameraService {
     public abstract Mono<Boolean> isConnected();
 
     /**
-     * Returns the current temperature of the sensor
-     * @return the current temperature of the sensor in degrees Celsius
-     * @throws DeviceException if there was an error polling the data.
-     */
-    public abstract Mono<Double> getTemperature() throws DeviceException;
-
-    /**
-     * Checks if the cooler is on
-     * @return true if the cooler is on, false otherwise.
-     * @throws DeviceException if there was an error polling the data.
-     */
-    public abstract Mono<Boolean> isCoolerOn() throws DeviceException;
-
-    /**
-     * Returns the current power level of the cooler
-     * @return the current cooler power level percentage
-     * @throws DeviceException if there was an error polling the data.
-     */
-    public abstract Mono<Double> getCoolerPower() throws DeviceException;
-
-    /**
      * Returns the current status of the camera
      * @return the current status of the camera as an integer: 0 = Idle,1 = Waiting, 2 = Exposing, 3 = Reading, 4 = Downloading, 5 = Error
      * @throws DeviceException if there was an error polling the data.
      */
     public abstract Mono<Integer> getStatus() throws DeviceException;
+    /**
+     * Returns the current status of the camera
+     * @return the current status of the camera as a string
+     * @throws DeviceException if there was an error polling the data.
+     */
+    public Mono<String> getStatusString() throws DeviceException {
+        return Mono.zip(getStatus(), getStatusCompletion())
+            .map(tuple -> {
+                String statusStr;
+                switch (tuple.getT1()) {
+                    case STATUS_IDLE:
+                        statusStr = "Idle";
+                        break;
+                    case STATUS_WAITING:
+                        statusStr = "Waiting";
+                        break;
+                    case STATUS_EXPOSING:
+                        statusStr = "Exposing";
+                        break;
+                    case STATUS_READING:
+                        statusStr = "Reading";
+                        break;
+                    case STATUS_DOWNLOADING:
+                        statusStr = "Downloading";
+                        break;
+                    case STATUS_ERROR:
+                        statusStr = "Error";
+                        break;
+                    default:
+                        statusStr = "Unknown";
+                        break;
+                }
+                if ((tuple.getT2() != null) && !tuple.getT2().isNaN()) {
+                    statusStr += String.format(" (%.2f%%)", tuple.getT2() * 100);
+                }
+                return statusStr;
+            });
+    }
+
+    /**
+     * Returns the progress of the current status
+     * @return the progress of the current status as a percentage, if applicable.
+     * @throws DeviceException if there was an error polling the data.
+     */
+    public abstract Mono<Double> getStatusCompletion() throws DeviceException;
+
+    public Mono<CameraStatus> getCameraStatus() throws DeviceException {
+
+        Mono<Boolean> connected = isConnected();
+        Mono<Double> temperature = getTemperature();
+        Mono<Integer> coolerStatus = getCoolerStatus();
+        Mono<Double> coolerPower = getCoolerPower();
+        Mono<Integer> status = getStatus();
+        Mono<Tuple2<Integer, Integer>> binning = getBinning();
+        Mono<Double> statusCompletion = getStatusCompletion();
+        Mono<Tuple4<Integer, Integer, Integer, Integer>> subFrame = getSubFrame();
+
+        return Mono
+            .zip(connected, temperature, coolerStatus, coolerPower, status, binning, statusCompletion, subFrame)
+            .map(tuple -> {
+                CameraStatus cameraStatus = new CameraStatus();
+                cameraStatus.setConnected(tuple.getT1());
+                cameraStatus.setTemperature(tuple.getT2());
+                cameraStatus.setCoolerStatus(tuple.getT3());
+                cameraStatus.setCoolerPower(tuple.getT4());
+                cameraStatus.setStatus(tuple.getT5());
+                cameraStatus.setBinning(tuple.getT6().getT1(), tuple.getT6().getT2());
+                cameraStatus.setStatusCompletion(tuple.getT7());
+                cameraStatus.setSubframe(tuple.getT8().getT1(), tuple.getT8().getT2(), tuple.getT8().getT3(), tuple.getT8().getT4());
+                return cameraStatus;
+            });
+    }
+
+
+    //#region Temperature info
+
+    /**
+     * Returns the current temperature of the sensor
+     * @return the current temperature of the sensor in degrees Celsius
+     * @throws DeviceException if there was an error polling the data or the camera does not have this feature.
+     */
+    public abstract Mono<Double> getTemperature() throws DeviceException;
+
+    /**
+     * Returns the current target temperature of the sensor
+     * @return the current target temperature of the sensor in degrees Celsius
+     * @throws DeviceException if there was an error polling the data or the camera does not have this feature.
+     */
+    public abstract Mono<Double> getTemperatureTarget() throws DeviceException;
+
+    /**
+     * Returns the current ambient temperature. This might also be called heat sink temperature.
+     * @return the current ambient temperature in degrees Celsius
+     * @throws DeviceException if there was an error polling the data or the camera does not have this feature. 
+     */
+    public abstract Mono<Double> getTemperatureAmbient() throws DeviceException;
+
+    /**
+     * Checks if the cooler is on
+     * @return true if the cooler is on, false otherwise.
+     * @throws DeviceException if there was an error polling the data or the camera does not have this feature.
+     */
+    public Mono<Boolean> isCoolerOn() throws DeviceException {
+        return getCoolerStatus().map(status -> (status != COOLER_OFF) && (status != COOLER_ERROR));
+    }
+
+    /**
+     * Returns the current power level of the cooler
+     * @return the current cooler power level percentage in the range [0.0-1.0]
+     * @throws DeviceException if there was an error polling the data or the camera does not have this feature.
+     */
+    public abstract Mono<Double> getCoolerPower() throws DeviceException;
+
+    /**
+     * Returns the current status of the cooler
+     * @return the current status of the cooler as an integer: 0 = Off, 1 = Cooling down, 2 = Warming up, 3 = Stabilized, 4 = Saturated, 5 = Error
+     * @throws DeviceException
+     */
+    public abstract Mono<Integer> getCoolerStatus() throws DeviceException;
+
+    //#endregion
+
 
     //#region Exposure parameters
 
@@ -67,22 +196,22 @@ public abstract class CameraService {
      * @return the current subframe width
      * @throws DeviceException if there was an error polling the data.
      */
-    public abstract Mono<Integer> getSubFrameWidth() throws DeviceException;
+    public abstract Mono<Integer> getSubframeWidth() throws DeviceException;
 
     /**
      * Returns the current subframe height
      * @return the current subframe height
      * @throws DeviceException if there was an error polling the data.
      */
-    public abstract Mono<Integer> getSubFrameHeight() throws DeviceException;
+    public abstract Mono<Integer> getSubframeHeight() throws DeviceException;
 
     /**
      * Returns the current subframe dimensions
      * @return the current subframe size as a tuple of integers in the form (width, height)
      * @throws DeviceException if there was an error polling the data.
      */
-    public Mono<Tuple2<Integer, Integer>> getSubFrameSize() throws DeviceException {
-        return Mono.zip(getSubFrameWidth(), getSubFrameHeight());
+    public Mono<Tuple2<Integer, Integer>> getSubframeSize() throws DeviceException {
+        return Mono.zip(getSubframeWidth(), getSubframeHeight());
     }
 
     /**
@@ -90,22 +219,22 @@ public abstract class CameraService {
      * @return the current subframe start position on the X axis
      * @throws DeviceException if there was an error polling the data.
      */
-    public abstract Mono<Integer> getSubFrameStartX() throws DeviceException;
+    public abstract Mono<Integer> getSubframeStartX() throws DeviceException;
 
     /**
      * Returns the current subframe start position on the Y axis
      * @return the current subframe start position on the Y axis
      * @throws DeviceException if there was an error polling the data.
      */
-    public abstract Mono<Integer> getSubFrameStartY() throws DeviceException;
+    public abstract Mono<Integer> getSubframeStartY() throws DeviceException;
 
     /**
      * Returns the current subframe start position coordinates
      * @return the current subframe start position as a tuple of integers in the form (x, y)
      * @throws DeviceException if there was an error polling the data.
      */
-    public Mono<Tuple2<Integer, Integer>> getSubFrameStartPos() throws DeviceException {
-        return Mono.zip(getSubFrameStartX(), getSubFrameStartY());
+    public Mono<Tuple2<Integer, Integer>> getSubframeStartPos() throws DeviceException {
+        return Mono.zip(getSubframeStartX(), getSubframeStartY());
     }
 
     /**
@@ -114,7 +243,7 @@ public abstract class CameraService {
      * @throws DeviceException if there was an error polling the data.
      */
     public Mono<Tuple4<Integer, Integer, Integer, Integer>> getSubFrame() throws DeviceException {
-        return Mono.zip(getSubFrameStartX(), getSubFrameStartY(), getSubFrameWidth(), getSubFrameHeight());
+        return Mono.zip(getSubframeStartX(), getSubframeStartY(), getSubframeWidth(), getSubframeHeight());
     }
 
     /**
@@ -142,19 +271,27 @@ public abstract class CameraService {
 
     //#endregion
 
-    /**
-     * Returns the current status of the camera
-     * @return the current status of the camera as a string
-     * @throws DeviceException if there was an error polling the data.
-     */
-    public abstract Mono<String> getStatusString() throws DeviceException;
+
+    //#region Sensor info
 
     /**
-     * Returns the progress of the current status
-     * @return the progress of the current status as a percentage. If the status does not have a progress, returns 0.
+     * Returns the sensor type (e.g. "Monochrome", "Color", "RGGB", etc.)
+     * @return the sensor type as a string
      * @throws DeviceException if there was an error polling the data.
      */
-    public abstract Mono<Double> getStatusCompletion() throws DeviceException;
+    public abstract Mono<String> getSensorType() throws DeviceException;
+
+    /**
+     * Returns the sensor's Bayer matrix offset, if the sensor type uses Bayer encoding.
+     * @return the sensor offset as a tuple of integers in the form (x, y)
+     * @throws DeviceException if there was an error polling the data, or the device does not use a Bayer matrix.
+     */
+    public abstract Mono<Tuple2<Integer, Integer>> getBayerOffset() throws DeviceException;
+
+    //#endregion
+
+
+    //#region Image readout
 
     /**
      * Checks if the camera has an image ready to be downloaded
@@ -169,33 +306,9 @@ public abstract class CameraService {
      */
     public abstract Mono<Fits> getImage() throws DeviceException;
 
-    public Mono<CameraStatus> getCameraStatus() throws DeviceException {
+    //#endregion
 
-        Mono<Boolean> connected = isConnected();
-        Mono<Double> temperature = getTemperature();
-        Mono<Boolean> coolerOn = isCoolerOn();
-        Mono<Double> coolerPower = getCoolerPower();
-        Mono<Integer> status = getStatus();
-        Mono<Tuple2<Integer, Integer>> binning = getBinning();
-        Mono<Double> statusCompletion = getStatusCompletion();
-        Mono<Tuple4<Integer, Integer, Integer, Integer>> subFrame = getSubFrame();
-
-        return Mono
-            .zip(connected, temperature, coolerOn, coolerPower, status, binning, statusCompletion, subFrame)
-            .map(tuple -> {
-                CameraStatus cameraStatus = new CameraStatus();
-                cameraStatus.setConnected(tuple.getT1());
-                cameraStatus.setTemperature(tuple.getT2());
-                cameraStatus.setCoolerOn(tuple.getT3());
-                cameraStatus.setCoolerPower(tuple.getT4());
-                cameraStatus.setStatus(tuple.getT5());
-                cameraStatus.setBinning(tuple.getT6().getT1(), tuple.getT6().getT2());
-                cameraStatus.setStatusCompletion(tuple.getT7());
-                cameraStatus.setSubframe(tuple.getT8().getT1(), tuple.getT8().getT2(), tuple.getT8().getT3(), tuple.getT8().getT4());
-                return cameraStatus;
-            });
-    }
-
+    
     //#endregion
     ///////////////////////////// SETTERS/ACTIONS /////////////////////////////
     //#region Setters/Actions
@@ -212,6 +325,9 @@ public abstract class CameraService {
      */
     public abstract void disconnect() throws DeviceException;
 
+
+    //#region Cooler
+
     /**
      * Turns the cooler on or off
      * @param enable true to turn the cooler on, false to turn it off
@@ -227,6 +343,31 @@ public abstract class CameraService {
     public abstract void setTargetTemp(double temp) throws DeviceException;
 
     /**
+     * Warms up the sensor to ambient temperature
+     * @throws DeviceException if there was an error warming up the sensor.
+     */
+    public abstract void warmup() throws DeviceException;
+
+    /**
+     * Warms up the sensor to the specified temperature
+     * @param target the target temperature in degrees Celsius
+     * @throws DeviceException if there was an error warming up the sensor.
+     */
+    public abstract void warmup(double target) throws DeviceException;
+
+    /**
+     * Cools down the sensor to the specified temperature
+     * @param target the target temperature in degrees Celsius
+     * @throws DeviceException if there was an error cooling down the sensor.
+     */
+    public abstract void cooldown(double target) throws DeviceException;
+
+    //#endregion
+
+
+    //#region Exposure
+
+    /**
      * Sets the subframe of the camera. The subframe is defined by the top left corner and the width and height of the subframe.
      * @param startX the X coordinate of the top left corner of the subframe
      * @param startY the Y coordinate of the top left corner of the subframe
@@ -234,7 +375,12 @@ public abstract class CameraService {
      * @param height the height of the subframe
      * @throws DeviceException if there was an error setting the subframe.
      */
-    public abstract void setSubframe(int startX, int startY, int width, int height) throws DeviceException;
+    public void setSubframe(int startX, int startY, int width, int height) throws DeviceException {
+        setSubframeStartX(startX);
+        setSubframeStartY(startY);
+        setSubframeWidth(width);
+        setSubframeHeight(height);
+    }
 
     /**
      * Sets the subframe of the camera. The subframe is defined by the top left corner and the width and height of the subframe.
@@ -314,7 +460,7 @@ public abstract class CameraService {
      */
     public abstract void abortExposure() throws DeviceException;
 
-    // TODO: methods to slowly warm up/cool down the sensor safely
+    //#endregion
 
 
     //#endregion

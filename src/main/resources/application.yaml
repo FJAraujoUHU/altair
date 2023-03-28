@@ -19,10 +19,15 @@ logging:
             springframework: INFO
 altair:
     security:
-        max-attempts: 3
-        lockout-time: 300
-        default-password: hikoboshi
+        max-attempts: 3                         # Maximum number of failed login attempts before the account is locked
+        lockout-time: 300                       # Time in seconds that the account is locked after too many failed login attempts
+        default-password: hikoboshi             # Default password for the admin, please change this after deployment
     observatory:
-        status-update-interval: 500
+        status-update-interval: 500             # Interval in milliseconds between status updates for the observatory
+        camera:
+            max-cooldown-rate: 2.5              # Maximum cooldown rate for the camera, in °C/min
+            min-cooldown-rate: 0.5              # Minimum cooldown rate for the camera, in °C/min. If it cools down too slowly, the cooler will stop cooling it further.
+            max-warmup-rate: 1.5                # Maximum warmup rate for the camera, in °C/min
+            cooler-saturation-threshold: 0.85   # If the cooler reaches this power level, it is considered saturated
 
 

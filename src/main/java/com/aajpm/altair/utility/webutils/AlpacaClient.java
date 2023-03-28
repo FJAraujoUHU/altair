@@ -1,11 +1,5 @@
 package com.aajpm.altair.utility.webutils;
 
-import java.awt.image.BufferedImage;
-import java.io.ByteArrayInputStream;
-import java.io.DataInputStream;
-import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 import java.time.Duration;
 
 import org.springframework.http.MediaType;
@@ -17,10 +11,7 @@ import org.springframework.web.reactive.function.client.WebClientException;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 import com.aajpm.altair.security.account.AltairUser;
-import com.aajpm.altair.utility.TypeTransformer;
-import com.aajpm.altair.utility.TypeTransformer.*;
 import com.aajpm.altair.utility.exception.ASCOMException;
-import com.aajpm.altair.utility.exception.DeviceException;
 import com.aajpm.altair.utility.exception.DeviceUnavailableException;
 import com.fasterxml.jackson.databind.JsonNode;
 
@@ -33,6 +24,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 // TODO: Should check which Alpaca calls are really synchronous, and add sleeps to the bad behaving ones.
+// TODO: Cleanup leftover code from the cameraClient
 public class AlpacaClient {
 
     WebClient alpaca;

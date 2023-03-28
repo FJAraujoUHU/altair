@@ -9,6 +9,7 @@ import reactor.core.publisher.Mono;
 
 import org.junit.jupiter.api.Test;
 
+@SuppressWarnings("unused")
 public class AlpacaClientTest {
    
     static String url = "http://localhost:11111/";

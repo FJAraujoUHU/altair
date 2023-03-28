@@ -9,7 +9,7 @@ import com.aajpm.altair.service.observatory.CameraService;
 public class CameraStatus {
     boolean connected;
     double temperature;
-    boolean coolerOn;
+    String coolerStatus;
     double coolerPower;
     String status;
     String binning;
@@ -60,6 +60,40 @@ public class CameraStatus {
     }
     public void setTemperature(double temperature) {
         this.temperature = temperature;
+    }
+    public String getCoolerStatus() {
+        return coolerStatus;
+    }
+    public void setCoolerStatus(String coolerStatus) {
+        this.coolerStatus = coolerStatus;
+    }
+    public void setCoolerStatus(int status) {
+        switch(status) {
+            case CameraService.COOLER_OFF:
+                this.coolerStatus = "Off";
+                return;
+            case CameraService.COOLER_COOLDOWN:
+                this.coolerStatus = "Cooling down";
+                return;
+            case CameraService.COOLER_WARMUP:
+                this.coolerStatus = "Warming up";
+                return;
+            case CameraService.COOLER_STABLE:
+                this.coolerStatus = "Stable";
+                return;
+            case CameraService.COOLER_SATURATED:
+                this.coolerStatus = "Saturated";
+                return;
+            case CameraService.COOLER_ACTIVE:
+                this.coolerStatus = "Active";
+                return;
+            case CameraService.COOLER_ERROR:
+                this.coolerStatus = "Error";
+                return;
+            default:
+                this.coolerStatus = "Unknown";
+                return;
+        }
     }
     public double getCoolerPower() {
         return coolerPower;
@@ -113,14 +147,20 @@ public class CameraStatus {
     public double getStatusCompletion() {
         return statusCompletion;
     }
-    public boolean isCoolerOn() {
-        return coolerOn;
-    }
-    public void setCoolerOn(boolean coolerOn) {
-        this.coolerOn = coolerOn;
-    }
     public void setStatusCompletion(double statusCompletion) {
         this.statusCompletion = statusCompletion;
+    }
+
+    public static CameraStatus getErrorStatus() {
+        CameraStatus status = new CameraStatus();
+        status.setConnected(false);
+        status.setCoolerStatus("Error");
+        status.setCoolerPower(Double.NaN);
+        status.setStatus("Error");
+        status.setStatusCompletion(Double.NaN);
+        status.setTemperature(Double.NaN);
+        status.setBinning("Error");
+        return status;
     }
     
 }

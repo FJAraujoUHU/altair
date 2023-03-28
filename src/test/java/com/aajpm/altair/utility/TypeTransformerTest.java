@@ -6,8 +6,6 @@ import java.math.BigInteger;
 
 import org.junit.jupiter.api.Test;
 
-import com.aajpm.altair.utility.TypeTransformer;
-
 public class TypeTransformerTest {
 
     @Test
