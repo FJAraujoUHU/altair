@@ -28,7 +28,8 @@ import org.slf4j.LoggerFactory;
 public class AlpacaClient {
 
     WebClient alpaca;
-    //WebClient cameraClient;
+
+    String baseURL;
 
     int transactionCounter = 1;
     
@@ -45,24 +46,15 @@ public class AlpacaClient {
      * @param responseTimeout The response timeout in milliseconds
      */
     public AlpacaClient(String baseURL, int connTimeout, int responseTimeout) {
+        this.baseURL = baseURL;
         alpaca = WebClient.builder()
-                .baseUrl(baseURL)
+                .baseUrl(this.baseURL)
                 .clientConnector(
                     new ReactorClientHttpConnector(
                         HttpClient.create()
                             .responseTimeout(Duration.ofMillis(responseTimeout))
                             .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, connTimeout)))
                 .build();
-
-        /*cameraClient = WebClient.builder()
-                .baseUrl(baseURL)
-                .clientConnector(
-                    new ReactorClientHttpConnector(
-                        HttpClient.create()
-                            .responseTimeout(Duration.ofMillis(responseTimeout))
-                            .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, connTimeout)))
-                .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(imageBufferSize))
-                .build();*/
 
         Hooks.onErrorDropped(error -> {
             if (!(error instanceof java.lang.IllegalStateException))    // Ignore, a bug in WebClient reports them twice.
@@ -80,6 +72,14 @@ public class AlpacaClient {
             clientID = userID;
             transactionCounter = 1;
         }
+    }
+
+    /**
+     * Gets the base URL of the server.
+     * @return The base URL of the server
+     */
+    public String getBaseURL() {
+        return this.baseURL;
     }
 
     /**

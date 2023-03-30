@@ -1,19 +1,36 @@
 package com.aajpm.altair.service.observatory;
 
+import java.io.ByteArrayInputStream;
+import java.io.DataInputStream;
+import java.io.IOException;
+import java.lang.reflect.Array;
+import java.time.Duration;
+import java.util.stream.IntStream;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.MediaType;
+import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
+import org.springframework.web.reactive.function.client.WebClient;
+
 import com.aajpm.altair.config.ObservatoryConfig.CameraConfig;
 import com.aajpm.altair.utility.webutils.AlpacaClient;
 import com.fasterxml.jackson.databind.JsonNode;
 
+import io.netty.channel.ChannelOption;
 import nom.tam.fits.Fits;
+import nom.tam.fits.FitsFactory;
+import nom.tam.fits.ImageHDU;
 
+import com.aajpm.altair.utility.TypeTransformer;
+import com.aajpm.altair.utility.TypeTransformer.NumberVarType;
 import com.aajpm.altair.utility.exception.*;
 
 
 import reactor.core.publisher.Mono;
+import reactor.netty.http.client.HttpClient;
 import reactor.util.function.Tuple2;
 
 // TODO: test
@@ -28,10 +45,21 @@ public class ASCOMCameraService extends CameraService {
     private boolean isCoolingDown = false;
     private final Logger logger = LoggerFactory.getLogger(ASCOMCameraService.class.getName());
 
+    private WebClient cameraClient;
+
     public ASCOMCameraService(AlpacaClient client, CameraConfig config) {
         super(config);
         this.client = client;
         this.deviceNumber = 0;
+        this.cameraClient = WebClient.builder()
+            .baseUrl(client.getBaseURL() + "/api/v1/camera/" + deviceNumber + "/")
+            .clientConnector(
+                new ReactorClientHttpConnector(
+                    HttpClient.create()
+                        .responseTimeout(Duration.ofSeconds(5))
+                        .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 60000)))
+            .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(config.getImageBufferSize()))
+            .build();
     }
 
     public ASCOMCameraService(AlpacaClient client, int deviceNumber, CameraConfig config) {
@@ -79,11 +107,6 @@ public class ASCOMCameraService extends CameraService {
         return this.get("setccdtemperature").map(JsonNode::asDouble);
     }
 
-    private Mono<Double> getTempDelta() {
-        return Mono.zip(getTemperature(), getTemperatureTarget())
-            .map(tuples -> Math.abs(tuples.getT2() - tuples.getT1()));
-    }
-
     @Override
     public Mono<Double> getTemperatureAmbient() {
         return this.get("heatsinktemperature").map(JsonNode::asDouble);
@@ -105,15 +128,15 @@ public class ASCOMCameraService extends CameraService {
         Mono<Double> targetTemp = this.getTemperatureTarget();
 
         return Mono.zip(isCoolerOn, coolerPower, currentTemp, targetTemp).flatMap(tuples -> {
-            if (Boolean.FALSE.equals(tuples.getT1())) {
+            if (Boolean.FALSE.equals(tuples.getT1())) { // If not ON
                 return Mono.just(CameraService.COOLER_OFF);
             }
 
-            if (tuples.getT2() > config.getCoolerSaturationThreshold()) {
+            if (tuples.getT2() > config.getCoolerSaturationThreshold()) {   // If the cooler is on and at full power
                 return Mono.just(CameraService.COOLER_SATURATED);
             }
 
-            if (Math.abs(tuples.getT3() - tuples.getT4()) < 1.1) {
+            if (Math.abs(tuples.getT3() - tuples.getT4()) < 1.1) { // If the cooler is on and at the target temperature
                 return Mono.just(CameraService.COOLER_STABLE);
             }
             
@@ -202,7 +225,140 @@ public class ASCOMCameraService extends CameraService {
 
     @Override
     public Mono<Fits> getImage() {
-        
+        return cameraClient.get()
+            .uri("/imagearray")
+            .accept(MediaType.parseMediaType("application/imagebytes"))
+            .exchangeToMono(response -> {
+                if (response.statusCode().is2xxSuccessful()) {
+                    MediaType contentType = response.headers().contentType().orElse(null);
+                    if (contentType == null)
+                        return Mono
+                            .error(new DeviceException(
+                                "Error when retrieving image from camera: No content type returned"));
+
+                    String typeStr = contentType.toString();
+                    // If the camera supports the Alpaca ImageBytes format
+                    if (typeStr.startsWith("application/imagebytes")) {
+                        return response.bodyToMono(byte[].class)
+                                .map(this::readImageBytes);
+                    }
+
+                    // If the camera falls back to standard Alpaca JSON
+                    if (typeStr.startsWith("application/json")) {
+                        return response.bodyToMono(JsonNode.class)
+                                .map(this::readImageArray);
+                    }
+
+                    // If the camera returns an unsupported content type
+                    return Mono
+                        .error(new DeviceException(
+                            "Error when retrieving image from camera: Unsupported content type returned: " + typeStr));
+
+                } else {
+                    return Mono
+                        .error(new DeviceException(
+                            "Error when retrieving image from camera: " + response.statusCode().toString()));
+                }
+            });
+    }
+
+    private Fits readImageBytes(byte[] bytes) throws DeviceException {
+        DataInputStream dis = new DataInputStream(new ByteArrayInputStream(bytes));
+
+        try {
+            int metadataVersion = TypeTransformer.convertInt32LE(dis.readNBytes(4));
+            int errorNumber = TypeTransformer.convertInt32LE(dis.readNBytes(4));
+            long clientTransactionID = TypeTransformer.convertUInt32LE(dis.readNBytes(4));
+            long serverTransactionID = TypeTransformer.convertUInt32LE(dis.readNBytes(4));
+            int dataStart = TypeTransformer.convertInt32LE(dis.readNBytes(4));
+            NumberVarType imageElementType = NumberVarType.fromValue(TypeTransformer.convertInt32LE(dis.readNBytes(4)));
+            NumberVarType transmissionElementType = NumberVarType.fromValue(TypeTransformer.convertInt32LE(dis.readNBytes(4)));
+            int rank = TypeTransformer.convertInt32LE(dis.readNBytes(4));
+            int dim1 = TypeTransformer.convertInt32LE(dis.readNBytes(4));
+            int dim2 = TypeTransformer.convertInt32LE(dis.readNBytes(4));
+            int dim3 = TypeTransformer.convertInt32LE(dis.readNBytes(4));
+
+            if (errorNumber != 0)
+                throw new ASCOMException(errorNumber); // Could also parse the error message reading the blob as UTF-8
+            if (imageElementType == NumberVarType.UNKNOWN || transmissionElementType == NumberVarType.UNKNOWN)
+                throw new DeviceException("Error when retrieving image from camera: Unknown image element type");
+            if (!(rank == 2 || rank == 3))
+                throw new DeviceException("Error when retrieving image from camera: Unsupported image rank");
+
+            dis.close();
+
+            int[] shape;
+            int nElems;
+            if (rank == 2) {
+                shape = new int[] { dim1, dim2 };
+                nElems = dim1 * dim2;
+            } else {
+                shape = new int[] { dim1, dim2, dim3 };
+                nElems = dim1 * dim2 * dim3;
+            }
+
+
+            int nBytes = nElems * transmissionElementType.getByteCount();   
+            if (nBytes + dataStart > bytes.length)  // If there pixel count and the data size don't match
+                throw new DeviceException("Error when retrieving image from camera: Image size mismatch");
+
+
+            Object imageData;
+            Class<?> imageDataClass = imageElementType.getJavaClass();
+
+            // Create and populate the image array
+            if (rank == 2) {
+                imageData = Array.newInstance(imageDataClass, dim1, dim2);
+                Object[][] imageData2D = (Object[][]) imageData;
+
+                IntStream.range(0, nElems)
+                    .parallel().forEach(i -> {
+                        int bytesIndex = dataStart + i * transmissionElementType.getByteCount();
+                        Object value = TypeTransformer
+                            .toFits(bytes, bytesIndex, imageElementType, transmissionElementType, true);
+
+                        int x = i % dim1;
+                        int y = i / dim1;
+                        imageData2D[x][y] = value;
+                    });
+            } else {
+                imageData = Array.newInstance(imageDataClass, dim1, dim2, dim3);
+                Object[][][] imageData3D = (Object[][][]) imageData;
+
+                IntStream.range(0, nElems)
+                    .parallel().forEach(i -> {
+                        int bytesIndex = dataStart + i * transmissionElementType.getByteCount();
+                        Object value = TypeTransformer
+                            .toFits(bytes, bytesIndex, imageElementType, transmissionElementType, true);
+
+                        int z = i % dim3;       // TODO: Check if this is correct bc it's 3 am and I made it up ngl
+                        int y = (i / dim3) % dim2;
+                        int x = i / (dim2 * dim3);
+                        imageData3D[x][y][z] = value;
+                    });
+            }
+
+            // TODO: make FITS from imageData array and and a buncha headerzzz gn i'm tired
+
+
+
+
+
+
+
+
+
+
+
+            return null;
+
+
+        } catch (IOException e) {
+            throw new DeviceException("Error when retrieving image from camera: Error when parsing image bytes", e);
+        }
+    }
+
+    private Fits readImageArray(JsonNode json) {
         // TODO: implement
         throw new UnsupportedOperationException("Not implemented yet");
     }

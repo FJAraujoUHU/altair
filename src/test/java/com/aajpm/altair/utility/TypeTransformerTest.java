@@ -9,15 +9,6 @@ import org.junit.jupiter.api.Test;
 public class TypeTransformerTest {
 
     @Test
-    void testConvertByte() {
-        byte[] bytes = {(byte) 0xFF};
-        int expect = 255;
-        int actual = TypeTransformer.convertByte(bytes[0]);
-
-        assertEquals(expect, actual);
-    }
-
-    @Test
     void testConvertDouble() {
         byte[] bytes = {(byte) 0x3F, (byte) 0xF3, (byte) 0xC0, (byte) 0xCA, (byte) 0x42, (byte) 0xC9, (byte) 0x59, (byte) 0xF1};
         double expect = 1.2345678910111213;
@@ -42,8 +33,8 @@ public class TypeTransformerTest {
     @Test
     void testConvertInt16() {
         byte[] bytes = {(byte) 0x01, (byte) 0x23};
-        int expect = 291;
-        int actual = TypeTransformer.convertInt16(bytes);
+        short expect = 291;
+        short actual = TypeTransformer.convertInt16(bytes);
 
         assertEquals(expect, actual);
     }
@@ -51,8 +42,8 @@ public class TypeTransformerTest {
     @Test
     void testConvertInt16LE() {
         byte[] bytes = {(byte) 0x23, (byte) 0x01};
-        int expect = 291;
-        int actual = TypeTransformer.convertInt16LE(bytes);
+        short expect = 291;
+        short actual = TypeTransformer.convertInt16LE(bytes);
 
         assertEquals(expect, actual);
         

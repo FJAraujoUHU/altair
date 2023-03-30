@@ -3,7 +3,7 @@ package com.aajpm.altair.utility;
 import java.math.BigInteger;
 
 public class TypeTransformer {
-    enum NumberVarType {
+    public enum NumberVarType {
         // 0 to 3 are used by the Alpaca standard
         UNKNOWN(0), 
         INT16(1),   // gets converted to int
@@ -46,6 +46,33 @@ public class TypeTransformer {
             }
         }
 
+        public Class<?> getJavaClass() {
+            switch (this) {
+                case BYTE:
+                    return byte.class;
+                case INT16:
+                    return short.class;
+                case UINT16:
+                case INT32:
+                    return int.class;
+                case UINT32:
+                case INT64:
+                    return long.class;
+                case UINT64:
+                    return BigInteger.class;
+                case SINGLE:
+                    return float.class;
+                case DOUBLE:
+                    return long.class;
+                default:
+                    return null;
+            }
+        }
+
+        public boolean isSigned() {
+            return !(this == UINT16 || this == UINT32 || this == UINT64);
+        }
+
         public static NumberVarType fromValue(int value) {
             for (NumberVarType type : NumberVarType.values()) {
                 if (type.getValue() == value)
@@ -58,13 +85,8 @@ public class TypeTransformer {
     /////////////////////////////// BYTE PARSERS /////////////////////////////////
     //#region Byte Parsers
 
-    public static int convertByte(byte b) {
-        return b & 0xFF;
-    }
-    
-
-    public static int convertInt16(byte[] bytes) {
-        return (bytes[1] & 0xFF) | ((bytes[0] & 0xFF) << 8);
+    public static short convertInt16(byte[] bytes) {
+        return (short) ((bytes[1] & 0xFF) | ((bytes[0] & 0xFF) << 8));
     }
 
     public static int convertUInt16(byte[] bytes) {
@@ -76,11 +98,11 @@ public class TypeTransformer {
     }
 
     public static long convertUInt32(byte[] bytes) {
-        return ((bytes[3] & 0xFF)) | ((long)(bytes[2] & 0xFF) << 8) | (((long)bytes[1] & 0xFF) << 16) | ((long)(bytes[0] & 0xFF) << 24);
+        return (bytes[3] & 0xFF) | ((long)(bytes[2] & 0xFF) << 8) | (((long)bytes[1] & 0xFF) << 16) | ((long)(bytes[0] & 0xFF) << 24);
     }
 
     public static long convertInt64(byte[] bytes) {
-        return ((long)(bytes[0] & 0xFF) << 56) | ((long)(bytes[1] & 0xFF) << 48) | ((long)(bytes[2] & 0xFF) << 40) | ((long)(bytes[3] & 0xFF) << 32) | ((long)(bytes[4] & 0xFF) << 24) | ((long)(bytes[5] & 0xFF) << 16) | ((long)(bytes[6] & 0xFF) << 8) | ((bytes[7] & 0xFF));
+        return ((long)(bytes[0] & 0xFF) << 56) | ((long)(bytes[1] & 0xFF) << 48) | ((long)(bytes[2] & 0xFF) << 40) | ((long)(bytes[3] & 0xFF) << 32) | ((long)(bytes[4] & 0xFF) << 24) | ((long)(bytes[5] & 0xFF) << 16) | ((long)(bytes[6] & 0xFF) << 8) | (bytes[7] & 0xFF);
     }
 
     public static BigInteger convertUInt64(byte[] bytes) {
@@ -98,8 +120,8 @@ public class TypeTransformer {
 
     // Little Endian
 
-    public static int convertInt16LE(byte[] bytes) {
-        return (bytes[0] & 0xFF) | ((bytes[1] & 0xFF) << 8);
+    public static short convertInt16LE(byte[] bytes) {
+        return (short) ((bytes[0] & 0xFF) | ((bytes[1] & 0xFF) << 8));
     }
 
     public static int convertUInt16LE(byte[] bytes) {
@@ -111,11 +133,11 @@ public class TypeTransformer {
     }
 
     public static long convertUInt32LE(byte[] bytes) {
-        return ((bytes[0] & 0xFF)) | ((long)(bytes[1] & 0xFF) << 8) | (((long)bytes[2] & 0xFF) << 16) | ((long)(bytes[3] & 0xFF) << 24);
+        return (bytes[0] & 0xFF) | ((long)(bytes[1] & 0xFF) << 8) | (((long)bytes[2] & 0xFF) << 16) | ((long)(bytes[3] & 0xFF) << 24);
     }
 
     public static long convertInt64LE(byte[] bytes) {
-        return ((bytes[0] & 0xFF)) | ((long)(bytes[1] & 0xFF) << 8) | (((long)bytes[2] & 0xFF) << 16) | ((long)(bytes[3] & 0xFF) << 24) | ((long)(bytes[4] & 0xFF) << 32) | ((long)(bytes[5] & 0xFF) << 40) | ((long)(bytes[6] & 0xFF) << 48) | ((long)(bytes[7] & 0xFF) << 56);
+        return (bytes[0] & 0xFF) | ((long)(bytes[1] & 0xFF) << 8) | (((long)bytes[2] & 0xFF) << 16) | ((long)(bytes[3] & 0xFF) << 24) | ((long)(bytes[4] & 0xFF) << 32) | ((long)(bytes[5] & 0xFF) << 40) | ((long)(bytes[6] & 0xFF) << 48) | ((long)(bytes[7] & 0xFF) << 56);
     }
 
     public static BigInteger convertUInt64LE(byte[] bytes) {
@@ -142,126 +164,137 @@ public class TypeTransformer {
     //#endregion
 
 
-    /////////////////////////////// CONVERTERS /////////////////////////////////
-    //#region Converters
-    public static Object convertToNumber(NumberVarType type, byte[] bytes) {
-        switch (type) {
+    /////////////////////////////// TRANSFORMERS /////////////////////////////////
+    //#region Transformers
+
+    // TODO : Test if this works and pray it does bc it's hella spaghetti
+    @SuppressWarnings("java:S3776") // ik ik it's spaghetti but it fast
+    public static Object toFits(byte[] imgBytes, int index, NumberVarType imgType, NumberVarType transType, boolean isLittleEndian)
+    {
+        byte[] buffer = new byte[imgType.getByteCount()];
+        System.arraycopy(imgBytes, index, buffer, 0, transType.getByteCount());
+        Object ret = null;
+
+        if (imgType != transType) { // Conversion needed
+            switch (imgType) {
+                case DOUBLE:    // Must have been demoted to float
+                    ret = isLittleEndian ? convertSingleLE(buffer) : convertSingle(buffer);
+                    ret = ((Float)ret).doubleValue(); // Promote to real class
+                    break;
+                case INT16:    // Must have been demoted to byte
+                    ret = (short) (buffer[0] & 0xFF);
+                    break;
+                case UINT16:    // Must have been demoted to byte
+                    ret = (short) ((buffer[0] & 0xFF)  - Short.MIN_VALUE); // Offset to use BZERO
+                    break;                
+                case INT32:
+                    ret = promoteToInt32(buffer, transType, isLittleEndian);
+                    break;
+                case UINT32:
+                    ret = promoteToUInt32(buffer, transType, isLittleEndian);
+                    break;
+                case INT64:
+                    ret = promoteToInt64(buffer, transType, isLittleEndian);
+                    break;
+                case UINT64:
+                    ret = promoteToUInt64(buffer, transType, isLittleEndian);
+                    break;
+                default:
+            }
+            if (ret != null)    // If conversion was successful, return. Else, use fallback
+                return ret;
+        }
+
+        switch (transType) {
             case INT16:
-                return convertInt16(bytes);
+                ret = isLittleEndian ? convertInt16LE(buffer) : convertInt16(buffer);
+                break;
             case INT32:
-                return convertInt32(bytes);
+                ret = isLittleEndian ? convertInt32LE(buffer) : convertInt32(buffer);
+                break;
             case DOUBLE:
-                return convertDouble(bytes);
+                ret = isLittleEndian ? convertDoubleLE(buffer) : convertDouble(buffer);
+                break;
             case SINGLE:
-                return convertSingle(bytes);
+                ret = isLittleEndian ? convertSingleLE(buffer) : convertSingle(buffer);
+                break;
             case UINT64:
-                return convertUInt64(bytes);
+                long uint64 = isLittleEndian ? convertInt64LE(buffer) : convertInt64(buffer);
+                ret = uint64 < 0 ? uint64 + Long.MIN_VALUE : uint64 - Long.MIN_VALUE; // Offset to mantain resolution
+                break;
             case BYTE:
-                return convertByte(bytes[0]);
+                ret = buffer[0];
+                break;
             case INT64:
-                return convertInt64(bytes);
+                ret = isLittleEndian ? convertInt64LE(buffer) : convertInt64(buffer);
+                break;
             case UINT16:
-                return convertUInt16(bytes);
+                short uint16 = isLittleEndian ? convertInt16LE(buffer) : convertInt16(buffer);
+                ret = uint16 >= 0 ? uint16 + Short.MIN_VALUE : uint16 - Short.MIN_VALUE; // Offset to mantain resolution
+                break;
             case UINT32:
-                return convertUInt32(bytes);
+                int uint32 = isLittleEndian ? convertInt32LE(buffer) : convertInt32(buffer);
+                ret = uint32 < 0 ? uint32 + Integer.MIN_VALUE : uint32 - Integer.MIN_VALUE; // Offset to mantain resolution
+                break;
             default:
-                throw new IllegalArgumentException("Invalid number type: " + type);
+                throw new UnsupportedOperationException("Unknown conversion between " + transType + " and " + imgType);
+        }
+        return ret;        
+    }
+
+
+
+    //////////////////////////////// HELPERS //////////////////////////////////
+    //#region Helpers
+
+    private static Integer promoteToInt32(byte[] buffer, NumberVarType transType, boolean isLittleEndian) {
+        switch(transType) {
+            case INT16:
+                short int16 = isLittleEndian ? convertInt16LE(buffer) : convertInt16(buffer);
+                return ((Short)int16).intValue();
+            case UINT16:
+                return isLittleEndian ? convertUInt16LE(buffer) : convertUInt16(buffer);
+            case BYTE:
+                return buffer[0] & 0xFF;
+            default:
+                return null;
         }
     }
 
-    public static Object convertToNumber(NumberVarType type, byte[] bytes, boolean isLittleEndian) {
-        return isLittleEndian ? convertToNumberLE(type, bytes) : convertToNumber(type, bytes);
+    private static Integer promoteToUInt32(byte[] buffer, NumberVarType transType, boolean isLittleEndian) {
+        Integer ret = promoteToInt32(buffer, transType, isLittleEndian);
+        if (ret != null)
+            ret -= Integer.MIN_VALUE; // Offset to use BZERO
+        return ret;
     }
 
-    private static Object convertToNumberLE(NumberVarType type, byte[] bytes) {
-        switch (type) {
+    private static Long promoteToInt64(byte[] buffer, NumberVarType transType, boolean isLittleEndian) {
+        switch(transType) { 
+            case BYTE:
             case INT16:
-                return convertInt16LE(bytes);
+            case UINT16:
+                return (long) promoteToInt32(buffer, transType, isLittleEndian);
             case INT32:
-                return convertInt32LE(bytes);
-            case DOUBLE:
-                return convertDoubleLE(bytes);
+                return (long) (isLittleEndian ? convertInt32LE(buffer) : convertInt32(buffer));
+            case UINT32:
+                return isLittleEndian ? convertUInt32LE(buffer) : convertUInt32(buffer);
             case SINGLE:
-                return convertSingleLE(bytes);
-            case UINT64:
-                return convertUInt64LE(bytes);
-            case BYTE:
-                return convertByte(bytes[0]);
-            case INT64:
-                return convertInt64LE(bytes);
-            case UINT16:
-                return convertUInt16LE(bytes);
-            case UINT32:
-                return convertUInt32LE(bytes);
+                Float f = isLittleEndian ? convertSingleLE(buffer) : convertSingle(buffer);
+                return f.longValue();
             default:
-                throw new IllegalArgumentException("Invalid number type: " + type);
+                return null;
         }
     }
 
-    public static int convertToInt(NumberVarType type, byte[] bytes, boolean isLittleEndian) {
-        switch (type) {
-            case INT16:
-            case UINT16:
-            case INT32:
-            case BYTE:
-                return (int) convertToNumber(type, bytes, isLittleEndian);
-            default:
-                throw new IllegalArgumentException("Invalid number type: " + type);
-        }
-    }
-
-    public static int convertToInt(NumberVarType type, byte[] bytes) {
-        return convertToInt(type, bytes, false);
-    }
-
-    public static long convertToLong(NumberVarType type, byte[] bytes, boolean isLittleEndian) {
-        switch (type) {
-            case INT16:
-            case UINT16:
-            case INT32:
-            case UINT32:
-            case BYTE:
-            case INT64:
-            case UINT64:
-                return (long) convertToNumber(type, bytes, isLittleEndian);
-            default:
-                throw new IllegalArgumentException("Invalid number type: " + type);
-        }
-    }
-
-    public static long convertToLong(NumberVarType type, byte[] bytes) {
-        return convertToLong(type, bytes, false);
-    }
-
-    public static double convertToDouble(NumberVarType type, byte[] bytes, boolean isLittleEndian) {
-        switch (type) {
-            case INT16:
-            case UINT16:
-            case INT32:
-            case UINT32:
-            case BYTE:
-            case SINGLE:
-            case DOUBLE:
-                return (double) convertToNumber(type, bytes, isLittleEndian);
-            default:
-                throw new IllegalArgumentException("Invalid number type: " + type);
-        }
-    }
-
-    public static double convertToDouble(NumberVarType type, byte[] bytes) {
-        return convertToDouble(type, bytes, false);
+    private static Long promoteToUInt64(byte[] buffer, NumberVarType transType, boolean isLittleEndian) {
+        Long ret = promoteToInt64(buffer, transType, isLittleEndian);
+        if (ret != null)
+            ret -= Long.MIN_VALUE; // Offset to use BZERO
+        return ret;
     }
 
     //#endregion
 
-    /*public static Object inflate(byte[] bytes, NumberVarType from, NumberVarType to, boolean isOriginLittleEndian) {
-        
-        if (from == to)
 
-
-
-    }*/
-
-
-    
+    //#endregion
 }

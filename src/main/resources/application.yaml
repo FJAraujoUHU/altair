@@ -29,5 +29,6 @@ altair:
             min-cooldown-rate: 0.5              # Minimum cooldown rate for the camera, in °C/min. If it cools down too slowly, the cooler will stop cooling it further.
             max-warmup-rate: 1.5                # Maximum warmup rate for the camera, in °C/min
             cooler-saturation-threshold: 0.85   # If the cooler reaches this power level, it is considered saturated
+            image-buffer-size: 268435456        # Size of the image processing buffer, in bytes. Use '-1' to disable the limiter and use the maximum available memory.
 
 

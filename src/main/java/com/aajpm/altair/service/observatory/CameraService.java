@@ -3,8 +3,6 @@ package com.aajpm.altair.service.observatory;
 import com.aajpm.altair.utility.exception.DeviceException;
 import com.aajpm.altair.utility.statusreporting.CameraStatus;
 
-import java.util.Optional;
-
 import com.aajpm.altair.config.ObservatoryConfig.CameraConfig;
 
 import nom.tam.fits.Fits;

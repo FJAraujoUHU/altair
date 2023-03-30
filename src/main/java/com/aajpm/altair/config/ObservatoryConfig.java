@@ -50,6 +50,9 @@ public class ObservatoryConfig {
         // Power level at which the cooler is considered saturated
         private double coolerSaturationThreshold = 0.9;
 
+        // Size of the image processing buffer, in bytes.
+        private int imageBufferSize = -1;
+
 
         
         // Getters/setters
@@ -83,6 +86,14 @@ public class ObservatoryConfig {
 
         public void setMinCooldownRate(double minCooldownRate) {
             this.minCooldownRate = minCooldownRate;
+        }
+
+        public int getImageBufferSize() {
+            return imageBufferSize;
+        }
+
+        public void setImageBufferSize(int imageBufferSize) {
+            this.imageBufferSize = imageBufferSize;
         }
     }
 }
