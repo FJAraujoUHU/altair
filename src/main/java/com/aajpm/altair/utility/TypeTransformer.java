@@ -30,6 +30,8 @@ public class TypeTransformer {
 
         public int getByteCount() {
             switch (this) {
+                case BYTE:
+                    return 1;
                 case INT16:
                 case UINT16:
                     return 2;
@@ -241,6 +243,8 @@ public class TypeTransformer {
         }
         return ret;        
     }
+
+    
 
 
 
