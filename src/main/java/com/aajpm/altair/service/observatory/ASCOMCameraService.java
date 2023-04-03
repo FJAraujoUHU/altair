@@ -19,10 +19,8 @@ import org.springframework.web.reactive.function.client.WebClient;
 import com.aajpm.altair.config.ObservatoryConfig.CameraConfig;
 import com.aajpm.altair.utility.webutils.AlpacaClient;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ArrayNode;
 
 import io.netty.channel.ChannelOption;
-import nom.tam.fits.Fits;
 import nom.tam.fits.FitsException;
 import nom.tam.fits.FitsFactory;
 import nom.tam.fits.Header;
@@ -39,8 +37,7 @@ import reactor.netty.http.client.HttpClient;
 import reactor.util.function.Tuple2;
 import reactor.util.function.Tuples;
 
-// TODO: test
-// TODO: implement image capture
+
 public class ASCOMCameraService extends CameraService {
 
     AlpacaClient client;
@@ -810,6 +807,7 @@ public class ASCOMCameraService extends CameraService {
         return ret;
     }
 
+    @SuppressWarnings("java:S3776")
     private Mono<HeaderData> getHeaderData() {
         Mono<String> dateObs = this.get("lastexposurestarttime").map(JsonNode::asText).onErrorReturn("");
         Mono<Integer> expTime = this.get("lastexposureduration").map(JsonNode::asInt).onErrorReturn(Integer.MIN_VALUE);
