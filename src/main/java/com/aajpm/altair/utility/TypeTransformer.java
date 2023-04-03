@@ -2,6 +2,8 @@ package com.aajpm.altair.utility;
 
 import java.math.BigInteger;
 
+import com.fasterxml.jackson.databind.JsonNode;
+
 public class TypeTransformer {
     public enum NumberVarType {
         // 0 to 3 are used by the Alpaca standard
@@ -30,6 +32,8 @@ public class TypeTransformer {
 
         public int getByteCount() {
             switch (this) {
+                case BYTE:
+                    return 1;
                 case INT16:
                 case UINT16:
                     return 2;
@@ -230,7 +234,7 @@ public class TypeTransformer {
                 break;
             case UINT16:
                 short uint16 = isLittleEndian ? convertInt16LE(buffer) : convertInt16(buffer);
-                ret = uint16 >= 0 ? uint16 + Short.MIN_VALUE : uint16 - Short.MIN_VALUE; // Offset to mantain resolution
+                ret = uint16 < 0 ? uint16 + Short.MIN_VALUE : uint16 - Short.MIN_VALUE; // Offset to mantain resolution
                 break;
             case UINT32:
                 int uint32 = isLittleEndian ? convertInt32LE(buffer) : convertInt32(buffer);
@@ -241,7 +245,6 @@ public class TypeTransformer {
         }
         return ret;        
     }
-
 
 
     //////////////////////////////// HELPERS //////////////////////////////////

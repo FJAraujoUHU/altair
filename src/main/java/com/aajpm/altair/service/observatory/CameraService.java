@@ -6,6 +6,7 @@ import com.aajpm.altair.utility.statusreporting.CameraStatus;
 import com.aajpm.altair.config.ObservatoryConfig.CameraConfig;
 
 import nom.tam.fits.Fits;
+import nom.tam.fits.ImageHDU;
 import reactor.core.publisher.Mono;
 import reactor.util.function.Tuple2;
 import reactor.util.function.Tuple4;
@@ -302,7 +303,7 @@ public abstract class CameraService {
      * Returns the capture image as a FITS object
      * @return the capture image as a FITS object
      */
-    public abstract Mono<Fits> getImage() throws DeviceException;
+    public abstract Mono<ImageHDU> getImage() throws DeviceException;
 
     //#endregion
 
