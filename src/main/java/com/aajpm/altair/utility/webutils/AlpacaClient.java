@@ -24,7 +24,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 // TODO: Should check which Alpaca calls are really synchronous, and add sleeps to the bad behaving ones.
-// TODO: Cleanup leftover code from the cameraClient
 public class AlpacaClient {
 
     WebClient alpaca;
@@ -336,102 +335,5 @@ public class AlpacaClient {
     public void putAwait(String deviceType, int deviceNumber, String action, MultiValueMap<String, String> args) throws DeviceUnavailableException, ASCOMException, WebClientResponseException {
         putAwait(deviceType + "/" + deviceNumber + "/" + action, args);
     }
-
-
-    /**
-     * Retrieves an image from an Alpaca-compliant camera.
-     * @return TODO
-     */
-    /*public Mono<BufferedImage> cameraPhoto() {    
-        return cameraClient.get()
-                .uri("api/v1/camera/0/imagearray")
-                .accept(MediaType.parseMediaType("application/imagebytes"))
-                .exchangeToMono(response -> {
-                    if (response.statusCode().is2xxSuccessful()) {
-                        MediaType contentType = response.headers().contentType().orElse(null);
-                        if (contentType == null)
-                            return Mono.error(new DeviceException(
-                                    "Error when retrieving image from camera: No content type returned"));
-
-                        String typeStr = contentType.toString();
-                        // If the camera supports the Alpaca ImageBytes format
-                        if (typeStr.startsWith("application/imagebytes")) {
-                            return response.bodyToMono(byte[].class)
-                                    .map(AlpacaClient::parseImage);
-                        }
-
-                        // If the camera falls back to standard Alpaca JSON
-                        if (typeStr.startsWith("application/json")) {
-                            return response.bodyToMono(JsonNode.class)
-                                    .map(AlpacaClient::parseImage);
-                        }
-
-                        // If the camera returns an unsupported content type
-                        return Mono.error(new DeviceException(
-                                "Error when retrieving image from camera: Unsupported content type returned: "
-                                        + typeStr));
-
-                    } else {
-                        return Mono.error(new DeviceException(
-                                "Error when retrieving image from camera: " + response.statusCode().toString()));
-                    }
-                });
-    }
-
-    private static BufferedImage parseImage(byte[] imageBytes) {
-        ByteArrayInputStream bis = new ByteArrayInputStream(imageBytes);
-        DataInputStream dis = new DataInputStream(bis);
-
-        try {
-        int metadataVersion = TypeTransformer.convertInt32LE(dis.readNBytes(4));
-        int errorNumber = TypeTransformer.convertInt32LE(dis.readNBytes(4));
-        long clientTransactionID = TypeTransformer.convertUInt32LE(dis.readNBytes(4));
-        long serverTransactionID = TypeTransformer.convertUInt32LE(dis.readNBytes(4));
-        int dataStart = TypeTransformer.convertInt32LE(dis.readNBytes(4));
-        NumberVarType imageElementType = NumberVarType.fromValue(TypeTransformer.convertInt32LE(dis.readNBytes(4)));
-        NumberVarType transmissionElementType = NumberVarType.fromValue(TypeTransformer.convertInt32LE(dis.readNBytes(4)));
-        int rank = TypeTransformer.convertInt32LE(dis.readNBytes(4));
-        int dim1 = TypeTransformer.convertInt32LE(dis.readNBytes(4));
-        int dim2 = TypeTransformer.convertInt32LE(dis.readNBytes(4));
-        int dim3 = TypeTransformer.convertInt32LE(dis.readNBytes(4));
-
-        if (errorNumber != 0)
-            throw new ASCOMException(errorNumber); // Could also parse the error message reading the blob as UTF-8
-        if (imageElementType == NumberVarType.UNKNOWN || transmissionElementType == NumberVarType.UNKNOWN)
-            throw new DeviceException("Error when retrieving image from camera: Unknown image element type");
-        if (!(rank == 2 || rank == 3))
-            throw new DeviceException("Error when retrieving image from camera: Unsupported image rank");
-
-        
-
-        
-
-        
-
-        
-
-        
-        
-        
-
-
-        dis.skipNBytes((dataStart - 44));
-
-        return null;
-
-
-        } catch (IOException e) {
-            throw new DeviceException("Error when retrieving image from camera: Error when parsing image bytes", e);
-        }
-    }
-
-    private static BufferedImage parseImage(JsonNode json) {
-
-
-
-
-
-        throw new UnsupportedOperationException("Not implemented yet");
-    }*/
 
 }

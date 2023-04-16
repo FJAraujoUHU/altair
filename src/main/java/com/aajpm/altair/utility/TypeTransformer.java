@@ -2,8 +2,6 @@ package com.aajpm.altair.utility;
 
 import java.math.BigInteger;
 
-import com.fasterxml.jackson.databind.JsonNode;
-
 public class TypeTransformer {
     public enum NumberVarType {
         // 0 to 3 are used by the Alpaca standard
@@ -50,6 +48,29 @@ public class TypeTransformer {
             }
         }
 
+        public Class<?> getJavaClassWrapper() {
+            switch (this) {
+                case BYTE:
+                    return Byte.class;
+                case INT16:
+                    return Short.class;
+                case UINT16:
+                case INT32:
+                    return Integer.class;
+                case UINT32:
+                case INT64:
+                    return Long.class;
+                case UINT64:
+                    return BigInteger.class;
+                case SINGLE:
+                    return Float.class;
+                case DOUBLE:
+                    return Double.class;
+                default:
+                    return null;
+            }
+        }
+
         public Class<?> getJavaClass() {
             switch (this) {
                 case BYTE:
@@ -67,7 +88,7 @@ public class TypeTransformer {
                 case SINGLE:
                     return float.class;
                 case DOUBLE:
-                    return long.class;
+                    return double.class;
                 default:
                     return null;
             }
@@ -245,6 +266,8 @@ public class TypeTransformer {
         }
         return ret;        
     }
+
+    //#endregion
 
     
 

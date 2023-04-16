@@ -247,7 +247,7 @@ public class ASCOMCameraService extends CameraService {
                         Mono<HeaderData> headerData = this.getHeaderData();
 
                         return Mono.zip(body, headerData)
-                                    .map(tuples -> this.readImageBytes(tuples.getT1(), tuples.getT2()));
+                                    .map(tuples -> ASCOMCameraService.readImageBytes(tuples.getT1(), tuples.getT2()));
                     }
 
                     // If the camera falls back to standard Alpaca JSON
@@ -256,7 +256,7 @@ public class ASCOMCameraService extends CameraService {
                         Mono<HeaderData> headerData = this.getHeaderData();
 
                         return Mono.zip(body, headerData)
-                                    .map(tuples -> this.readImageArray(tuples.getT1(), tuples.getT2()));
+                                    .map(tuples -> ASCOMCameraService.readImageArray(tuples.getT1(), tuples.getT2()));
                     }
 
                     // If the camera returns an unsupported content type
@@ -273,7 +273,7 @@ public class ASCOMCameraService extends CameraService {
     }
 
     @SuppressWarnings({"java:S128", "java:S1481", "536870973", "java:S3776"}) // Shut up, I know what I'm doing with the switch statement and null checks are unavoidable
-    private ImageHDU readImageBytes(byte[] bytes, HeaderData headerData) throws DeviceException {
+    protected static ImageHDU readImageBytes(byte[] bytes, HeaderData headerData) throws DeviceException {
         DataInputStream dis = new DataInputStream(new ByteArrayInputStream(bytes));
 
         try {
@@ -306,7 +306,7 @@ public class ASCOMCameraService extends CameraService {
 
 
             Object imageData;
-            Class<?> imageDataClass = imageElementType.getJavaClass();
+            Class<?> imageDataClass = imageElementType.getJavaClassWrapper();
 
             // Create and populate the image array
             if (rank == 2) {
@@ -333,15 +333,15 @@ public class ASCOMCameraService extends CameraService {
                         Object value = TypeTransformer
                             .toFits(bytes, bytesIndex, imageElementType, transmissionElementType, true);
  
-                        int z = i % dim3;       // TODO: Check if this is correct bc it's 3 am and I made it up ngl
+                        int z = i % dim3;
                         int y = (i / dim3) % dim2;
                         int x = i / (dim2 * dim3);
                         imageData3D[x][y][z] = value;
                     });
             }
-
-            ImageHDU imageHDU = (ImageHDU) FitsFactory.hduFactory(imageData);
-            Header header = imageHDU.getHeader();
+            
+            Header header = new Header();
+            header.setSimple(true);
 
             //Bitpix setting
             switch (imageElementType) {
@@ -410,7 +410,8 @@ public class ASCOMCameraService extends CameraService {
 
             }
 
-            return imageHDU;
+            imageData = unwrap(imageData, rank, imageElementType);        
+            return (ImageHDU) FitsFactory.hduFactory(header, ImageHDU.encapsulate(imageData));
 
         } catch (IOException e) {
             throw new DeviceException("Error when retrieving image from camera: Error when parsing image bytes", e);
@@ -420,7 +421,7 @@ public class ASCOMCameraService extends CameraService {
     }
 
     @SuppressWarnings({"java:S128", "java:S3776"}) // Shut up, I know what I'm doing with the switch statement and null checks are unavoidable
-    private ImageHDU readImageArray(JsonNode json, HeaderData headerData) throws DeviceException {
+    protected static ImageHDU readImageArray(JsonNode json, HeaderData headerData) throws DeviceException {
         int errorNumber = json.get("ErrorNumber").asInt();
         NumberVarType type = NumberVarType.fromValue(json.get("Type").asInt());
         int rank = json.get("Rank").asInt();
@@ -437,8 +438,8 @@ public class ASCOMCameraService extends CameraService {
             throw new DeviceException("Error when retrieving image from camera: Image data is not an array");
 
         JsonNode imageNode = json.get("Value");
-        int dim1 = imageNode.get(0).size();
-        int dim2 = imageNode.size();
+        int dim1 = imageNode.size();
+        int dim2 = imageNode.get(0).size();
         int dim3 = 0;
         Object imageData = null;
 
@@ -448,23 +449,23 @@ public class ASCOMCameraService extends CameraService {
             throw new DeviceException("Error when retrieving image from camera: Image height mismatch");
 
         if (rank == 2) {
-            imageData = Array.newInstance(type.getJavaClass(), dim1, dim2);
+            imageData = Array.newInstance(type.getJavaClassWrapper(), dim1, dim2);
             Object[][] imageData2D = (Object[][]) imageData;
 
             IntStream.range(0, dim1).parallel().forEach(x ->
-                IntStream.range(0, dim2).parallel().forEach(y ->
-                    imageData2D[x][y] = asObject(imageNode.get(y).get(x), type)
+                IntStream.range(0, dim2).forEach(y ->
+                    imageData2D[x][y] = asObject(imageNode.get(x).get(y), type)
                 )
             );
 
         } else {
             dim3 = imageNode.get(0).get(0).size();
-            imageData = Array.newInstance(type.getJavaClass(), dim1, dim2, dim3);
+            imageData = Array.newInstance(type.getJavaClassWrapper(), dim1, dim2, dim3);
             Object[][][] imageData3D = (Object[][][]) imageData;
 
             int dimThree = dim3; // must be final for lambda
             IntStream.range(0, dim1).parallel().forEach(x ->
-                IntStream.range(0, dim2).parallel().forEach(y ->
+                IntStream.range(0, dim2).forEach(y ->
                     IntStream.range(0, dimThree).forEach(z ->
                         imageData3D[x][y][z] = asObject(imageNode.get(y).get(x).get(z), type)
                     )
@@ -473,8 +474,8 @@ public class ASCOMCameraService extends CameraService {
         }
 
         try {
-            ImageHDU imageHDU = (ImageHDU) FitsFactory.hduFactory(imageData);
-            Header header = imageHDU.getHeader();
+            Header header = new Header();
+            header.setSimple(true);
 
             // Bitpix setting
             switch (type) {
@@ -542,7 +543,8 @@ public class ASCOMCameraService extends CameraService {
                 }
             }
 
-            return imageHDU;
+            imageData = unwrap(imageData, rank, type);      
+            return (ImageHDU) FitsFactory.hduFactory(header, ImageHDU.encapsulate(imageData));
 
         } catch (FitsException e) {
             throw new DeviceException("Error when retrieving image from camera: " + e.getMessage(), e);
@@ -807,6 +809,153 @@ public class ASCOMCameraService extends CameraService {
         return ret;
     }
 
+    /**
+     * Unwraps a 2D/3D array of objects into a 2D/3D array of primitives.
+     * @param array The array to unwrap
+     * @param rank The rank of the array/number of dimensions, must be 2 or 3
+     * @param dataType The data type of the array
+     * @return The unwrapped array. Note that this is a new array, not a reference to the original.
+     */
+    private static Object unwrap(Object array, int rank, NumberVarType dataType) {
+        if (rank != 2 && rank != 3)
+            throw new IllegalArgumentException("Only 2D and 3D arrays are supported");
+        if (rank == 2) {
+            Object[][] array2D = (Object[][]) array;
+            int width = array2D.length;
+            int height = array2D[0].length;
+            switch(dataType) {
+                case BYTE:
+                    byte[][] byteArray = new byte[width][height];
+                    IntStream.range(0, width).parallel().forEach(x ->
+                        IntStream.range(0, height).forEach(y ->
+                            byteArray[x][y] = ((Byte) array2D[x][y]).byteValue()
+                        )
+                    );
+                    return byteArray;
+                case INT16:
+                    short[][] shortArray = new short[width][height];
+                    IntStream.range(0, width).parallel().forEach(x ->
+                        IntStream.range(0, height).forEach(y ->
+                            shortArray[x][y] = ((Short) array2D[x][y]).shortValue()
+                        )
+                    );
+                    return shortArray;
+                case UINT16:
+                case INT32:
+                    int[][] intArray = new int[width][height];
+                    IntStream.range(0, width).parallel().forEach(x ->
+                        IntStream.range(0, height).forEach(y ->
+                            intArray[x][y] = ((Integer) array2D[x][y]).intValue()
+                        )
+                    );
+                    return intArray;
+                case UINT32:
+                case INT64:
+                    long[][] longArray = new long[width][height];
+                    IntStream.range(0, width).parallel().forEach(x ->
+                        IntStream.range(0, height).forEach(y ->
+                            longArray[x][y] = ((Long) array2D[x][y]).longValue()
+                        )
+                    );
+                    return longArray;
+                case SINGLE:
+                    float[][] floatArray = new float[width][height];
+                    IntStream.range(0, width).parallel().forEach(x ->
+                        IntStream.range(0, height).forEach(y ->
+                            floatArray[x][y] = ((Float) array2D[x][y]).floatValue()
+                        )
+                    );
+                    return floatArray;
+                case DOUBLE:
+                    double[][] doubleArray = new double[width][height];
+                    IntStream.range(0, width).parallel().forEach(x ->
+                        IntStream.range(0, height).forEach(y ->
+                            doubleArray[x][y] = ((Double) array2D[x][y]).doubleValue()
+                        )
+                    );
+                    return doubleArray;
+                case UINT64:
+                    return array;   // BigInteger is not a primitive type
+                default:
+                    return null;
+            }
+        } else {
+            Object[][][] array3D = (Object[][][]) array;
+            int width = array3D.length;
+            int height = array3D[0].length;
+            int depth = array3D[0][0].length;
+            
+            switch(dataType) {
+                case BYTE:
+                    byte[][][] byteArray = new byte[width][height][depth];
+                    IntStream.range(0, width).parallel().forEach(x ->
+                        IntStream.range(0, height).forEach(y -> {
+                            for (int z = 0; z < depth; z++) {
+                                byteArray[x][y][z] = ((Byte) array3D[x][y][z]).byteValue();
+                            }
+                        })
+                    );
+                    return byteArray;
+                case INT16:
+                    short[][][] shortArray = new short[width][height][depth];
+                    IntStream.range(0, width).parallel().forEach(x ->
+                        IntStream.range(0, height).forEach(y -> {
+                            for (int z = 0; z < depth; z++) {
+                                shortArray[x][y][z] = ((Short) array3D[x][y][z]).shortValue();
+                            }
+                        })
+                    );
+                    return shortArray;
+                case UINT16:
+                case INT32:
+                    int[][][] intArray = new int[width][height][depth];
+                    IntStream.range(0, width).parallel().forEach(x ->
+                        IntStream.range(0, height).forEach(y -> {
+                            for (int z = 0; z < depth; z++) {
+                                intArray[x][y][z] = ((Integer) array3D[x][y][z]).intValue();
+                            }
+                        })
+                    );
+                    return intArray;
+                case UINT32:
+                case INT64:
+                    long[][][] longArray = new long[width][height][depth];
+                    IntStream.range(0, width).parallel().forEach(x ->
+                        IntStream.range(0, height).forEach(y -> {
+                            for (int z = 0; z < depth; z++) {
+                                longArray[x][y][z] = ((Long) array3D[x][y][z]).longValue();
+                            }
+                        })
+                    );
+                    return longArray;
+                case SINGLE:
+                    float[][][] floatArray = new float[width][height][depth];
+                    IntStream.range(0, width).parallel().forEach(x ->
+                        IntStream.range(0, height).forEach(y -> {
+                            for (int z = 0; z < depth; z++) {
+                                floatArray[x][y][z] = ((Float) array3D[x][y][z]).floatValue();
+                            }
+                        })
+                    );
+                    return floatArray;
+                case DOUBLE:
+                    double[][][] doubleArray = new double[width][height][depth];
+                    IntStream.range(0, width).parallel().forEach(x ->
+                        IntStream.range(0, height).forEach(y -> {
+                            for (int z = 0; z < depth; z++) {
+                                doubleArray[x][y][z] = ((Double) array3D[x][y][z]).doubleValue();
+                            }
+                        })
+                    );
+                    return doubleArray;
+                case UINT64:
+                    return array;   // BigInteger is not a primitive type
+                default:
+                    return null;
+            }
+        }
+    }
+
     @SuppressWarnings("java:S3776")
     private Mono<HeaderData> getHeaderData() {
         Mono<String> dateObs = this.get("lastexposurestarttime").map(JsonNode::asText).onErrorReturn("");
@@ -857,7 +1006,7 @@ public class ASCOMCameraService extends CameraService {
         );
     }
 
-    private record HeaderData (
+    protected record HeaderData (
         String dateObs,
         Integer expTime,
         Double ccdTemp,

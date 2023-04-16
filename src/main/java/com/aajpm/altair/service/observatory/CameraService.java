@@ -5,7 +5,6 @@ import com.aajpm.altair.utility.statusreporting.CameraStatus;
 
 import com.aajpm.altair.config.ObservatoryConfig.CameraConfig;
 
-import nom.tam.fits.Fits;
 import nom.tam.fits.ImageHDU;
 import reactor.core.publisher.Mono;
 import reactor.util.function.Tuple2;

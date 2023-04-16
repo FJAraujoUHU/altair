@@ -31,28 +31,26 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         return http.authorizeHttpRequests(auths -> auths
-            .requestMatchers("/index.html").permitAll()
-            .requestMatchers("/").permitAll()
-            .requestMatchers("/favicon.ico").permitAll()
-            .requestMatchers("/css/**").permitAll()
-            .requestMatchers("/js/**").permitAll()
-            .requestMatchers("/login*").permitAll() // asterisk so that error messages can be appended
-            .requestMatchers("/error").permitAll()
-            .requestMatchers("/altair/api/*/stream").permitAll()
-            .requestMatchers("/altair/api/**").hasRole("ADVANCED_USER")
-            .requestMatchers("/altair/**").permitAll()
-            .anyRequest().denyAll()
-        ).formLogin()
-        .loginPage("/login")
-        .failureHandler(altairAuthFailHandler())
-        .successHandler(altairAuthSuccHandler())
-        .permitAll()
-        .and()
-        .logout()
-        .logoutUrl("/logout")
-        .permitAll()
-        .and()
-        .build();
+                        .requestMatchers("/index.html").permitAll()
+                        .requestMatchers("/").permitAll()
+                        .requestMatchers("/favicon.ico").permitAll()
+                        .requestMatchers("/css/**").permitAll()
+                        .requestMatchers("/js/**").permitAll()
+                        .requestMatchers("/login*").permitAll() // asterisk so that error messages can be appended
+                        .requestMatchers("/error").permitAll()
+                        .requestMatchers("/altair/api/*/stream").permitAll()
+                        .requestMatchers("/altair/api/**").hasRole("ADVANCED_USER")
+                        .requestMatchers("/altair/**").permitAll()
+                        .anyRequest().denyAll()
+        ).formLogin(login -> login
+                .loginPage("/login")
+                .failureHandler(altairAuthFailHandler())
+                .successHandler(altairAuthSuccHandler())
+                .permitAll()
+        ).logout(logout -> logout
+                .logoutUrl("/logout")
+                .permitAll()
+        ).build();
     }
 
     @Bean
