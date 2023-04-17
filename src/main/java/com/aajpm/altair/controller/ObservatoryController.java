@@ -50,6 +50,11 @@ public class ObservatoryController {
         return "observatory/focuser.html";
     }
 
+    @GetMapping("/camera")
+    public String camera(Model model) {
+        return "observatory/camera.html";
+    }
+
     @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     @ResponseBody
     public Flux<ObservatoryStatus> getStatus() {

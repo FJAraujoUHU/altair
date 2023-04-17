@@ -36,6 +36,23 @@ $(document).ready(function () {
         $("#fcTemperature").text(data.fcTemperature);
         $("#fcTempComp").text(data.fcTempComp);
         $("#fcMoving").text(data.fcMoving);
+
+        // Camera
+        let caStatus = data.caStatus;
+        if (parseFloat(data.caStatusCompletion)) {    // if statusCompletion is not falsy AKA not null or undefined
+            caStatus += " (" + parseFloat(data.caStatusCompletion * 100).toFixed(2) + "%)";
+        }
+        let caSubframe = data.caSfWidth + "x" + data.caSfHeight + " @(" + data.caSfX + "," + data.caSfY + ")";
+        let caCooler = data.caCoolerStatus;
+        if (parseFloat(data.caCoolerPower)) {
+            caCooler += " (" + parseFloat(data.caCoolerPower).toFixed(2) + "%)";
+        }
+        $("#caConnected").text(data.caConnected);
+        $("#caTemperature").text(data.caTemperature);
+        $("#caStatus").text(caStatus);
+        $("#caBinning").text(data.caBinning);
+        $("#caSubframe").text(caSubframe);
+        $("#caCooler").text(caCooler);
     };
 });
 

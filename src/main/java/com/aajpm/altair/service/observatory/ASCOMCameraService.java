@@ -80,13 +80,13 @@ public class ASCOMCameraService extends CameraService {
     }
 
     @Override
-    public Mono<Integer> getStatus() {
+    public Mono<Integer> getCameraStatus() {
         return this.get("camerastate").map(JsonNode::asInt);
     }
 
     @Override
     public Mono<Double> getStatusCompletion() {
-        return this.get("perecentcompleted")
+        return this.get("percentcompleted")
             .map(JsonNode::asDouble)
             .onErrorReturn(e -> { // If the current status doesn't have a completion percentage, return NaN
                 if (e instanceof ASCOMException) {
@@ -231,7 +231,7 @@ public class ASCOMCameraService extends CameraService {
     public Mono<ImageHDU> getImage() {
         return cameraClient.get()
             .uri("/imagearray")
-            .accept(MediaType.parseMediaType("application/imagebytes"))
+            .accept(MediaType.parseMediaType("application/json"))
             .exchangeToMono(response -> {
                 if (response.statusCode().is2xxSuccessful()) {
                     MediaType contentType = response.headers().contentType().orElse(null);
@@ -315,12 +315,12 @@ public class ASCOMCameraService extends CameraService {
 
                 IntStream.range(0, nElems)
                     .parallel().forEach(i -> {
-                        int bytesIndex = dataStart + i * transmissionElementType.getByteCount();
+                        int bytesIndex = dataStart + (i * transmissionElementType.getByteCount());
                         Object value = TypeTransformer
                             .toFits(bytes, bytesIndex, imageElementType, transmissionElementType, true);
 
-                        int x = i % dim1;
-                        int y = i / dim1;
+                        int x = i / dim2;
+                        int y = i % dim2;
                         imageData2D[x][y] = value;
                     });
             } else {
@@ -329,13 +329,13 @@ public class ASCOMCameraService extends CameraService {
 
                 IntStream.range(0, nElems)
                     .parallel().forEach(i -> {
-                        int bytesIndex = dataStart + i * transmissionElementType.getByteCount();
+                        int bytesIndex = dataStart + (i * transmissionElementType.getByteCount());
                         Object value = TypeTransformer
                             .toFits(bytes, bytesIndex, imageElementType, transmissionElementType, true);
  
                         int z = i % dim3;
-                        int y = (i / dim3) % dim2;
-                        int x = i / (dim2 * dim3);
+                        int y = (i / dim3) / dim2;
+                        int x = (i / dim3) % dim2;
                         imageData3D[x][y][z] = value;
                     });
             }

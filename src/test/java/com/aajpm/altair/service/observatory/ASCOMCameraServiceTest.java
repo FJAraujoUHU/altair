@@ -52,7 +52,10 @@ public class ASCOMCameraServiceTest {
         ImageHDU hdu = ASCOMCameraService.readImageArray(imageArray, hd);
         Fits f = new Fits();
         f.addHDU(hdu);
+        FitsOutputStream gzip = new FitsOutputStream(new GZIPOutputStream(new FileOutputStream("testReadImageArray.fits.gz")));
         f.write("testReadImageArray.fits");
+        f.write(gzip);
+        gzip.close();
         f.close();
 
         assertNotNull(hdu);

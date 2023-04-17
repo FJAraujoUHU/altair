@@ -46,6 +46,9 @@
                     <li class="nav-item">
                         <a class="nav-link" href="/altair/observatory/focuser">Focuser</a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/altair/observatory/camera">Camera</a>
+                    </li>
                 </ul>
                 </ul>
             </div>
@@ -148,6 +151,42 @@
                     </div>
                 </div>
             </div>
+            <div class="col mx-auto">
+                <div class="card h-100 text-bg-primary" style="max-width: 32rem; min-width: 15rem">
+                    <div class="card-header"><h5 class="card-title">Status</h5></div>
+                    <div class="card-body text-bg-light">
+                        <div class="row flex-nowrap">
+                            <div class="col-auto">
+                                <p class="card-text">
+                                    Connected: <br>
+                                    Temperature: <br>
+                                    Status: <br>
+                                    Binning: <br>
+                                    Subframe: <br>
+                                    Cooler: <br>
+                                </p>
+                            </div>
+                            <div class="col">
+                                <p class="card-text">
+                                    <span id="caConnected">???</span><br>
+                                    <span id="caTemperature">???</span> °C<br>
+                                    <span id="caStatus">???</span><br>
+                                    <span id="caBinning">???</span><br>
+                                    <span id="caSubframe">???</span><br>
+                                    <span id="caCooler">???</span><br>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+
+
+
+
+
         </div>      
     </main>
 

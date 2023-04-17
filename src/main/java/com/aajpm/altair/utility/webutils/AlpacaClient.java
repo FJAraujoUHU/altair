@@ -34,8 +34,6 @@ public class AlpacaClient {
     
     int clientID = 0;
 
-    int imageBufferSize = 256 * 1024 * 1024; // 256 MB
-
     private final Logger logger = LoggerFactory.getLogger(AlpacaClient.class.getName());
     
     /**

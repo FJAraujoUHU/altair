@@ -30,10 +30,22 @@ public class ObservatoryStatus {
     double fcTemperature;
     boolean fcTempComp;
     boolean fcMoving;
+    // Camera status
+    boolean caConnected;
+    double caTemperature;
+    String caCoolerStatus;
+    double caCoolerPower;
+    String caStatus;
+    String caBinning;
+    double caStatusCompletion;
+    int caSfWidth;
+    int caSfHeight;
+    int caSfX;
+    int caSfY;
     
 
     public ObservatoryStatus() {}
-    public ObservatoryStatus(TelescopeStatus ts, DomeStatus ds, FocuserStatus fs) {
+    public ObservatoryStatus(TelescopeStatus ts, DomeStatus ds, FocuserStatus fs, CameraStatus cs) {
         // Telescope status
         tsConnected = ts.isConnected();
         tsAltitude = ts.getAltitude();
@@ -60,10 +72,23 @@ public class ObservatoryStatus {
         fcTemperature = fs.getTemperature();
         fcTempComp = fs.isTempComp();
         fcMoving = fs.isMoving();
+        // Camera status
+        caConnected = cs.isConnected();
+        caTemperature = cs.getTemperature();
+        caCoolerStatus = cs.getCoolerStatus();
+        caCoolerPower = cs.getCoolerPower();
+        caStatus = cs.getStatus();
+        caBinning = cs.getBinning();
+        caStatusCompletion = cs.getStatusCompletion();
+        caSfWidth = cs.getSfWidth();
+        caSfHeight = cs.getSfHeight();
+        caSfX = cs.getSfX();
+        caSfY = cs.getSfY();
+
     }
 
     public static ObservatoryStatus getErrorStatus() {
-        return new ObservatoryStatus(TelescopeStatus.getErrorStatus(), DomeStatus.getErrorStatus(), FocuserStatus.getErrorStatus());
+        return new ObservatoryStatus(TelescopeStatus.getErrorStatus(), DomeStatus.getErrorStatus(), FocuserStatus.getErrorStatus(), CameraStatus.getErrorStatus());
     }
     
     /////////////////////////// Getters and Setters ///////////////////////////
@@ -212,6 +237,77 @@ public class ObservatoryStatus {
     public void setFcMoving(boolean fcMoving) {
         this.fcMoving = fcMoving;
     }
+    
+
+    // Camera status
+    public boolean isCaConnected() {
+        return caConnected;
+    }
+    public void setCaConnected(boolean caConnected) {
+        this.caConnected = caConnected;
+    }
+    public double getCaTemperature() {
+        return caTemperature;
+    }
+    public void setCaTemperature(double caTemperature) {
+        this.caTemperature = caTemperature;
+    }
+    public String getCaCoolerStatus() {
+        return caCoolerStatus;
+    }
+    public void setCaCoolerStatus(String caCoolerStatus) {
+        this.caCoolerStatus = caCoolerStatus;
+    }
+    public double getCaCoolerPower() {
+        return caCoolerPower;
+    }
+    public void setCaCoolerPower(double caCoolerPower) {
+        this.caCoolerPower = caCoolerPower;
+    }
+    public String getCaStatus() {
+        return caStatus;
+    }
+    public void setCaStatus(String caStatus) {
+        this.caStatus = caStatus;
+    }
+    public String getCaBinning() {
+        return caBinning;
+    }
+    public void setCaBinning(String caBinning) {
+        this.caBinning = caBinning;
+    }
+    public double getCaStatusCompletion() {
+        return caStatusCompletion;
+    }
+    public void setCaStatusCompletion(double caStatusCompletion) {
+        this.caStatusCompletion = caStatusCompletion;
+    }
+    public int getCaSfWidth() {
+        return caSfWidth;
+    }
+    public void setCaSfWidth(int caSfWidth) {
+        this.caSfWidth = caSfWidth;
+    }
+    public int getCaSfHeight() {
+        return caSfHeight;
+    }
+    public void setCaSfHeight(int caSfHeight) {
+        this.caSfHeight = caSfHeight;
+    }
+    public int getCaSfX() {
+        return caSfX;
+    }
+    public void setCaSfX(int caSfX) {
+        this.caSfX = caSfX;
+    }
+    public int getCaSfY() {
+        return caSfY;
+    }
+    public void setCaSfY(int caSfY) {
+        this.caSfY = caSfY;
+    }
+
+    
     //#endregion
 
 }

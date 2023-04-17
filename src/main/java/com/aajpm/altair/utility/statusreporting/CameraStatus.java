@@ -5,7 +5,6 @@ import com.aajpm.altair.service.observatory.CameraService;
 /**
  * DTO for reporting the status of a camera
  */
-// TODO: Add more fields as needed
 public class CameraStatus {
     boolean connected;
     double temperature;

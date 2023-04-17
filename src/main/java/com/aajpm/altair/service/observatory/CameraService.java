@@ -3,12 +3,19 @@ package com.aajpm.altair.service.observatory;
 import com.aajpm.altair.utility.exception.DeviceException;
 import com.aajpm.altair.utility.statusreporting.CameraStatus;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.zip.GZIPOutputStream;
+
 import com.aajpm.altair.config.ObservatoryConfig.CameraConfig;
 
+import nom.tam.fits.Fits;
 import nom.tam.fits.ImageHDU;
+import nom.tam.util.FitsOutputStream;
 import reactor.core.publisher.Mono;
 import reactor.util.function.Tuple2;
 import reactor.util.function.Tuple4;
+import reactor.util.function.Tuples;
 
 public abstract class CameraService {
     /////////////////////////////// CONSTANTS /////////////////////////////////
@@ -63,14 +70,14 @@ public abstract class CameraService {
      * @return the current status of the camera as an integer: 0 = Idle,1 = Waiting, 2 = Exposing, 3 = Reading, 4 = Downloading, 5 = Error
      * @throws DeviceException if there was an error polling the data.
      */
-    public abstract Mono<Integer> getStatus() throws DeviceException;
+    public abstract Mono<Integer> getCameraStatus() throws DeviceException;
     /**
      * Returns the current status of the camera
      * @return the current status of the camera as a string
      * @throws DeviceException if there was an error polling the data.
      */
-    public Mono<String> getStatusString() throws DeviceException {
-        return Mono.zip(getStatus(), getStatusCompletion())
+    public Mono<String> getCameraStatusString() throws DeviceException {
+        return Mono.zip(getCameraStatus(), getStatusCompletion())
             .map(tuple -> {
                 String statusStr;
                 switch (tuple.getT1()) {
@@ -110,16 +117,16 @@ public abstract class CameraService {
      */
     public abstract Mono<Double> getStatusCompletion() throws DeviceException;
 
-    public Mono<CameraStatus> getCameraStatus() throws DeviceException {
+    public Mono<CameraStatus> getStatus() throws DeviceException {
 
         Mono<Boolean> connected = isConnected();
-        Mono<Double> temperature = getTemperature();
-        Mono<Integer> coolerStatus = getCoolerStatus();
-        Mono<Double> coolerPower = getCoolerPower();
-        Mono<Integer> status = getStatus();
-        Mono<Tuple2<Integer, Integer>> binning = getBinning();
-        Mono<Double> statusCompletion = getStatusCompletion();
-        Mono<Tuple4<Integer, Integer, Integer, Integer>> subFrame = getSubFrame();
+        Mono<Double> temperature = getTemperature().onErrorReturn(Double.NaN);
+        Mono<Integer> coolerStatus = getCoolerStatus().onErrorReturn(COOLER_ERROR);
+        Mono<Double> coolerPower = getCoolerPower().onErrorReturn(Double.NaN);
+        Mono<Integer> status = getCameraStatus().onErrorReturn(STATUS_ERROR);
+        Mono<Tuple2<Integer, Integer>> binning = getBinning().onErrorReturn(Tuples.of(1, 1));
+        Mono<Double> statusCompletion = getStatusCompletion().onErrorReturn(Double.NaN);
+        Mono<Tuple4<Integer, Integer, Integer, Integer>> subFrame = getSubFrame().onErrorReturn(Tuples.of(0, 0, 0, 0));
 
         return Mono
             .zip(connected, temperature, coolerStatus, coolerPower, status, binning, statusCompletion, subFrame)
@@ -299,10 +306,60 @@ public abstract class CameraService {
     public abstract Mono<Boolean> isImageReady() throws DeviceException;
 
     /**
-     * Returns the capture image as a FITS object
-     * @return the capture image as a FITS object
+     * Returns the capture image as a ImageHDU object
+     * @return the capture image as a ImageHDU object
      */
     public abstract Mono<ImageHDU> getImage() throws DeviceException;
+
+    public void saveImage(String name, boolean compression) throws DeviceException {
+        this.getImage().subscribe(image -> {
+            String filename = name;
+            try {
+
+                if (!Files.exists(config.getImageStorePath())) {
+                    Files.createDirectories(config.getImageStorePath());
+                }
+
+                // Add .fits extension if not present   
+                if (!filename.toUpperCase().endsWith(".FITS")) {
+                    filename += ".fits";
+                }
+
+                Fits fits = new Fits();
+                fits.addHDU(image);
+
+                FitsOutputStream out;
+                Path filepath;
+                // Set up output stream and compression.
+                if (compression) {
+                    filename += ".gz";
+                    filepath = config.getImageStorePath().resolve(filename);
+                    //Files.createFile(filepath);
+                    out = new FitsOutputStream(
+                            new GZIPOutputStream(
+                                Files.newOutputStream(
+                                    filepath
+                                )
+                            )
+                        );
+                } else {
+                    filepath = config.getImageStorePath().resolve(filename);
+                    //Files.createFile(filepath);
+                    out = new FitsOutputStream(
+                            Files.newOutputStream(
+                                filepath
+                            )
+                        );
+                }
+                // Write the image to the file and close the stream.
+                fits.write(out);
+                out.close();
+                fits.close();
+            } catch (Exception e) { // If there was an error, print the stack trace.
+                e.printStackTrace();
+            }
+        });   
+    }
 
     //#endregion
 
