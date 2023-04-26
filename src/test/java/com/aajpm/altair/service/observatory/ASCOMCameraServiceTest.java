@@ -5,6 +5,8 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 import java.io.FileOutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.zip.GZIPOutputStream;
 
 import com.aajpm.altair.utility.webutils.AlpacaClient;
@@ -17,15 +19,18 @@ import nom.tam.fits.Fits;
 import nom.tam.fits.ImageHDU;
 import nom.tam.util.FitsOutputStream;
 
+import com.aajpm.altair.config.ObservatoryConfig.CameraConfig;
 import com.aajpm.altair.service.observatory.ASCOMCameraService.HeaderData;
 
 public class ASCOMCameraServiceTest {
     
-    static AlpacaClient client;
-
     static int deviceNumber = 0;
 
-    static String url = "http://localhost:32323/";
+    static String url = "http://localhost:11111/";
+
+    static AlpacaClient client = new AlpacaClient(url, 5000, 60000);
+
+    static CameraConfig config =  new CameraConfig();
     
     
     @Test
@@ -92,6 +97,25 @@ public class ASCOMCameraServiceTest {
         f.close();
 
         assertNotNull(hdu);
+    }
+
+    @Test
+    void testDumpImapge() throws Exception {
+        ASCOMCameraService service = new ASCOMCameraService(client, deviceNumber, config);
+
+        String filename = "testDumpImage";
+        service.dumpImage(filename);
+
+        Path fileBin = config.getImageStorePath().resolve(filename + ".bin");
+        Path fileJson = config.getImageStorePath().resolve(filename + ".json");
+        for (int i = 0; i < 60; i++) {
+            if (Files.exists(fileBin) || Files.exists(fileJson)) {
+                break;
+            }
+            Thread.sleep(1000);
+        }
+
+        assertTrue(Files.exists(fileBin) || Files.exists(fileJson));
     }
 
     byte[] imageBytesGenerator(int width, int height) {

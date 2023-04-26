@@ -311,6 +311,11 @@ public abstract class CameraService {
      */
     public abstract Mono<ImageHDU> getImage() throws DeviceException;
 
+    /**
+     * Saves the captured image to a FITS file in the image store directory
+     * @param name the name of the file to save the image to
+     * @param compression whether to output a GZIP'd file or just a plain FITS file
+     */
     public void saveImage(String name, boolean compression) throws DeviceException {
         this.getImage().subscribe(image -> {
             String filename = name;
@@ -334,7 +339,6 @@ public abstract class CameraService {
                 if (compression) {
                     filename += ".gz";
                     filepath = config.getImageStorePath().resolve(filename);
-                    //Files.createFile(filepath);
                     out = new FitsOutputStream(
                             new GZIPOutputStream(
                                 Files.newOutputStream(
@@ -344,7 +348,6 @@ public abstract class CameraService {
                         );
                 } else {
                     filepath = config.getImageStorePath().resolve(filename);
-                    //Files.createFile(filepath);
                     out = new FitsOutputStream(
                             Files.newOutputStream(
                                 filepath
@@ -360,6 +363,12 @@ public abstract class CameraService {
             }
         });   
     }
+
+    /**
+     * Dumps the unprocessed image as the camera's native format to a file in the image store directory
+     * @param name the name of the file to save the image to
+     */
+    public abstract void dumpImage(String name) throws DeviceException;
 
     //#endregion
 

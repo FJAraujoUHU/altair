@@ -3,8 +3,11 @@ package com.aajpm.altair.service.observatory;
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.lang.reflect.Array;
 import java.math.BigInteger;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.stream.IntStream;
 
@@ -19,6 +22,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 import com.aajpm.altair.config.ObservatoryConfig.CameraConfig;
 import com.aajpm.altair.utility.webutils.AlpacaClient;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.netty.channel.ChannelOption;
 import nom.tam.fits.FitsException;
@@ -51,9 +55,13 @@ public class ASCOMCameraService extends CameraService {
     private WebClient cameraClient;
 
     public ASCOMCameraService(AlpacaClient client, CameraConfig config) {
+        this(client, 0, config);
+    }
+
+    public ASCOMCameraService(AlpacaClient client, int deviceNumber, CameraConfig config) {
         super(config);
         this.client = client;
-        this.deviceNumber = 0;
+        this.deviceNumber = deviceNumber;
         this.cameraClient = WebClient.builder()
             .baseUrl(client.getBaseURL() + "/api/v1/camera/" + deviceNumber + "/")
             .clientConnector(
@@ -63,12 +71,6 @@ public class ASCOMCameraService extends CameraService {
                         .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 60000)))
             .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(config.getImageBufferSize()))
             .build();
-    }
-
-    public ASCOMCameraService(AlpacaClient client, int deviceNumber, CameraConfig config) {
-        super(config);
-        this.client = client;
-        this.deviceNumber = deviceNumber;
     }
 
     ///////////////////////////////// GETTERS /////////////////////////////////
@@ -226,12 +228,12 @@ public class ASCOMCameraService extends CameraService {
         return this.get("imageready").map(JsonNode::asBoolean);
     }
 
-    //TODO: test
+    //TODO: Test using real HW
     @Override
     public Mono<ImageHDU> getImage() {
         return cameraClient.get()
             .uri("/imagearray")
-            .accept(MediaType.parseMediaType("application/json"))
+            .accept(MediaType.parseMediaType("application/imagebytes"))
             .exchangeToMono(response -> {
                 if (response.statusCode().is2xxSuccessful()) {
                     MediaType contentType = response.headers().contentType().orElse(null);
@@ -270,6 +272,86 @@ public class ASCOMCameraService extends CameraService {
                             "Error when retrieving image from camera: " + response.statusCode().toString()));
                 }
             });
+    }
+
+    
+    public void dumpImage(String name) {
+        cameraClient.get()
+        .uri("/imagearray")
+        .accept(MediaType.parseMediaType("application/imagebytes"))
+        .exchangeToMono(response -> {
+            if (!response.statusCode().is2xxSuccessful()) {
+                return Mono
+                    .error(new DeviceException(
+                        "Error when retrieving image from camera: " + response.statusCode().toString()));
+            }
+
+            MediaType contentType = response.headers().contentType().orElse(null);
+            if (contentType == null)    // If no content type is returned
+                return Mono
+                    .error(new DeviceException(
+                        "Error when retrieving image from camera: No content type returned"));
+
+            String typeStr = contentType.toString();
+            // If the camera supports the Alpaca ImageBytes format
+            if (typeStr.startsWith("application/imagebytes")) {
+                return response.bodyToMono(byte[].class);
+            }
+
+            // If the camera falls back to standard Alpaca JSON
+            if (typeStr.startsWith("application/json")) {
+                return response.bodyToMono(JsonNode.class);
+            }
+
+            // If the camera returns an unsupported content type
+            return Mono
+                .error(new DeviceException(
+                    "Error when retrieving image from camera: Unsupported content type returned: " + typeStr));
+
+        }).subscribe(response -> {
+            String filename = name;
+            try {
+                // Create image store directory if it doesn't exist
+                if (!Files.exists(config.getImageStorePath())) {
+                    Files.createDirectories(config.getImageStorePath());
+                }
+
+                if (response instanceof byte[]) {
+                    byte[] data = (byte[]) response;
+
+                    // Add .bin extension if not present   
+                    if (!filename.toUpperCase().endsWith(".BIN")) {
+                        filename += ".bin";
+                    }
+
+                    // Write image to file
+                    Path path = config.getImageStorePath().resolve(filename);
+                    Files.write(path, data);
+
+                    logger.info("Image saved to {}", path);
+                }
+                else if (response instanceof JsonNode) {
+                    JsonNode data = (JsonNode) response;
+        
+                    // Add .json extension if not present   
+                    if (!filename.toUpperCase().endsWith(".JSON")) {
+                        filename += ".json";
+                    } 
+                            
+                    // Write image to file
+                    Path path = config.getImageStorePath().resolve(filename);
+    
+                    ObjectMapper mapper = new ObjectMapper();
+                    OutputStream out = Files.newOutputStream(path);
+                    mapper.writeValue(out, data);
+                    out.close(); 
+    
+                    logger.info("Image saved to {}", path); 
+                } else throw new IOException("Unknown response type");
+            } catch (IOException e) {
+                logger.error("Error when saving image to file: {}", e.getMessage());
+            } 
+        });
     }
 
     @SuppressWarnings({"java:S128", "java:S1481", "536870973", "java:S3776"}) // Shut up, I know what I'm doing with the switch statement and null checks are unavoidable
@@ -551,8 +633,6 @@ public class ASCOMCameraService extends CameraService {
         }
     }
 
-
-
     //#endregion
 
 
@@ -810,7 +890,7 @@ public class ASCOMCameraService extends CameraService {
     }
 
     /**
-     * Unwraps a 2D/3D array of objects into a 2D/3D array of primitives.
+     * Unwraps a 2D/3D array of primitive wrappers into a 2D/3D array of the corresponding primitives.
      * @param array The array to unwrap
      * @param rank The rank of the array/number of dimensions, must be 2 or 3
      * @param dataType The data type of the array

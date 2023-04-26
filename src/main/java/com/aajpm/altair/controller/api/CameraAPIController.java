@@ -121,4 +121,9 @@ public class CameraAPIController {
         camera.saveImage(filename, false);
     }
 
+    @PostMapping(value = "/dumpimage")
+    public void dumpImage(@RequestParam("filename") String filename) {
+        camera.dumpImage(filename);
+    }
+
 }
