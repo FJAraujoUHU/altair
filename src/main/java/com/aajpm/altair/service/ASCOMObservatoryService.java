@@ -13,7 +13,7 @@ public class ASCOMObservatoryService extends ObservatoryService {
 
     AlpacaClient alpaca;
 
-    int connTimeout = 5000;
+    int connTimeout = 15000;
     int responseTimeout = 60000;
 
     ASCOMTelescopeService telescope;
@@ -27,7 +27,7 @@ public class ASCOMObservatoryService extends ObservatoryService {
         telescope = new ASCOMTelescopeService(alpaca);
         dome = new ASCOMDomeService(alpaca);
         focuser = new ASCOMFocuserService(alpaca);
-        camera = new ASCOMCameraService(new AlpacaClient("http://localhost:11111/", connTimeout, responseTimeout), camConfig);
+        camera = new ASCOMCameraService(new AlpacaClient("http://localhost:32323/", connTimeout, responseTimeout), camConfig);
     }
 
     public TelescopeService getTelescope() {

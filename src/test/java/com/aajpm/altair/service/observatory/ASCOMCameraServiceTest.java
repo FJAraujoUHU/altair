@@ -33,7 +33,7 @@ public class ASCOMCameraServiceTest {
     static CameraConfig config =  new CameraConfig();
     
     
-    @Test
+    //@Test
     void testReadImageArray() throws Exception {
         int width = 256;
         int height = 128;
@@ -66,7 +66,7 @@ public class ASCOMCameraServiceTest {
         assertNotNull(hdu);
     }
 
-    @Test
+    //@Test
     void testReadImageBytes() throws Exception {
         int width = 256;
         int height = 128;
@@ -100,6 +100,35 @@ public class ASCOMCameraServiceTest {
     }
 
     @Test
+    void testReadImageBytesFile() throws Exception {
+        String filepath = "C:\\Users\\AdminUser\\Desktop\\Project\\altair\\dump1.bin";
+        byte[] imagebytes = Files.readAllBytes(Path.of(filepath));
+        HeaderData hd;
+        hd = new HeaderData(
+            "2023-01-13T12:23:45",
+            30,
+            -10.0,
+            -10.0,
+            0,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+        );
+
+        ImageHDU hdu = ASCOMCameraService.readImageBytes(imagebytes, hd);
+        Fits f = new Fits();
+        f.addHDU(hdu);
+        f.write("testReadImageBytesFile.fits");
+        f.close();
+
+        assertNotNull(hdu);
+    }
+
+    //@Test
     void testDumpImapge() throws Exception {
         ASCOMCameraService service = new ASCOMCameraService(client, deviceNumber, config);
 

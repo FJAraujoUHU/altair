@@ -34,7 +34,8 @@ build/
 
 ### Custom favicon ###
 src/main/resources/static/favicon.ico
-testReadImageArray.fits
-testReadImageArray.fits.gz
-testReadImageBytes.fits
-testReadImageBytes.fits.gz
+
+### Generated files ###
+*.fits
+*.fits.gz
+*.bin

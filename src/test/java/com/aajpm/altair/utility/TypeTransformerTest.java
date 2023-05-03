@@ -6,6 +6,8 @@ import java.math.BigInteger;
 
 import org.junit.jupiter.api.Test;
 
+import com.aajpm.altair.utility.TypeTransformer.NumberVarType;
+
 public class TypeTransformerTest {
 
     @Test
@@ -167,5 +169,18 @@ public class TypeTransformerTest {
         assertEquals(expect, actual);
     }
     
+    @Test
+    void testToFits() {
+        //54321 as UINT16 little endian, with appended rubbish data
+        byte[] bytes = {(byte) 0xFF, (byte) 0x31, (byte) 0xD4, (byte) 0xFF};
+        boolean isLittleEndian = true;
+        int index = 1;
+        NumberVarType imgType = NumberVarType.INT32;
+        NumberVarType transType = NumberVarType.UINT16;
+        Object expect = Integer.valueOf(54321);
+        Object actual = TypeTransformer.toFits(bytes, index, imgType, transType, isLittleEndian);
+
+        assertEquals(expect, actual);
+    }
 
 }

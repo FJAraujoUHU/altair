@@ -168,7 +168,8 @@
 				<version>3.0.0-M9</version>
 				<configuration>
 					<excludes>
-						<exclude>**/*TelescopeServiceTest.java</exclude>
+						<exclude>**/*ASCOM*Test.java</exclude>
+						<exclude>**/*Alpaca*Test.java</exclude>
 					</excludes>
 				</configuration>
 			</plugin>

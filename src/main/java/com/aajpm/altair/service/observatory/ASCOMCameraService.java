@@ -395,21 +395,31 @@ public class ASCOMCameraService extends CameraService {
                 imageData = Array.newInstance(imageDataClass, dim1, dim2);
                 Object[][] imageData2D = (Object[][]) imageData;
 
-                IntStream.range(0, nElems)
-                    .parallel().forEach(i -> {
-                        int bytesIndex = dataStart + (i * transmissionElementType.getByteCount());
+                IntStream.range(0, dim1).parallel().forEach(x -> {
+                    IntStream.range(0, dim2).forEach(y -> {
+                        int bytesIndex = dataStart + ((x * dim2 + y) * transmissionElementType.getByteCount());
                         Object value = TypeTransformer
                             .toFits(bytes, bytesIndex, imageElementType, transmissionElementType, true);
 
-                        int x = i / dim2;
-                        int y = i % dim2;
                         imageData2D[x][y] = value;
                     });
+                });
             } else {
                 imageData = Array.newInstance(imageDataClass, dim1, dim2, dim3);
                 Object[][][] imageData3D = (Object[][][]) imageData;
 
-                IntStream.range(0, nElems)
+                IntStream.range(0, dim1).parallel().forEach(x -> {
+                    IntStream.range(0, dim2).forEach(y -> {
+                        IntStream.range(0, dim3).forEach(z -> {
+                            int bytesIndex = dataStart + ((x * dim2 * dim3 + y * dim3 + z) * transmissionElementType.getByteCount());
+                            Object value = TypeTransformer
+                                .toFits(bytes, bytesIndex, imageElementType, transmissionElementType, true);
+
+                            imageData3D[x][y][z] = value;
+                        });
+                    });
+                });
+                /*IntStream.range(0, nElems)
                     .parallel().forEach(i -> {
                         int bytesIndex = dataStart + (i * transmissionElementType.getByteCount());
                         Object value = TypeTransformer
@@ -419,7 +429,7 @@ public class ASCOMCameraService extends CameraService {
                         int y = (i / dim3) / dim2;
                         int x = (i / dim3) % dim2;
                         imageData3D[x][y][z] = value;
-                    });
+                    });*/
             }
             
             Header header = new Header();
