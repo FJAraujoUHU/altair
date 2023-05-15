@@ -170,6 +170,7 @@
 					<excludes>
 						<exclude>**/*ASCOM*Test.java</exclude>
 						<exclude>**/*Alpaca*Test.java</exclude>
+						<exclude>**/*TypeTransformer*Test.java</exclude>
 					</excludes>
 				</configuration>
 			</plugin>

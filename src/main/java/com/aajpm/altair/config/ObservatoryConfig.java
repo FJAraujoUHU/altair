@@ -3,6 +3,7 @@ package com.aajpm.altair.config;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -23,9 +24,11 @@ public class ObservatoryConfig {
 
     private CameraConfig camera;
 
+    private FilterWheelConfig filterWheel;
+
     @Bean
     public ObservatoryService observatoryService() {
-        return new ASCOMObservatoryService("http://localhost:32323/", camera);
+        return new ASCOMObservatoryService("http://localhost:32323/", this);
     }
     
     public int getStatusUpdateInterval() {
@@ -42,6 +45,14 @@ public class ObservatoryConfig {
 
     public void setCamera(CameraConfig camera) {
         this.camera = camera;
+    }
+
+    public FilterWheelConfig getFilterWheel() {
+        return filterWheel;
+    }
+
+    public void setFilterWheel(FilterWheelConfig filterWheel) {
+        this.filterWheel = filterWheel;
     }
 
     public static class CameraConfig {
@@ -127,5 +138,41 @@ public class ObservatoryConfig {
         public void setImageStorePath(String imageStorePath) {
             this.imageStorePath = Path.of(imageStorePath);
         }
+    }
+
+    public static class FilterWheelConfig {
+
+        // A custom list of names for the filters in the filter wheel. Leave blank to use Service provided ones.
+        private List<String> filterNames;
+
+        // A custom list of focus offsets for the filters in the filter wheel. Leave blank to use Service provided ones.
+        private List<Integer> focusOffsets;
+
+
+        // Getters/setters
+        public List<String> getFilterNames() {
+            return filterNames;
+        }
+
+        public boolean hasCustomFilterNames() {
+            return filterNames != null && !filterNames.isEmpty();
+        }
+
+        public void setFilterNames(List<String> filterNames) {
+            this.filterNames = filterNames;
+        }
+
+        public List<Integer> getFocusOffsets() {
+            return focusOffsets;
+        }
+
+        public void setFocusOffsets(List<Integer> focusOffsets) {
+            this.focusOffsets = focusOffsets;
+        }
+
+        public boolean hasCustomFocusOffsets() {
+            return focusOffsets != null && !focusOffsets.isEmpty();
+        }
+
     }
 }

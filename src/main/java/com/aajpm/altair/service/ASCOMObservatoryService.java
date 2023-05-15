@@ -1,5 +1,6 @@
 package com.aajpm.altair.service;
 
+import com.aajpm.altair.config.ObservatoryConfig;
 import com.aajpm.altair.config.ObservatoryConfig.CameraConfig;
 import com.aajpm.altair.security.account.AltairUser;
 import com.aajpm.altair.service.observatory.*;
@@ -20,14 +21,16 @@ public class ASCOMObservatoryService extends ObservatoryService {
     ASCOMDomeService dome;
     ASCOMFocuserService focuser;
     ASCOMCameraService camera;
+    ASCOMFilterWheelService filterWheel;
 
     // TODO : remove the hard coded URL for the camera
-    public ASCOMObservatoryService(String baseURL, CameraConfig camConfig) {
+    public ASCOMObservatoryService(String baseURL, ObservatoryConfig config) {
         alpaca = new AlpacaClient(baseURL, connTimeout, responseTimeout);
         telescope = new ASCOMTelescopeService(alpaca);
         dome = new ASCOMDomeService(alpaca);
         focuser = new ASCOMFocuserService(alpaca);
-        camera = new ASCOMCameraService(new AlpacaClient("http://localhost:11111/", connTimeout, responseTimeout), camConfig);
+        camera = new ASCOMCameraService(new AlpacaClient("http://localhost:11111/", connTimeout, responseTimeout), config.getCamera());
+        filterWheel = new ASCOMFilterWheelService(alpaca, config.getFilterWheel());
     }
 
     public TelescopeService getTelescope() {
@@ -44,6 +47,10 @@ public class ASCOMObservatoryService extends ObservatoryService {
 
     public CameraService getCamera() {
         return this.camera;
+    }
+
+    public FilterWheelService getFilterWheel() {
+        return this.filterWheel;
     }
 
     @Override

@@ -169,4 +169,11 @@ public abstract class ObservatoryService {
      */
     public abstract CameraService getCamera();
 
+    /**
+     * Returns the filter wheel service.
+     * @return The filter wheel service.
+     * @throws DeviceUnavailableException If the filter wheel service is unaccessible/not configured.
+     */
+    public abstract FilterWheelService getFilterWheel();
+
 }
