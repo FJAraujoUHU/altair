@@ -109,5 +109,32 @@ public abstract class FilterWheelService {
     public abstract void setPositionAwait(int position) throws DeviceException;
 
     //#endregion
+    //////////////////////////// STATUS REPORTING /////////////////////////////
+    //#region Status reporting
+
+    public Mono<FilterWheelStatus> getStatus() {
+        Mono<Boolean> connected =   this.isConnected().onErrorReturn(false);
+        Mono<Integer> pos =         this.getPosition().onErrorReturn(-1);
+        Mono<String> name =         this.getFilterName().onErrorReturn("Unknown");
+        Mono<Integer> offset =      this.getFocusOffset().onErrorReturn(0);
+
+        return Mono.zip(connected, pos, name, offset).map(
+            tuple -> new FilterWheelStatus(
+                tuple.getT1(),
+                tuple.getT2(),
+                tuple.getT3(),
+                tuple.getT4()
+            )
+        );
+    }
+
+    public record FilterWheelStatus (
+        Boolean connected,
+        Integer curPosition,
+        String curName,
+        Integer curOffset
+    ) {}
+
+    //#endregion
 
 }

@@ -35,12 +35,14 @@ public class ASCOMFilterWheelService extends FilterWheelService {
         this.deviceNumber = deviceNumber;
 
         // If there are custom filter names/offsets, use them. Else, use the ones provided by the service.
-        if (config.hasCustomFilterNames()) {
-            this.filterNames = config.getFilterNames();
-        }
+        if (config != null) {
+            if (config.hasCustomFilterNames()) {
+                this.filterNames = config.getFilterNames();
+            }
 
-        if (config.hasCustomFocusOffsets()) {
-            this.focusOffsets = config.getFocusOffsets();
+            if (config.hasCustomFocusOffsets()) {
+                this.focusOffsets = config.getFocusOffsets();
+            }
         }
     }
 
@@ -113,7 +115,7 @@ public class ASCOMFilterWheelService extends FilterWheelService {
                     return offsets;
                 })
                 .doOnSuccess(offsets -> this.focusOffsets = offsets);
-                
+
         } else {
             return Mono.just(this.focusOffsets);
         }

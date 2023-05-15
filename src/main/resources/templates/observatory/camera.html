@@ -12,7 +12,7 @@
     <title>Camera</title>
 </head>
 
-<!-- TODO : Add action buttons-->
+
 <body style="padding-top: 60px">
     <nav class="navbar fixed-top bg-primary flex-md-nowrap p-0 shadow">
         <div class="container-fluid">
@@ -245,13 +245,43 @@
                         </div>
                     </div>
                 </div>
-                
-                
+            </div>
 
+            <!-- FilterWheel settings -->
+            <div class="col mx-auto" sec:authorize="hasRole('ADVANCED_USER')">
 
-
-
-
+                <div class="card text-bg-primary" style="max-width: 32rem; min-width: 15rem" id="filterWheelCard">
+                    <div class="card-header"><h5 class="card-title">Filter Wheel</h5></div>
+                    <div class="card-body text-bg-light">
+                        
+                        <!-- Powering up/down controls and current filter -->
+                        <div class="row flex-nowrap justify-content-between">
+                            <div class="col-4">
+                                <button type="button" class="btn btn-primary w-100 text-nowrap" id="fwConnect" disabled>Connect</button>
+                            </div>
+                            <div class="d-flex justify-content-end col-8 align-items-center">
+                                <p class="card-text">Current: <span id="fwCurrentName">?????</span> Pos: <span id="fwCurrentPos">???</span> Offset: <span id="fwCurrentOff">?????</span> </p>
+                            </div>
+                        </div>
+                        
+                        <!-- Filter selection -->
+                        
+                        <div class="row flex-nowrap align-items-center justify-content-between my-1">
+                            <div class="col-3">
+                                <button type="button" class="btn btn-primary w-100 text-nowrap" id="fwChangeTo" disabled>Change</button>
+                            </div>
+                            <div class="col-auto align-items-center">
+                                <label class="form-label" for="fwSelect">Available filters:</label>
+                            </div>
+                            <div class="col-5 align-items-center">
+                                <select class="form-select text-bg-primary-emphasis" id="fwSelect" disabled>
+                                    <!-- Populated by JS -->
+                                    <!--option value="0.00416666">15"</option-->
+                                </select>
+                            </div>    
+                        </div>                         
+                    </div>
+                </div>
 
             </div>
         </div>      
@@ -268,6 +298,7 @@
     <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.4/dist/jquery.min.js"
         integrity="sha256-oP6HI9z1XaZNBrJURtCoUT5SUnxFr8s3BzRl+cbzUq8=" crossorigin="anonymous"></script>
     <script src="/js/camera.js"></script>
+    <script src="/js/filterwheel.js"></script>
 </body>
 
 </html>
