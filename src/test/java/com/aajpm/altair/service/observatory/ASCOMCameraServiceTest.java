@@ -57,8 +57,8 @@ public class ASCOMCameraServiceTest {
         ImageHDU hdu = ASCOMCameraService.readImageArray(imageArray, hd);
         Fits f = new Fits();
         f.addHDU(hdu);
-        FitsOutputStream gzip = new FitsOutputStream(new GZIPOutputStream(new FileOutputStream("testReadImageArray.fits.gz")));
-        f.write("testReadImageArray.fits");
+        FitsOutputStream gzip = new FitsOutputStream(new GZIPOutputStream(new FileOutputStream("testReadImageArray.fit.gz")));
+        f.write("testReadImageArray.fit");
         f.write(gzip);
         gzip.close();
         f.close();
@@ -90,8 +90,8 @@ public class ASCOMCameraServiceTest {
         ImageHDU hdu = ASCOMCameraService.readImageBytes(imagebytes, hd);
         Fits f = new Fits();
         f.addHDU(hdu);
-        FitsOutputStream gzip = new FitsOutputStream(new GZIPOutputStream(new FileOutputStream("testReadImageBytes.fits.gz")));
-        f.write("testReadImageBytes.fits");
+        FitsOutputStream gzip = new FitsOutputStream(new GZIPOutputStream(new FileOutputStream("testReadImageBytes.fit.gz")));
+        f.write("testReadImageBytes.fit");
         f.write(gzip);
         gzip.close();
         f.close();
@@ -99,9 +99,9 @@ public class ASCOMCameraServiceTest {
         assertNotNull(hdu);
     }
 
-    @Test
+    //@Test
     void testReadImageBytesFile() throws Exception {
-        String filepath = "C:\\Users\\AdminUser\\Desktop\\Project\\altair\\dump1.bin";
+        String filepath = "C:\\Users\\AdminUser\\Desktop\\Project\\altair\\dump.bin"; // Place a dumpImage() file here
         byte[] imagebytes = Files.readAllBytes(Path.of(filepath));
         HeaderData hd;
         hd = new HeaderData(
@@ -122,14 +122,14 @@ public class ASCOMCameraServiceTest {
         ImageHDU hdu = ASCOMCameraService.readImageBytes(imagebytes, hd);
         Fits f = new Fits();
         f.addHDU(hdu);
-        f.write("testReadImageBytesFile.fits");
+        f.write("testReadImageBytesFile.fit");
         f.close();
 
         assertNotNull(hdu);
     }
 
     //@Test
-    void testDumpImapge() throws Exception {
+    void testDumpImage() throws Exception {
         ASCOMCameraService service = new ASCOMCameraService(client, deviceNumber, config);
 
         String filename = "testDumpImage";

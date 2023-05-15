@@ -192,7 +192,6 @@ public class TypeTransformer {
     /////////////////////////////// TRANSFORMERS /////////////////////////////////
     //#region Transformers
 
-    // TODO : Test if this works and pray it does bc it's hella spaghetti
     @SuppressWarnings("java:S3776") // ik ik it's spaghetti but it fast
     public static Object toFits(byte[] imgBytes, int index, NumberVarType imgType, NumberVarType transType, boolean isLittleEndian)
     {

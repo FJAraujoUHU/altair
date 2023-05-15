@@ -8,7 +8,7 @@ import com.aajpm.altair.utility.webutils.AlpacaClient;
 import com.aajpm.altair.utility.exception.DeviceException;
 import com.aajpm.altair.utility.exception.DeviceUnavailableException;
 
-// TODO : Add camera support and Job stuff
+// TODO : Add Job stuff
 public class ASCOMObservatoryService extends ObservatoryService {
 
     AlpacaClient alpaca;
@@ -27,7 +27,7 @@ public class ASCOMObservatoryService extends ObservatoryService {
         telescope = new ASCOMTelescopeService(alpaca);
         dome = new ASCOMDomeService(alpaca);
         focuser = new ASCOMFocuserService(alpaca);
-        camera = new ASCOMCameraService(new AlpacaClient("http://localhost:32323/", connTimeout, responseTimeout), camConfig);
+        camera = new ASCOMCameraService(new AlpacaClient("http://localhost:11111/", connTimeout, responseTimeout), camConfig);
     }
 
     public TelescopeService getTelescope() {

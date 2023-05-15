@@ -228,7 +228,7 @@ public class ASCOMCameraService extends CameraService {
         return this.get("imageready").map(JsonNode::asBoolean);
     }
 
-    //TODO: Test using real HW
+
     @Override
     public Mono<ImageHDU> getImage() {
         return cameraClient.get()
@@ -310,6 +310,7 @@ public class ASCOMCameraService extends CameraService {
 
         }).subscribe(response -> {
             String filename = name;
+
             try {
                 // Create image store directory if it doesn't exist
                 if (!Files.exists(config.getImageStorePath())) {
@@ -318,6 +319,9 @@ public class ASCOMCameraService extends CameraService {
 
                 if (response instanceof byte[]) {
                     byte[] data = (byte[]) response;
+
+                    // Cleans up the filename to remove any illegal characters
+                    filename = filename.replaceAll("[^a-zA-Z0-9\\._\\-]", "_");
 
                     // Add .bin extension if not present   
                     if (!filename.toUpperCase().endsWith(".BIN")) {
@@ -392,44 +396,35 @@ public class ASCOMCameraService extends CameraService {
 
             // Create and populate the image array
             if (rank == 2) {
-                imageData = Array.newInstance(imageDataClass, dim1, dim2);
+                imageData = Array.newInstance(imageDataClass, dim2, dim1);
                 Object[][] imageData2D = (Object[][]) imageData;
 
-                IntStream.range(0, dim1).parallel().forEach(x -> {
+                IntStream.range(0, dim1).parallel().forEach(x ->
                     IntStream.range(0, dim2).forEach(y -> {
+                        
                         int bytesIndex = dataStart + ((x * dim2 + y) * transmissionElementType.getByteCount());
+                            
                         Object value = TypeTransformer
                             .toFits(bytes, bytesIndex, imageElementType, transmissionElementType, true);
 
-                        imageData2D[x][y] = value;
-                    });
-                });
+                        imageData2D[y][x] = value;  // FITS images are stored with the axes flipped
+                    })
+                );
             } else {
-                imageData = Array.newInstance(imageDataClass, dim1, dim2, dim3);
+                imageData = Array.newInstance(imageDataClass, dim3, dim2, dim1);
                 Object[][][] imageData3D = (Object[][][]) imageData;
 
-                IntStream.range(0, dim1).parallel().forEach(x -> {
-                    IntStream.range(0, dim2).forEach(y -> {
+                IntStream.range(0, dim1).parallel().forEach(x ->
+                    IntStream.range(0, dim2).forEach(y ->
                         IntStream.range(0, dim3).forEach(z -> {
                             int bytesIndex = dataStart + ((x * dim2 * dim3 + y * dim3 + z) * transmissionElementType.getByteCount());
                             Object value = TypeTransformer
                                 .toFits(bytes, bytesIndex, imageElementType, transmissionElementType, true);
 
-                            imageData3D[x][y][z] = value;
-                        });
-                    });
-                });
-                /*IntStream.range(0, nElems)
-                    .parallel().forEach(i -> {
-                        int bytesIndex = dataStart + (i * transmissionElementType.getByteCount());
-                        Object value = TypeTransformer
-                            .toFits(bytes, bytesIndex, imageElementType, transmissionElementType, true);
- 
-                        int z = i % dim3;
-                        int y = (i / dim3) / dim2;
-                        int x = (i / dim3) % dim2;
-                        imageData3D[x][y][z] = value;
-                    });*/
+                            imageData3D[z][y][x] = value;
+                        })
+                    )
+                );
             }
             
             Header header = new Header();
@@ -541,25 +536,25 @@ public class ASCOMCameraService extends CameraService {
             throw new DeviceException("Error when retrieving image from camera: Image height mismatch");
 
         if (rank == 2) {
-            imageData = Array.newInstance(type.getJavaClassWrapper(), dim1, dim2);
+            imageData = Array.newInstance(type.getJavaClassWrapper(), dim2, dim1);
             Object[][] imageData2D = (Object[][]) imageData;
 
             IntStream.range(0, dim1).parallel().forEach(x ->
                 IntStream.range(0, dim2).forEach(y ->
-                    imageData2D[x][y] = asObject(imageNode.get(x).get(y), type)
+                    imageData2D[y][x] = asObject(imageNode.get(x).get(y), type)
                 )
             );
 
         } else {
             dim3 = imageNode.get(0).get(0).size();
-            imageData = Array.newInstance(type.getJavaClassWrapper(), dim1, dim2, dim3);
+            imageData = Array.newInstance(type.getJavaClassWrapper(), dim3, dim2, dim1);
             Object[][][] imageData3D = (Object[][][]) imageData;
 
             int dimThree = dim3; // must be final for lambda
             IntStream.range(0, dim1).parallel().forEach(x ->
                 IntStream.range(0, dim2).forEach(y ->
                     IntStream.range(0, dimThree).forEach(z ->
-                        imageData3D[x][y][z] = asObject(imageNode.get(y).get(x).get(z), type)
+                        imageData3D[z][y][x] = asObject(imageNode.get(y).get(x).get(z), type)
                     )
                 )
             );
@@ -654,14 +649,14 @@ public class ASCOMCameraService extends CameraService {
     public void connect() {
         MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
         params.add("Connected", String.valueOf(true));
-        this.execute("connected", new LinkedMultiValueMap<>());
+        this.execute("connected", params);
     }
 
     @Override
     public void disconnect() {
         MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
         params.add("Connected", String.valueOf(false));
-        this.execute("connected", new LinkedMultiValueMap<>());
+        this.execute("connected", params);
     }
 
 

@@ -311,6 +311,7 @@ public abstract class CameraService {
      */
     public abstract Mono<ImageHDU> getImage() throws DeviceException;
 
+    // TODO: Probably should move this to Observatory class to add extra metadata
     /**
      * Saves the captured image to a FITS file in the image store directory
      * @param name the name of the file to save the image to
@@ -325,9 +326,12 @@ public abstract class CameraService {
                     Files.createDirectories(config.getImageStorePath());
                 }
 
-                // Add .fits extension if not present   
-                if (!filename.toUpperCase().endsWith(".FITS")) {
-                    filename += ".fits";
+                // Cleans up the filename to remove any illegal characters
+                filename = filename.replaceAll("[^a-zA-Z0-9\\._\\-]", "_");
+                
+                // Add .fit extension if not present   
+                if (!filename.toUpperCase().endsWith(".FIT") && !filename.toUpperCase().endsWith(".FITS")) {
+                    filename += ".fit";
                 }
 
                 Fits fits = new Fits();
@@ -358,6 +362,7 @@ public abstract class CameraService {
                 fits.write(out);
                 out.close();
                 fits.close();
+                
             } catch (Exception e) { // If there was an error, print the stack trace.
                 e.printStackTrace();
             }

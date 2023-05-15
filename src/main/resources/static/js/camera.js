@@ -1,4 +1,4 @@
-let connected, temperature, cameraStatus, binning, subframe, cooler, coolerConnected;
+let connected, temperature, cameraStatus, binning, binningSym, subframe, cooler, coolerConnected, lastCoolerStatus;
 $(document).ready(function () {
     // Set up CSRF token
     let token = $("meta[name='_csrf']").attr("content");
@@ -6,6 +6,9 @@ $(document).ready(function () {
     $(document).ajaxSend(function (e, xhr, options) {
         xhr.setRequestHeader(header, token);
     });
+
+    lastCoolerStatus = null;
+    binningSym = false;
 
     // Set up monitoring
     const source = new EventSource("/altair/api/camera/stream");
@@ -35,8 +38,7 @@ $(document).ready(function () {
         $("#caCooler").text(cooler);
         $("#caCoolerPwr").text(data.coolerPower);
 
-        // TODO : dont use placeholder
-        connected = true; // spoof simulator, must remove for production
+
         if (connected) {
             $("#caConnect").text("Disconnect");
         } else {
@@ -52,12 +54,46 @@ $(document).ready(function () {
         
         $("#caSubframeButton").prop('disabled', !connected);
         $("#caBinningSym").prop('disabled', !connected);
-        $("#caBinningSym").prop('disabled', !connected);
+        $("#caBinningSet").prop('disabled', !connected);
         $("#caExposureBtns").find('button').prop('disabled', !connected);
         $("#caExposureDLBtns").find('button').prop('disabled', !connected);
         $("#caCoolerEnable").prop('disabled', !connected);
         $("#caCoolerWarmup").prop('disabled', !connected);
         $("#caCoolerTempSetPane").find('button').prop('disabled', !connected);
+
+        if (data.coolerStatus !== lastCoolerStatus) {
+            $(".caCoolerStateIndicator").removeClass("text-bg-warning text-bg-success text-bg-danger text-bg-info text-bg-primary");
+            $(".caCoolerStateIndicator").addClass("text-bg-dark");
+            switch (data.coolerStatus.toUpperCase()) {
+                case "OFF":
+                    $("#caCoolerStateOff").removeClass("text-bg-dark");
+                    $("#caCoolerStateOff").addClass("text-bg-warning");
+                    break;
+                case "COOLING DOWN":
+                    $("#caCoolerStateCdn").removeClass("text-bg-dark");
+                    $("#caCoolerStateCdn").addClass("text-bg-info");
+                    break;
+                case "WARMING UP":
+                    $("#caCoolerStateWup").removeClass("text-bg-dark");
+                    $("#caCoolerStateWup").addClass("text-bg-warning");
+                    break;
+                case "STABLE":
+                    $("#caCoolerStateStb").removeClass("text-bg-dark");
+                    $("#caCoolerStateStb").addClass("text-bg-success");
+                    break;
+                case "SATURATED":
+                    $("#caCoolerStateSat").removeClass("text-bg-dark");
+                    $("#caCoolerStateSat").addClass("text-bg-danger");
+                    break;
+                case "ACTIVE":
+                    $("#caCoolerStateAct").removeClass("text-bg-dark");
+                    $("#caCoolerStateAct").addClass("text-bg-primary");
+                    break;
+                default:
+                    break;
+            }
+            lastCoolerStatus = data.coolerStatus;
+        }
 
     }
 
@@ -95,30 +131,64 @@ $(document).ready(function () {
         });
     });
 
+    $("#caBinningSym").change(function () {
+        binningSym = $(this).is(':checked');
+        $("#caBinningY").val($("#caBinningX").val());
+        if (binningSym) {
+            $("#caBinningY").prop('disabled', true);
+            $(".hideOnSym").hide();
+        } else {
+            $("#caBinningY").prop('disabled', false);
+            $(".hideOnSym").show();
+        }
+    });
+
     // TODO : Symmetric does nothing for now
     $("#caBinningSet").click(function () {
-        let binx = $("#caBinningX").val();
-        let biny = $("#caBinningY").val();
+        if (binningSym) {
+            let bin = $("#caBinningX").val();
 
-        $.ajax({
-            url: "/altair/api/camera/setbinning",
-            type: "POST",
-            data: {
-                binx: binx,
-                biny: biny
-            },
-            error: function (xhr, status, error) {
-                console.log("Error: " + error);
-            }
-        });
+            $.ajax({
+                url: "/altair/api/camera/setbinning",
+                type: "POST",
+                data: {
+                    binning: bin
+                },
+                error: function (xhr, status, error) {
+                    console.log("Error: " + error);
+                }
+            });
+        } else {
+            let binx = $("#caBinningX").val();
+            let biny = $("#caBinningY").val();
+
+            $.ajax({
+                url: "/altair/api/camera/setbinning",
+                type: "POST",
+                data: {
+                    binx: binx,
+                    biny: biny
+                },
+                error: function (xhr, status, error) {
+                    console.log("Error: " + error);
+                }
+            });
+        } 
     });
+
+    $(".caExposureTime").on("input", validateExposureTime);
     
     $("#caExposureStart").click(function () {
-        let hours = $("#caExposureHours").val();
-        let minutes = $("#caExposureMinutes").val();
-        let seconds = $("#caExposureSeconds").val();
+        let hours = $("#caExposureHrs").val();
+        let minutes = $("#caExposureMins").val();
+        let seconds = $("#caExposureSecs").val();
         let duration = (hours * 3600) + (minutes * 60) + seconds;
         let lightframe = $("#caExposureLight").is(":checked");
+
+        if (duration === undefined || duration === null || duration <= 0 ||  duration > 3600 * 12) {
+            console.log("Invalid exposure duration");
+            return;
+        }
 
         $.ajax({
             url: "/altair/api/camera/startexposure",
@@ -201,12 +271,25 @@ $(document).ready(function () {
 
     $("#caCoolerWarmup").click(function () {
         $.ajax({
-            url: "/altair/api/camera/coolwarmup",
+            url: "/altair/api/camera/warmup",
             type: "POST",
             error: function (xhr, status, error) {
                 console.log("Error: " + error);
             }
         });
+    });
+
+    $("#caCoolerTarget").on("input", function () {
+        let target = $("#caCoolerTarget").val();
+
+        if (target === undefined || target === null || target < -30 || target > 30) {
+            console.log("Invalid target temperature");
+            return;
+        }
+
+        target = Math.round(target * 10) / 10;
+        $("#caCoolerTgtDisp").text(target);
+
     });
 
 
@@ -243,3 +326,41 @@ $(document).ready(function () {
 
 
 });
+
+// Exposure time input validation
+const twoDigits = /^\d{1,2}$/;
+function validateExposureTime() {
+    let hVal, mVal, sVal;
+    try {
+        hVal = $("#caExposureHrs").val().trim();
+        mVal = $("#caExposureMins").val().trim();
+        sVal = $("#caExposureSecs").val().trim();
+    } catch (e) { return; }
+
+    if (twoDigits.test(hVal) && twoDigits.test(mVal) && twoDigits.test(sVal)) {
+        let hours = parseInt(hVal);
+        let mins = parseInt(mVal);
+        let secs = parseInt(sVal);
+        if (hours > 23) {
+            $("#caExposureHrs").val("23");
+            $("#caExposureMins").val("59");
+            $("#caExposureSecs").val("59");
+        }
+        if (mins > 59) {
+            $("#caExposureMins").val("59");
+        }
+        if (secs > 59) {
+            $("#caExposureSecs").val("59");
+        }
+    } else {
+        if (!twoDigits.test(hVal)) {
+            $("#caExposureHrs").val("");
+        }
+        if (!twoDigits.test(mVal)) {
+            $("#caExposureMins").val("");
+        }
+        if (!twoDigits.test(sVal)) {
+            $("#caExposureSecs").val("");
+        }
+    }
+}
