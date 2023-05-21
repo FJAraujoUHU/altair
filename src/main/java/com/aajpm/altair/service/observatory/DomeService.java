@@ -99,11 +99,9 @@ public abstract class DomeService {
      * @throws DeviceException If there was an error polling the data.
      */
     public Mono<DomeStatus> getStatus() throws DeviceException {
-        Mono<DomeStatus> ret;
-
-        Mono<Boolean> connected = isConnected();
-        Mono<Double> az = getAz();
-        Mono<Double> shutter = getShutter();
+        Mono<Boolean> connected =   isConnected().onErrorReturn(false);
+        Mono<Double> az =           getAz().onErrorReturn(Double.NaN);
+        Mono<Double> shutter =      getShutter().onErrorReturn(Double.NaN);
         Mono<String> shutterStatus = getShutterStatus()
             .map(status -> {
                 switch (status) {
@@ -117,13 +115,13 @@ public abstract class DomeService {
                         return "Closing";
                     default:
                         return "Error";
-                }});
-        Mono<Boolean> atHome = isAtHome();
-        Mono<Boolean> parked = isParked();
-        Mono<Boolean> slaved = isSlaved();
-        Mono<Boolean> slewing = isSlewing();
+                }}).onErrorReturn("Error");
+        Mono<Boolean> atHome =  isAtHome().onErrorReturn(false);
+        Mono<Boolean> parked =  isParked().onErrorReturn(false);
+        Mono<Boolean> slaved =  isSlaved().onErrorReturn(false);
+        Mono<Boolean> slewing = isSlewing().onErrorReturn(false);
 
-        ret = Mono.zip(connected, az, shutter, shutterStatus, atHome, parked, slaved, slewing)
+        return Mono.zip(connected, az, shutter, shutterStatus, atHome, parked, slaved, slewing)
                 .map(tuple -> {
                     DomeStatus status = new DomeStatus();
                     status.setConnected(tuple.getT1());
@@ -136,7 +134,6 @@ public abstract class DomeService {
                     status.setSlewing(tuple.getT8());
                     return status;
                 }).onErrorReturn(DomeStatus.getErrorStatus());
-        return ret;
     }
 
     //#endregion

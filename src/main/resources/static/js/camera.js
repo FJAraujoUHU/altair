@@ -179,9 +179,12 @@ $(document).ready(function () {
     $(".caExposureTime").on("input", validateExposureTime);
     
     $("#caExposureStart").click(function () {
-        let hours = $("#caExposureHrs").val();
-        let minutes = $("#caExposureMins").val();
-        let seconds = $("#caExposureSecs").val();
+        let hours = parseInt($("#caExposureHrs").val());
+        if (hours === undefined || hours === null || hours < 0) hours = 0;
+        let minutes = parseInt($("#caExposureMins").val());
+        if (minutes === undefined || minutes === null || minutes < 0) minutes = 0;
+        let seconds = parseInt($("#caExposureSecs").val());
+        if (seconds === undefined || seconds === null || seconds < 0) seconds = 0;
         let duration = (hours * 3600) + (minutes * 60) + seconds;
         let lightframe = $("#caExposureLight").is(":checked");
 
