@@ -1,7 +1,6 @@
 package com.aajpm.altair.service;
 
 import com.aajpm.altair.config.ObservatoryConfig;
-import com.aajpm.altair.config.ObservatoryConfig.CameraConfig;
 import com.aajpm.altair.security.account.AltairUser;
 import com.aajpm.altair.service.observatory.*;
 import com.aajpm.altair.utility.webutils.AlpacaClient;
