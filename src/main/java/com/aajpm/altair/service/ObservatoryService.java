@@ -176,4 +176,11 @@ public abstract class ObservatoryService {
      */
     public abstract FilterWheelService getFilterWheel();
 
+    /**
+     * Returns the Weather Watch service.
+     * @return The Weather Watch service.
+     * @throws DeviceUnavailableException If the service is unaccessible/not configured.
+     */
+    public abstract WeatherWatchService getWeatherWatch();
+
 }

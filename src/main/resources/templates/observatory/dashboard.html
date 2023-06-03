@@ -1,63 +1,23 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/thymeleaf-extras-springsecurity6"
-    data-bs-theme="dark">
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/thymeleaf-extras-springsecurity6" data-bs-theme="dark">
 
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="_csrf" th:content="${_csrf.token}"/>
-    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet"
-        integrity="sha384-GLhlTQ8iRABdZLl6O3oVMWSktQOp6b7In1Zl3/Jr59b6EGGoI1aFkw7cmDA6j6gD" crossorigin="anonymous">
+    <th:block th:replace="~{fragments/controlpanel.html :: mainHead}">
+        <!-- Loads head from the fragments using Thymeleaf -->
+    </th:block>
     <title>Dashboard</title>
 </head>
 
 <body style="padding-top: 60px">
-    <nav class="navbar fixed-top bg-primary flex-md-nowrap p-0 shadow">
-        <div class="container-fluid">
-            <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasNavbar"
-                aria-controls="offcanvasNavbar">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <a class="navbar-brand" href="/altair/observatory/dashboard">Altair</a>
-            <ul class="navbar-nav">
-                <li class="nav-item" sec:authorize="isAuthenticated()">
-                    <a class="nav-link" href="javascript: logoutForm.submit();">Sign Out</a>
-                </li>
-                <li class="nav-item" sec:authorize="!isAuthenticated()">
-                    <a class="nav-link" href="/login" sec:authorize="!isAuthenticated()">Login</a>
-                </li>
-            </ul>
-        </div>
-        <div class="offcanvas offcanvas-start" tabindex="-1" id="offcanvasNavbar">
-            <div class="offcanvas-header">
-                <h5 class="offcanvas-title" id="offcanvasNavbarLabel">Devices</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
-            </div>
-            <div class="offcanvas-body">
-                <ul class="navbar-nav justify-content-end flex-grow-1 pe-3">
-                    <li class="nav-item">
-                        <a class="nav-link active" href="/altair/observatory/dashboard">Dashboard</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/altair/observatory/telescope">Telescope</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/altair/observatory/dome">Dome</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/altair/observatory/focuser">Focuser</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/altair/observatory/camera">Camera</a>
-                    </li>
-                </ul>
-                </ul>
-            </div>
-        </div>
+    
+    <nav th:replace="~{fragments/controlpanel.html :: navbar(activeLink='dashboard')}">
+        <!-- Loads navbar and heading from the fragments using Thymeleaf -->
     </nav>
+
     <main style="padding-left: 1.5rem; padding-right: 1.5rem">
         <div class="row row-cols-1 row-cols-sm-2  row-cols-xl-3 g-3">
+
+            <!-- Telescope status -->
             <div class="col mx-auto">
                 <div class="card h-100 text-bg-primary" style="max-width: 32rem; min-width: 15rem">
                     <div class="card-header"><h5 class="card-title">Telescope</h5></div>
@@ -95,6 +55,8 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Dome status -->
             <div class="col mx-auto">
                 <div class="card h-100 text-bg-primary" style="max-width: 32rem; min-width: 15rem">
                     <div class="card-header"><h5 class="card-title">Dome</h5></div>
@@ -126,6 +88,8 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Focuser status -->
             <div class="col mx-auto">
                 <div class="card h-100 text-bg-primary" style="max-width: 32rem; min-width: 15rem">
                     <div class="card-header"><h5 class="card-title">Focuser</h5></div>
@@ -153,6 +117,8 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Camera status -->
             <div class="col mx-auto">
                 <div class="card h-100 text-bg-primary" style="max-width: 32rem; min-width: 15rem">
                     <div class="card-header"><h5 class="card-title">Camera</h5></div>
@@ -183,25 +149,11 @@
                 </div>
             </div>
 
-
-
-
-
-
-
         </div>      
     </main>
 
 
-    <form type="hidden" name="logoutForm" th:hidden="true" method="post" th:action="@{/logout}">
-        <input type="submit" value="Logout" />
-    </form>
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"
-        integrity="sha384-w76AqPfDkMBDXo30jS1Sgez6pr3x5MlQ1ZAGC+nuZB+EYdgRZgiwxhTBTkF7CXvN"
-        crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.4/dist/jquery.min.js"
-        integrity="sha256-oP6HI9z1XaZNBrJURtCoUT5SUnxFr8s3BzRl+cbzUq8=" crossorigin="anonymous"></script>
+    <th:block th:replace="~{fragments/controlpanel.html :: bottomDefs}"/>
     <script src="/js/dashboard.js"></script>
 </body>
 

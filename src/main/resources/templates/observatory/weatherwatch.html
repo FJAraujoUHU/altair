@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/thymeleaf-extras-springsecurity6" data-bs-theme="dark">
+
+<head>
+    <th:block th:replace="~{fragments/controlpanel.html :: mainHead}">
+        <!-- Loads head from the fragments using Thymeleaf -->
+    </th:block>
+    <title>Weather Watch</title>
+</head>
+
+<body style="padding-top: 60px">
+
+    <nav th:replace="~{fragments/controlpanel.html :: navbar(activeLink='weatherwatch')}">
+        <!-- Loads navbar and heading from the fragments using Thymeleaf -->
+    </nav>
+
+    <main style="padding-left: 1.5rem; padding-right: 1.5rem">
+        <div class="row row-cols-1 row-cols-sm-2  row-cols-xl-3 g-3">
+
+            <div class="col mx-auto">
+                <div class="card h-100 text-bg-primary" style="max-width: 32rem; min-width: 15rem">
+                    <div class="card-header"><h5 class="card-title">Weather</h5></div>
+                    <div class="card-body text-bg-light">
+                        <div class="row flex-nowrap">
+                            <div class="col-auto">
+                                <p class="card-text">
+                                    Connected: <br>
+                                    Safe?: <br>
+                                    Cloud cover: <br>
+                                    Humidity: <br>
+                                    Pressure: <br>
+                                    Rain rate: <br>
+                                    Sky brightness: <br>
+                                    Sky quality: <br>
+                                    Sky temperature: <br>
+                                    Ambient temperature: <br>
+                                    Wind speed: <br>
+                                    Wind gusts: <br>
+                                    Wind direction: <br>
+                                </p>
+                            </div>
+                            <div class="col">
+                                <p class="card-text">
+                                    <span id="wwConnected">???</span><br>
+                                    <span id="wwIsSafe">???</span><br>
+                                    <span id="wwCloudCover">???</span><br>
+                                    <span id="wwHumidity">???</span><br>
+                                    <span id="wwPressure">???</span><br>
+                                    <span id="wwRainRate">???</span><br>
+                                    <span id="wwSkyBrightness">???</span><br>
+                                    <span id="wwSkyQuality">???</span><br>
+                                    <span id="wwTempSky">???</span><br>
+                                    <span id="wwTempAmbient">???</span><br>
+                                    <span id="wwWindSpeed">???</span><br>
+                                    <span id="wwWindGust">???</span><br>
+                                    <span id="wwWindDirection">???</span><br>
+                                </p>
+                            </div>
+                        </div>
+                        <div class="row flex-nowrap mt-2">
+                            <div class="col w-100">
+                                <button type="button" class="btn btn-primary w-100" id="wwConnect">Connect</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+
+
+
+
+
+
+        </div>
+    </main>
+
+    <th:block th:replace="~{fragments/controlpanel.html :: bottomDefs}"></th:block>
+    <script th:inline="javascript">
+        var capabilities = /*[[${capabilities}]]*/ null;
+    </script>
+    <script src="/js/weatherwatch.js"></script>
+</body>
+</html>

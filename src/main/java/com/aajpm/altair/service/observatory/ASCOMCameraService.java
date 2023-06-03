@@ -905,7 +905,14 @@ public class ASCOMCameraService extends CameraService {
         if (rank != 2 && rank != 3)
             throw new IllegalArgumentException("Only 2D and 3D arrays are supported");
         if (rank == 2) {
-            Object[][] array2D = (Object[][]) array;
+            return unwrap2d(array, dataType);
+        } else {
+            return unwrap3d(array, dataType);
+        }
+    }
+
+    private static Object unwrap2d(Object array, NumberVarType dataType) {
+        Object[][] array2D = (Object[][]) array;
             int width = array2D.length;
             int height = array2D[0].length;
             switch(dataType) {
@@ -964,82 +971,73 @@ public class ASCOMCameraService extends CameraService {
                 default:
                     return null;
             }
-        } else {
-            Object[][][] array3D = (Object[][][]) array;
-            int width = array3D.length;
-            int height = array3D[0].length;
-            int depth = array3D[0][0].length;
-            
-            switch(dataType) {
-                case BYTE:
-                    byte[][][] byteArray = new byte[width][height][depth];
-                    IntStream.range(0, width).parallel().forEach(x ->
-                        IntStream.range(0, height).forEach(y -> {
-                            for (int z = 0; z < depth; z++) {
-                                byteArray[x][y][z] = ((Byte) array3D[x][y][z]).byteValue();
-                            }
-                        })
-                    );
-                    return byteArray;
-                case INT16:
-                    short[][][] shortArray = new short[width][height][depth];
-                    IntStream.range(0, width).parallel().forEach(x ->
-                        IntStream.range(0, height).forEach(y -> {
-                            for (int z = 0; z < depth; z++) {
-                                shortArray[x][y][z] = ((Short) array3D[x][y][z]).shortValue();
-                            }
-                        })
-                    );
-                    return shortArray;
-                case UINT16:
-                case INT32:
-                    int[][][] intArray = new int[width][height][depth];
-                    IntStream.range(0, width).parallel().forEach(x ->
-                        IntStream.range(0, height).forEach(y -> {
-                            for (int z = 0; z < depth; z++) {
-                                intArray[x][y][z] = ((Integer) array3D[x][y][z]).intValue();
-                            }
-                        })
-                    );
-                    return intArray;
-                case UINT32:
-                case INT64:
-                    long[][][] longArray = new long[width][height][depth];
-                    IntStream.range(0, width).parallel().forEach(x ->
-                        IntStream.range(0, height).forEach(y -> {
-                            for (int z = 0; z < depth; z++) {
-                                longArray[x][y][z] = ((Long) array3D[x][y][z]).longValue();
-                            }
-                        })
-                    );
-                    return longArray;
-                case SINGLE:
-                    float[][][] floatArray = new float[width][height][depth];
-                    IntStream.range(0, width).parallel().forEach(x ->
-                        IntStream.range(0, height).forEach(y -> {
-                            for (int z = 0; z < depth; z++) {
-                                floatArray[x][y][z] = ((Float) array3D[x][y][z]).floatValue();
-                            }
-                        })
-                    );
-                    return floatArray;
-                case DOUBLE:
-                    double[][][] doubleArray = new double[width][height][depth];
-                    IntStream.range(0, width).parallel().forEach(x ->
-                        IntStream.range(0, height).forEach(y -> {
-                            for (int z = 0; z < depth; z++) {
-                                doubleArray[x][y][z] = ((Double) array3D[x][y][z]).doubleValue();
-                            }
-                        })
-                    );
-                    return doubleArray;
-                case UINT64:
-                    return array;   // BigInteger is not a primitive type
-                default:
-                    return null;
-            }
+    }
+
+    @SuppressWarnings("java:S3776")
+    private static Object unwrap3d(Object array, NumberVarType dataType) {
+        Object[][][] array3D = (Object[][][]) array;
+        int width = array3D.length;
+        int height = array3D[0].length;
+        int depth = array3D[0][0].length;
+
+        switch (dataType) {
+            case BYTE:
+                byte[][][] byteArray = new byte[width][height][depth];
+                IntStream.range(0, width).parallel().forEach(x -> IntStream.range(0, height).forEach(y -> {
+                    for (int z = 0; z < depth; z++) {
+                        byteArray[x][y][z] = ((Byte) array3D[x][y][z]).byteValue();
+                    }
+                }));
+                return byteArray;
+            case INT16:
+                short[][][] shortArray = new short[width][height][depth];
+                IntStream.range(0, width).parallel().forEach(x -> IntStream.range(0, height).forEach(y -> {
+                    for (int z = 0; z < depth; z++) {
+                        shortArray[x][y][z] = ((Short) array3D[x][y][z]).shortValue();
+                    }
+                }));
+                return shortArray;
+            case UINT16:
+            case INT32:
+                int[][][] intArray = new int[width][height][depth];
+                IntStream.range(0, width).parallel().forEach(x -> IntStream.range(0, height).forEach(y -> {
+                    for (int z = 0; z < depth; z++) {
+                        intArray[x][y][z] = ((Integer) array3D[x][y][z]).intValue();
+                    }
+                }));
+                return intArray;
+            case UINT32:
+            case INT64:
+                long[][][] longArray = new long[width][height][depth];
+                IntStream.range(0, width).parallel().forEach(x -> IntStream.range(0, height).forEach(y -> {
+                    for (int z = 0; z < depth; z++) {
+                        longArray[x][y][z] = ((Long) array3D[x][y][z]).longValue();
+                    }
+                }));
+                return longArray;
+            case SINGLE:
+                float[][][] floatArray = new float[width][height][depth];
+                IntStream.range(0, width).parallel().forEach(x -> IntStream.range(0, height).forEach(y -> {
+                    for (int z = 0; z < depth; z++) {
+                        floatArray[x][y][z] = ((Float) array3D[x][y][z]).floatValue();
+                    }
+                }));
+                return floatArray;
+            case DOUBLE:
+                double[][][] doubleArray = new double[width][height][depth];
+                IntStream.range(0, width).parallel().forEach(x -> IntStream.range(0, height).forEach(y -> {
+                    for (int z = 0; z < depth; z++) {
+                        doubleArray[x][y][z] = ((Double) array3D[x][y][z]).doubleValue();
+                    }
+                }));
+                return doubleArray;
+            case UINT64:
+                return array; // BigInteger is not a primitive type
+            default:
+                return null;
         }
     }
+
 
     @SuppressWarnings("java:S3776")
     private Mono<HeaderData> getHeaderData() {

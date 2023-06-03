@@ -15,6 +15,7 @@ import com.aajpm.altair.service.ObservatoryService;
 import com.aajpm.altair.utility.statusreporting.ObservatoryStatus;
 
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 @Controller
 @RequestMapping("/altair/observatory")
@@ -25,7 +26,7 @@ public class ObservatoryController {
     
     ObservatoryConfig config;
 
-    @Autowired
+    //@Autowired
     public ObservatoryController(ObservatoryConfig config) {
         this.config = config;
     }
@@ -53,6 +54,18 @@ public class ObservatoryController {
     @GetMapping("/camera")
     public String camera(Model model) {
         return "observatory/camera.html";
+    }
+
+    @GetMapping("/weatherwatch")
+    public Mono<String> weatherwatch(Model model) {
+        return observatory.getWeatherWatch()
+            .getCapabilities()
+            .doOnSuccess(capabilities -> model.addAttribute("capabilities", capabilities))
+            .onErrorResume(throwable -> {
+                model.addAttribute("callError", throwable);
+                return Mono.empty();
+            })
+            .thenReturn("observatory/weatherwatch.html");
     }
 
     @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)

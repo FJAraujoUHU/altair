@@ -1,7 +1,5 @@
 package com.aajpm.altair.service.observatory;
 
-import com.aajpm.altair.utility.exception.DeviceException;
-
 import reactor.core.publisher.Mono;
 
 /**
@@ -27,176 +25,146 @@ public abstract class WeatherWatchService {
     /**
      * Returns whether it is safe to operate the telescope according to the device.
      * @return TRUE if safe, FALSE if it is raining or the sun is out, etc.
-     * @throws DeviceException If there was an error polling the data.
      */
-    public abstract Mono<Boolean> isSafe() throws DeviceException;
-    
-    /**
-     * Returns the time since the device last updated its data
-     * @return The elapsed time since the device last updated its data, in seconds
-     */
-    public abstract Mono<Double> getTimeSinceLastUpdate();
-
-
+    public abstract Mono<Boolean> isSafe();
 
     /**
      * Returns the current cloud cover as a general value
      * @return The current cloud cover, either "Clear", "Cloudy" or "Overcast"
-     * @throws DeviceException If there was an error polling the data or the device does not support this feature.
      */
-    public abstract Mono<String> getCloudCover() throws DeviceException;
+    public abstract Mono<String> getCloudCover();
 
     /**
      * Returns the current cloud cover
      * @return The current cloud cover, as a 0-100 percentage
-     * @throws DeviceException If there was an error polling the data or the device does not support this feature.
      */
-    public abstract Mono<Double> getCloudCoverValue() throws DeviceException;
+    public abstract Mono<Double> getCloudCoverValue();
 
 
     /**
      * Returns the current humidity as a general value
      * @return The current humidity, either "Dry", "Humid" or "Wet"
-     * @throws DeviceException If there was an error polling the data or the device does not support this feature.
      */
-    public abstract Mono<String> getHumidity() throws DeviceException;
+    public abstract Mono<String> getHumidity();
 
     /**
      * Returns the current humidity
      * @return The current humidity, as a 0-100 percentage
-     * @throws DeviceException If there was an error polling the data or the device does not support this feature.
      */
-    public abstract Mono<Double> getHumidityValue() throws DeviceException;
+    public abstract Mono<Double> getHumidityValue();
 
 
     /**
      * Returns the current pressure as a general value
      * @return The current pressure, either "Low", "Normal" or "High"
-     * @throws DeviceException If there was an error polling the data or the device does not support this feature.
      */
-    public abstract Mono<String> getPressure() throws DeviceException;
+    public abstract Mono<String> getPressure();
 
     /**
      * Returns the current pressure
      * @return The current pressure, in hectopascals
-     * @throws DeviceException If there was an error polling the data or the device does not support this feature.
      */
-    public abstract Mono<Double> getPressureValue() throws DeviceException;
+    public abstract Mono<Double> getPressureValue();
 
 
     /**
      * Returns the current rain rate as a general value
      * @return The current rain rate, either "Dry", "Wet" or "Rain"
-     * @throws DeviceException If there was an error polling the data or the device does not support this feature.
      */
-    public abstract Mono<String> getRainRate() throws DeviceException;
+    public abstract Mono<String> getRainRate();
 
     /**
      * Returns the current rain rate
      * @return The current rain rate, in millimetres per hour
-     * @throws DeviceException If there was an error polling the data or the device does not support this feature.
      */
-    public abstract Mono<Double> getRainRateValue() throws DeviceException;
+    public abstract Mono<Double> getRainRateValue();
 
 
     /**
      * Returns the current sky brightness as a general value
      * @return The current sky brightness, either "Dark", "Normal" or "Bright"
-     * @throws DeviceException If there was an error polling the data or the device does not support this feature.
      */
-    public abstract Mono<String> getSkyBrightness() throws DeviceException;
+    public abstract Mono<String> getSkyBrightness();
 
     /**
      * Returns the current sky brightness
      * @return The current sky brightness, in lux
-     * @throws DeviceException If there was an error polling the data or the device does not support this feature.
      */
-    public abstract Mono<Double> getSkyBrightnessValue() throws DeviceException;
+    public abstract Mono<Double> getSkyBrightnessValue();
 
 
     /**
      * Returns the currrent sky quality as a general value
      * @return The current sky quality, either "Good", "Normal" or "Bad"
-     * @throws DeviceException If there was an error polling the data or the device does not support this feature.
      */
-    public abstract Mono<String> getSkyQuality() throws DeviceException;
+    public abstract Mono<String> getSkyQuality();
 
     /**
      * Returns the current sky quality
      * @return The current sky quality, in magnitude per square arcsecond
-     * @throws DeviceException If there was an error polling the data or the device does not support this feature.
      */
-    public abstract Mono<Double> getSkyQualityValue() throws DeviceException;
+    public abstract Mono<Double> getSkyQualityValue();
 
 
     /**
      * Returns the current sky temperature as a general value
      * @return The current sky temperature, either "Hot", "Cold" or "Normal"
-     * @throws DeviceException If there was an error polling the data or the device does not support this feature.
      */
-    public abstract Mono<String> getTemperatureSky() throws DeviceException;
+    public abstract Mono<String> getTemperatureSky();
 
 
     /**
      * Returns the current sky temperature
      * @return The current sky temperature, in degrees Celsius
-     * @throws DeviceException If there was an error polling the data or the device does not support this feature.
      */
-    public abstract Mono<Double> getTemperatureSkyValue() throws DeviceException;
+    public abstract Mono<Double> getTemperatureSkyValue();
 
 
     /**
      * Returns the current ambient temperature as a general value
      * @return The current ambient temperature, either "Hot", "Cold" or "Normal"
-     * @throws DeviceException If there was an error polling the data or the device does not support this feature.
      */
-    public abstract Mono<String> getTemperatureAmbient() throws DeviceException;
+    public abstract Mono<String> getTemperatureAmbient();
 
     /**
      * Returns the current ambient temperature
      * @return The current ambient temperature, in degrees Celsius
-     * @throws DeviceException If there was an error polling the data or the device does not support this feature.
      */
-    public abstract Mono<Double> getTemperatureAmbientValue() throws DeviceException;
+    public abstract Mono<Double> getTemperatureAmbientValue();
 
 
     /**
      * Returns the current wind speed as a general value
      * @return The current wind speed, either "Calm", "Windy" or "Very windy"
-     * @throws DeviceException If there was an error polling the data or the device does not support this feature.
      */
-    public abstract Mono<String> getWindSpeed() throws DeviceException;
+    public abstract Mono<String> getWindSpeed();
 
     /**
      * Returns the current wind speed
      * @return The current wind speed, in metres per second
-     * @throws DeviceException If there was an error polling the data or the device does not support this feature.
      */
-    public abstract Mono<Double> getWindSpeedValue() throws DeviceException;
+    public abstract Mono<Double> getWindSpeedValue();
 
 
     /**
      * Returns the current wind direction as a general value
      * @return The current wind direction, as "N", "NE", "E", "SE", "S", "SW", "W" or "NW", or "None" if there is no wind
-     * @throws DeviceException If there was an error polling the data or the device does not support this feature.
      */
-    public abstract Mono<String> getWindDirection() throws DeviceException;
+    public abstract Mono<String> getWindDirection();
 
 
     /**
      * Returns the current wind direction
      * @return The current wind direction, in degrees clockwise from North, or NaN if there is no wind
-     * @throws DeviceException If there was an error polling the data or the device does not support this feature.
      */
-    public abstract Mono<Double> getWindDirectionValue() throws DeviceException;
+    public abstract Mono<Double> getWindDirectionValue();
 
 
     /**
      * Returns the current wind gust speed
      * @return The current wind gust speed (Max value in the last 2 mins), in metres per second
-     * @throws DeviceException If there was an error polling the data or the device does not support this feature.
      */
-    public abstract Mono<Double> getWindGustSpeed() throws DeviceException;
+    public abstract Mono<Double> getWindGustSpeed();
 
     //#endregion
     ///////////////////////////////// SETTERS /////////////////////////////////
@@ -205,16 +173,14 @@ public abstract class WeatherWatchService {
     /**
      * Connects the device
      * @return A Mono that completes when the device has been connected.
-     * @throws DeviceException If there was an error connecting the weather watch.
      */
-    public abstract Mono<Void> connect() throws DeviceException;
+    public abstract Mono<Void> connect();
 
     /**
      * Disconnects the device
      * @return A Mono that completes when the device has been disconnected.
-     * @throws DeviceException If there was an error disconnecting the weather watch.
      */
-    public abstract Mono<Void> disconnect() throws DeviceException;
+    public abstract Mono<Void> disconnect();
 
     //#endregion
     //////////////////////////// STATUS REPORTING /////////////////////////////
@@ -223,14 +189,12 @@ public abstract class WeatherWatchService {
     /**
      * Returns the capabilities of the device
      * @return A WeatherWatchStatus object containing the capabilities of the weather watch
-     * @throws DeviceException If there was an error polling the data.
      */
     public abstract Mono<WeatherWatchCapabilities> getCapabilities();
 
     /**
      * Returns the status of the device
      * @return A WeatherWatchStatus object containing the status of the weather watch
-     * @throws DeviceException If there was an error polling the data.
      */
     public abstract Mono<WeatherWatchStatus> getStatus();
 
@@ -267,7 +231,7 @@ public abstract class WeatherWatchService {
         String pressure,            // Pressure, eihter "Low", "Normal" or "High", or in hPa
         String rainRate,            // Rain rate, either "Dry", "Wet" or "Rain", or in mm/h
         String skyBrightness,       // Sky brightness, either "Dark", "Bright" or "Very bright", or in lux
-        String skyQuality,          // Sky quality, either "Good", "Normal" or "Bad", or in magnitude/arcsec^2
+        String skyQuality,          // Sky quality, either "Good", "Normal" or "Poor", or in magnitude/arcsec^2
         String temperatureSky,      // Sky temperature (usually mesured using IR), either "Hot", "Cold" or  "Normal", or in °C
         String temperatureAmbient,  // Ambient temperature, either "Hot", "Cold" or "Normal", or in °C
         String windSpeed,           // Wind speed, either "Calm", "Windy" or "Very windy", or in m/s

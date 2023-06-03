@@ -21,6 +21,7 @@ public class ASCOMObservatoryService extends ObservatoryService {
     ASCOMFocuserService focuser;
     ASCOMCameraService camera;
     ASCOMFilterWheelService filterWheel;
+    ASCOMWeatherWatchService weather;
 
     // TODO : remove the hard coded URL for the camera
     public ASCOMObservatoryService(String baseURL, ObservatoryConfig config) {
@@ -30,6 +31,7 @@ public class ASCOMObservatoryService extends ObservatoryService {
         focuser = new ASCOMFocuserService(alpaca);
         camera = new ASCOMCameraService(new AlpacaClient("http://localhost:11111/", connTimeout, responseTimeout), config.getCamera());
         filterWheel = new ASCOMFilterWheelService(alpaca, config.getFilterWheel());
+        weather = new ASCOMWeatherWatchService(alpaca);
     }
 
     public TelescopeService getTelescope() {
@@ -50,6 +52,10 @@ public class ASCOMObservatoryService extends ObservatoryService {
 
     public FilterWheelService getFilterWheel() {
         return this.filterWheel;
+    }
+
+    public WeatherWatchService getWeatherWatch() {
+        return this.weather;
     }
 
     @Override

@@ -14,7 +14,6 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 
 
-// TODO: Test this class.
 public class ASCOMFilterWheelService extends FilterWheelService {
 
     AlpacaClient client;

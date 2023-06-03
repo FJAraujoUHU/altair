@@ -143,7 +143,6 @@ $(document).ready(function () {
         }
     });
 
-    // TODO : Symmetric does nothing for now
     $("#caBinningSet").click(function () {
         if (binningSym) {
             let bin = $("#caBinningX").val();

@@ -238,7 +238,7 @@ function toDMS(value) {
     let d = Math.floor(value);
     let m = Math.floor((value - d) * 60);
     let s = Math.floor(((value - d) * 60 - m) * 60);
-    return d + "° " + m + "\' " + s + "\"";
+    return d + "° " + m + "' " + s + "\"";
 }
 
 function isTrue(input) {
