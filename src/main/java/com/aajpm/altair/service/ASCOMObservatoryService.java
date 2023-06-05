@@ -13,8 +13,8 @@ public class ASCOMObservatoryService extends ObservatoryService {
 
     AlpacaClient alpaca;
 
-    int connTimeout = 15000;
-    int responseTimeout = 60000;
+    int connTimeout;
+    int responseTimeout;
 
     ASCOMTelescopeService telescope;
     ASCOMDomeService dome;
@@ -25,10 +25,12 @@ public class ASCOMObservatoryService extends ObservatoryService {
 
     // TODO : remove the hard coded URL for the camera
     public ASCOMObservatoryService(String baseURL, ObservatoryConfig config) {
+        connTimeout = (int) config.getSynchronousTimeout();
+        responseTimeout = (int) config.getSynchronousTimeout();
         alpaca = new AlpacaClient(baseURL, connTimeout, responseTimeout);
         telescope = new ASCOMTelescopeService(alpaca, config.getStatusUpdateInterval(), config.getSynchronousTimeout());
         dome = new ASCOMDomeService(alpaca, config.getStatusUpdateInterval(), config.getSynchronousTimeout());
-        focuser = new ASCOMFocuserService(alpaca);
+        focuser = new ASCOMFocuserService(alpaca, config.getStatusUpdateInterval(), config.getSynchronousTimeout());
         camera = new ASCOMCameraService(new AlpacaClient("http://localhost:11111/", connTimeout, responseTimeout), config.getCamera());
         filterWheel = new ASCOMFilterWheelService(alpaca, config.getFilterWheel());
         weather = new ASCOMWeatherWatchService(alpaca);

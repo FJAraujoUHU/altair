@@ -1,13 +1,16 @@
 package com.aajpm.altair.service.observatory;
 
+import java.time.Duration;
+import java.util.Objects;
+
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import com.aajpm.altair.utility.exception.DeviceException;
 import com.aajpm.altair.utility.webutils.AlpacaClient;
 import com.fasterxml.jackson.databind.JsonNode;
 
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import reactor.core.publisher.SignalType;
 
 public class ASCOMFocuserService extends FocuserService {
 
@@ -15,25 +18,23 @@ public class ASCOMFocuserService extends FocuserService {
 
     final int deviceNumber;
 
-    Boolean absolute = null;
+    final int statusUpdateInterval; // how often checks the state of the device for synchronous methods
 
-    public ASCOMFocuserService(AlpacaClient client) {
-        this(client, 0);
+    final long synchronousTimeout; // how long to wait for synchronous methods to complete
+
+    private FocuserCapabilities capabilities;
+
+
+    public ASCOMFocuserService(AlpacaClient client, int statusUpdateInterval, long synchronousTimeout) {
+        this(client, 0 , statusUpdateInterval, synchronousTimeout);
     }
 
-    public ASCOMFocuserService(AlpacaClient client, int deviceNumber) {
+    public ASCOMFocuserService(AlpacaClient client, int deviceNumber, int statusUpdateInterval, long synchronousTimeout) {
         this.client = client;
         this.deviceNumber = deviceNumber;
-
-        // checks if it's connected, and if it is, sets if it's absolute or relative.
-        // Else, it will be set when the connect method is called.
-        this.isConnected().subscribe(conn -> {
-            if (conn.booleanValue()) {
-                this.get("absolute")
-                    .map(JsonNode::asBoolean)
-                    .subscribe(ret -> this.absolute = ret);
-            }
-        });
+        this.statusUpdateInterval = statusUpdateInterval;
+        this.synchronousTimeout = synchronousTimeout;
+        this.getCapabilities().onErrorComplete().subscribe(); // attempt to get the device's capabilities
     }
 
     ///////////////////////////////// GETTERS /////////////////////////////////
@@ -51,12 +52,24 @@ public class ASCOMFocuserService extends FocuserService {
 
     @Override
     public Mono<Double> getTemperature() throws DeviceException {
-        return this.get("temperature").map(JsonNode::asDouble);
+        return getCapabilities().flatMap(caps -> {
+            if (caps.canTempComp()) {
+                return this.get("temperature").map(JsonNode::asDouble);
+            } else {
+                return Mono.error(new DeviceException("Device does not support temperature compensation"));
+            }
+        });
     }
 
     @Override
     public Mono<Boolean> isTempComp() throws DeviceException {
-        return this.get("tempcomp").map(JsonNode::asBoolean);
+        return getCapabilities().flatMap(caps -> {
+            if (caps.canTempComp()) {
+                return this.get("tempcomp").map(JsonNode::asBoolean);
+            } else {
+                return Mono.error(new DeviceException("Device does not support temperature compensation"));
+            }
+        });
     }
 
     @Override
@@ -69,78 +82,186 @@ public class ASCOMFocuserService extends FocuserService {
     //#region Setters/Actions
 
     @Override
-    public void connect() throws DeviceException {
-        MultiValueMap<String, String> params = new LinkedMultiValueMap<>(1);
-        params.add("Connected", String.valueOf(true));
-        this.put("connected", params)
-            .doFinally(signalType -> {
-                if (signalType == SignalType.ON_COMPLETE) {
-                    this.get("absolute")
-                        .map(JsonNode::asBoolean)
-                        .subscribe(ret -> this.absolute = ret);
-                }
-                    
-            })
-            .subscribe();
+    public Mono<Void> connect() throws DeviceException {
+        MultiValueMap<String, String> args = new LinkedMultiValueMap<>(1);
+        args.add("Connected", String.valueOf(true));
+        return this.put("connected", args)
+            .doOnSuccess(v -> this.getCapabilities().subscribe())   // attempt to get the device's capabilities
+            .then();
     }
 
     @Override
-    public void disconnect() throws DeviceException {
+    public Mono<Void> disconnect() throws DeviceException {
         MultiValueMap<String, String> params = new LinkedMultiValueMap<>(1);
         params.add("Connected", String.valueOf(false));
-        this.execute("connected", params);
+        return this.put("connected", params).then();
     }
 
     @Override
-    public void move(int position) throws DeviceException {
-        if (absolute == null) {
-            this.get("absolute")
-                .map(JsonNode::asBoolean)
-                .subscribe(ret -> this.absolute = ret);
-            throw new DeviceException("Focuser not connected/ready");
-        }
-        int newPosition = Math.max(0, position); // Clamp to 0
-        MultiValueMap<String, String> params = new LinkedMultiValueMap<>(1);
-        if (absolute.booleanValue()) {
-            params.add("Position", String.valueOf(newPosition));
-            this.execute("move", params);
-        } else {
-            this.getPosition().subscribe(currentPosition -> {
-                params.add("Position", String.valueOf(newPosition - currentPosition));
-                this.execute("move", params);
-            });
-        }
+    public Mono<Void> move(int position) throws DeviceException {
+        return this.getCapabilities().zipWith(this.getPosition()).flatMap(tuple -> {
+            int maxIncrement = tuple.getT1().maxIncrement();
+            int maxStep = tuple.getT1().maxStep();
+            int startPos = tuple.getT2();
+            int targetPos = Math.min(Math.max(0, position), maxStep); // Clamp to limits
+            
+            // Calculate the number of moves required to reach the target position
+            int delta = targetPos - startPos;
+            int moves = (int) Math.ceil(Math.abs(delta) / (double) maxIncrement);
+
+            boolean absolute = tuple.getT1().canAbsolute();
+
+            // If the target position is reachable, move there in one command
+            if (moves == 1) {
+                return moveCmd(absolute ? targetPos : delta);
+            }
+
+            Mono<Void> firstMove = moveCmd(absolute ? startPos + maxIncrement : maxIncrement)
+                .then(getPosition())
+                .repeatWhen(repeat -> repeat.delayElements(Duration.ofMillis(statusUpdateInterval)))
+                .takeUntil(actualPos -> Objects.equals(actualPos, startPos + maxIncrement))
+                .last()
+                .then();
+
+            // Create a stream of moves to execute
+            Mono<Void> remainingMoves = Flux
+                .range(2, moves-1)
+                .concatMap(i -> {
+                    int increment = (i >= moves) ? delta % maxIncrement : maxIncrement; // Last move may be smaller than maxIncrement
+                    int currTarget = startPos + (maxIncrement*(i-1) + increment);       // Current target position
+                    int moveTo = absolute ? currTarget : increment;                     // Parameter for the move command, either absolutely or relatively
+                    
+                    return moveCmd(moveTo)
+                        .then(getPosition())
+                        .repeatWhen(repeat -> repeat.delayElements(Duration.ofMillis(statusUpdateInterval)))
+                        .takeUntil(actualPos -> Objects.equals(actualPos, currTarget))
+                        .last();
+                }).then();
+
+            // return firstMove and make remainingMoves wait for firstMove to complete, only returning firstMove's signal as firstMove finishes
+            return firstMove.doOnSuccess(v -> remainingMoves.subscribe());
+        });
     }
 
     @Override
-    public void moveAwait(int position) throws DeviceException {
-        if (absolute == null) {
-            absolute = this.get("absolute").map(JsonNode::asBoolean).block();
-            if (absolute == null)
-                throw new DeviceException("Focuser not connected/ready");
-        }
-        int newPosition = Math.max(0, position); // Clamp to 0
-        if (!absolute.booleanValue()) { // If the focuser is relative, we need to convert the position to relative
-            int currentPosition = this.getPosition().block();
-            newPosition -= currentPosition;
-        }
-        MultiValueMap<String, String> params = new LinkedMultiValueMap<>(1);
-        params.add("Position", String.valueOf(newPosition));
-        this.put("move", params).block();
+    public Mono<Void> moveAwait(int position) throws DeviceException {
+        return this.getCapabilities().zipWith(this.getPosition()).flatMap(tuple -> {
+            int maxIncrement = tuple.getT1().maxIncrement();
+            int maxStep = tuple.getT1().maxStep();
+            int startPos = tuple.getT2();
+            int targetPos = Math.min(Math.max(0, position), maxStep); // Clamp to limits
+            
+            // Calculate the number of moves required to reach the target position
+            int delta = targetPos - startPos;
+            int moves = (int) Math.ceil(Math.abs(delta) / (double) maxIncrement);
+
+            boolean absolute = tuple.getT1().canAbsolute();
+
+            // If the target position is reachable, move there in one command
+            if (moves == 1) {
+                return moveCmd(absolute ? targetPos : delta)
+                    .then(getPosition())
+                    .repeatWhen(repeat -> repeat.delayElements(Duration.ofMillis(statusUpdateInterval)))
+                    .takeUntil(actualPos -> Objects.equals(actualPos, targetPos))
+                    .last()
+                    .then();
+            }
+
+            // Create a stream of moves and use concatMap to execute the moves sequentially
+            return Flux.range(1, moves).concatMap(i -> {
+                int increment = (i >= moves) ? delta % maxIncrement : maxIncrement; // Last move may be smaller than maxIncrement
+                int currTarget = startPos + (maxIncrement*(i-1) + increment);       // Current target position
+                int moveTo = absolute ? currTarget : increment;                     // Parameter for the move command, either absolutely or relatively
+                
+                return moveCmd(moveTo)
+                    .then(getPosition())
+                    .repeatWhen(repeat -> repeat.delayElements(Duration.ofMillis(statusUpdateInterval)))
+                    .takeUntil(actualPos -> Objects.equals(actualPos, currTarget))
+                    .last();
+            }).then();
+        });
     }
 
     @Override
-    public void halt() throws DeviceException {
-        this.execute("halt", null);
+    public Mono<Void> moveRelative(int position) {
+        return getPosition().flatMap(currPos -> move(currPos + position));
     }
 
     @Override
-    public void setTempComp(boolean enable) throws DeviceException {
-        MultiValueMap<String, String> params = new LinkedMultiValueMap<>(1);
-        params.add("TempComp", String.valueOf(enable));
-        this.execute("tempcomp", params);
+    public Mono<Void> moveRelativeAwait(int position) {
+        return getPosition().flatMap(currPos -> moveAwait(currPos + position));
+    }
+
+    @Override
+    public Mono<Void> halt() throws DeviceException {
+        return this.put("halt", null).then();
+    }
+
+    @Override
+    public Mono<Void> setTempComp(boolean enable) throws DeviceException {
+        return getCapabilities().flatMap(caps -> {
+            if (caps.canTempComp()) {
+                MultiValueMap<String, String> params = new LinkedMultiValueMap<>(1);
+                params.add("TempComp", String.valueOf(enable));
+                return this.put("tempcomp", params).then();
+            } else {
+                return Mono.error(new DeviceException("Device does not support temperature compensation"));
+            }
+        });
     }
     
+    //#endregion
+    //////////////////////////// STATUS REPORTING /////////////////////////////
+    //#region Status Reporting
+
+    @Override
+    public Mono<FocuserCapabilities> getCapabilities() {
+        if (capabilities != null) {
+            return Mono.just(capabilities);
+        }
+
+        // Load capabilities from the service.
+        Mono<Boolean> canAbsolute = this.get("absolute").map(JsonNode::asBoolean).onErrorReturn(false);
+        Mono<Boolean> canTempComp = this.get("tempcompavailable").map(JsonNode::asBoolean).onErrorReturn(false);
+        Mono<Integer> maxIncrement = this.get("maxincrement").map(JsonNode::asInt).onErrorReturn(-1);
+        Mono<Integer> maxStep = this.get("maxstep").map(JsonNode::asInt).onErrorReturn(-1);
+        Mono<Integer> stepSize = this.get("stepsize").map(JsonNode::asInt).onErrorReturn(-1);
+        
+        Mono<FocuserCapabilities> ret = Mono
+            .zip(canAbsolute, canTempComp, maxIncrement, maxStep, stepSize)
+            .map(tuple -> new FocuserCapabilities(
+                tuple.getT1(),
+                tuple.getT2(),
+                tuple.getT3(),
+                tuple.getT4(),
+                tuple.getT5()
+            ));
+
+        // Only run if the device is connected.
+        return this.isConnected()
+            .flatMap(connected -> Boolean.TRUE.equals(connected) ? ret : Mono.error(new DeviceException("Device is not connected.")))
+            .doOnSuccess(caps -> capabilities = caps);
+    }
+
+    @Override
+    public Mono<FocuserStatus> getStatus() {
+        Mono<Boolean> connected = isConnected().onErrorReturn(false);
+        Mono<Integer> position = getPosition().onErrorReturn(-1);
+        Mono<Double> temperature = getTemperature().onErrorReturn(Double.NaN);
+        Mono<Boolean> tempComp = isTempComp().onErrorReturn(false);
+        Mono<Boolean> moving = isMoving().onErrorReturn(false);
+
+        return Mono.zip(connected, position, temperature, tempComp, moving).map(tuple ->
+            new FocuserStatus(
+                tuple.getT1(),
+                tuple.getT2(),
+                tuple.getT3(),
+                tuple.getT4(),
+                tuple.getT5()
+            ));
+    }
+
+
     //#endregion
     ///////////////////////////////// HELPERS /////////////////////////////////
     //#region Helpers
@@ -153,8 +274,10 @@ public class ASCOMFocuserService extends FocuserService {
         return client.put("focuser", deviceNumber, action, params);
     }
 
-    private void execute(String action, MultiValueMap<String, String> params) {
-        client.put("focuser", deviceNumber, action, params).subscribe();
+    private Mono<Void> moveCmd(int position) {
+        MultiValueMap<String, String> params = new LinkedMultiValueMap<>(1);
+        params.add("Position", String.valueOf(position));
+        return this.put("move", params).then();
     }
 
     //#endregion

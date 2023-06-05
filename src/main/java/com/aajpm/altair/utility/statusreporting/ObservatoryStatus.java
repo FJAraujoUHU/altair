@@ -2,6 +2,7 @@ package com.aajpm.altair.utility.statusreporting;
 
 import com.aajpm.altair.service.observatory.TelescopeService.TelescopeStatus;
 import com.aajpm.altair.service.observatory.DomeService.DomeStatus;
+import com.aajpm.altair.service.observatory.FocuserService.FocuserStatus;
 
 /**
  * DTO for reporting the general status of the observatory
@@ -72,11 +73,11 @@ public class ObservatoryStatus {
         dmSlaved = ds.slaved();
         dmShutterStatus = ds.shutterStatus();
         // Focuser status
-        fcConnected = fs.isConnected();
-        fcPosition = fs.getPosition();
-        fcTemperature = fs.getTemperature();
-        fcTempComp = fs.isTempComp();
-        fcMoving = fs.isMoving();
+        fcConnected = fs.connected();
+        fcPosition = fs.position();
+        fcTemperature = fs.temperature();
+        fcTempComp = fs.tempComp();
+        fcMoving = fs.moving();
         // Camera status
         caConnected = cs.isConnected();
         caTemperature = cs.getTemperature();
@@ -96,7 +97,7 @@ public class ObservatoryStatus {
         return new ObservatoryStatus(
                     new TelescopeStatus(false, Double.NaN, Double.NaN, Double.NaN, Double.NaN, false, false, false, false, Double.NaN),
                     new DomeStatus(false, Double.NaN, 4, "Error", false, false, false, false),
-                    FocuserStatus.getErrorStatus(),
+                    new FocuserStatus(false, -1, Double.NaN, false, false),
                     CameraStatus.getErrorStatus()
                 );
     }

@@ -51,7 +51,7 @@
                             <div class="row justify-content-around flex-nowrap">
                                 <div class="col-auto align-self-end justify-content-end me-auto">
                                     <p>Move In<p>
-                                    <div class="btn-group" role="group" id="fcInBtnGroup">
+                                    <div class="btn-group" role="group" id="fcInBtnGroup" disabled>
                                       <button type="button" class="btn btn-primary" id="fcIn3" data-steps="100"><i class="bi bi-skip-backward-fill" disabled></i></button>
                                       <button type="button" class="btn btn-primary" id="fcIn2" data-steps="10"><i class="bi bi-skip-start-fill" disabled></i></button>
                                       <button type="button" class="btn btn-primary" id="fcIn1" data-steps="1"><i class="bi bi-caret-left-fill" disabled></i></button>
@@ -66,7 +66,7 @@
                                 </div>
                                 <div class="col-auto align-self-end justify-content-start ms-auto">
                                     <p>Move Out<p>
-                                    <div class="btn-group" role="group" id="fcOutBtnGroup">
+                                    <div class="btn-group" role="group" id="fcOutBtnGroup" disabled>
                                       <button type="button" class="btn btn-primary" id="fcOut1" data-steps="1"><i class="bi bi-caret-right-fill" disabled></i></button>
                                       <button type="button" class="btn btn-primary" id="fcOut2" data-steps="10"><i class="bi bi-skip-end-fill" disabled></i></button>
                                       <button type="button" class="btn btn-primary" id="fcOut3" data-steps="100"><i class="bi bi-skip-forward-fill" disabled></i></button>
@@ -96,6 +96,9 @@
 
 
     <th:block th:replace="~{fragments/controlpanel.html :: bottomDefs}"/>
+    <script th:inline="javascript">
+        var capabilities = /*[[${capabilities}]]*/ null;
+    </script>
     <script src="/js/focuser.js"></script>
 </body>
 

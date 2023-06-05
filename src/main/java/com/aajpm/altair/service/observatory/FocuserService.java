@@ -1,7 +1,6 @@
 package com.aajpm.altair.service.observatory;
 
 import com.aajpm.altair.utility.exception.DeviceException;
-import com.aajpm.altair.utility.statusreporting.FocuserStatus;
 
 import reactor.core.publisher.Mono;
 
@@ -44,29 +43,6 @@ public abstract class FocuserService {
      */
     public abstract Mono<Boolean> isMoving() throws DeviceException;
 
-    /**
-     * Returns the status of the focuser
-     * @return A FocuserStatus object containing the status of the focuser
-     * @throws DeviceException If there was an error polling the data.
-     */
-    public Mono<FocuserStatus> getStatus() throws DeviceException {
-        Mono<Boolean> connected = isConnected();
-        Mono<Integer> position = getPosition();
-        Mono<Double> temperature = getTemperature();
-        Mono<Boolean> tempComp = isTempComp();
-        Mono<Boolean> moving = isMoving();
-
-        return Mono.zip(connected, position, temperature, tempComp, moving)
-            .map(tuple -> {
-                FocuserStatus focuserStatus = new FocuserStatus();
-                focuserStatus.setConnected(tuple.getT1());
-                focuserStatus.setPosition(tuple.getT2());
-                focuserStatus.setTemperature(tuple.getT3());
-                focuserStatus.setTempComp(tuple.getT4());
-                focuserStatus.setMoving(tuple.getT5());
-                return focuserStatus;
-            }).onErrorReturn(FocuserStatus.getErrorStatus());
-    }
 
     //#endregion Getters
     ///////////////////////////// SETTERS/ACTIONS /////////////////////////////
@@ -76,65 +52,98 @@ public abstract class FocuserService {
      * Connects the focuser
      * @throws DeviceException If there was an error connecting the focuser.
      */
-     public abstract void connect() throws DeviceException;
+     public abstract Mono<Void> connect() throws DeviceException;
 
     /**
      * Disconnects the focuser
      * @throws DeviceException If there was an error disconnecting the focuser.
      */
-    public abstract void disconnect() throws DeviceException;
+    public abstract Mono<Void> disconnect() throws DeviceException;
 
     /**
      * Moves the focuser to the specified absolute position asynchronously
      * @param position The position to move to, in steps
      * @throws DeviceException If there was an error moving the focuser.
      */
-    public abstract void move(int position) throws DeviceException;
+    public abstract Mono<Void> move(int position) throws DeviceException;
 
     /**
      * Moves the focuser to the specified absolute position synchronously
      * @param position The position to move to, in steps
      * @throws DeviceException If there was an error moving the focuser.
      */
-    public abstract void moveAwait(int position) throws DeviceException;
+    public abstract Mono<Void> moveAwait(int position) throws DeviceException;
 
     /**
      * Moves the focuser relative to the current position asynchronously
      * @param position The position to move to, in steps
      * @throws DeviceException If there was an error moving the focuser.
      */
-    public void moveRelative(int position) throws DeviceException {
-        getPosition().subscribe(currentPosition -> {
-            int newPosition = currentPosition + position;
-            newPosition = Math.max(newPosition, 0); // Clamp to 0
-            move(newPosition);
-        });
-    }
+    public abstract Mono<Void> moveRelative(int position) throws DeviceException;
 
     /**
      * Moves the focuser relative to the current position synchronously
      * @param position The position to move to, in steps
      * @throws DeviceException If there was an error moving the focuser.
      */
-    public void moveRelativeAwait(int position) throws DeviceException {
-            int currentPosition = getPosition().block();    
-            int newPosition = currentPosition + position;
-            newPosition = Math.max(newPosition, 0); // Clamp to 0
-            moveAwait(newPosition);
-    }
+    public abstract Mono<Void> moveRelativeAwait(int position) throws DeviceException;
 
     /**
      * Inmediately stops the focuser
      * @throws DeviceException If there was an error halting the focuser.
      */
-    public abstract void halt() throws DeviceException;
+    public abstract Mono<Void> halt() throws DeviceException;
 
     /**
      * Sets the temperature-compensation state of the focuser
      * @param tempComp TRUE to enable temperature-compensation, FALSE to disable
      * @throws DeviceException If there was an error setting the temperature-compensation state or the device does not support temperature-compensation.
      */
-    public abstract void setTempComp(boolean enable) throws DeviceException;
+    public abstract Mono<Void> setTempComp(boolean enable) throws DeviceException;
 
     //#endregion Setters
+    //////////////////////////// STATUS REPORTING /////////////////////////////
+    //#region Status Reporting
+
+    /**
+     * Returns the capabilities of the device
+     * @return A FocuserCapabilities object containing the capabilities of the device
+     */
+    public abstract Mono<FocuserCapabilities> getCapabilities();
+
+    /**
+     * Returns the status of the focuser
+     * @return A FocuserStatus object containing the status of the focuser
+     * @throws DeviceException If there was an error polling the data.
+     */
+    public abstract Mono<FocuserStatus> getStatus() throws DeviceException;
+    
+
+    //#endregion
+    //////////////////////////////// RECORDS //////////////////////////////////
+    //#region Records
+
+    /**
+     * A record containing the device capabilities
+     */
+    public record FocuserCapabilities(
+        boolean canAbsolute,        // If the device can move to an absolute position (this is transparent to the user, implementations must handle this)
+        boolean canTempComp,        // If the device supports temperature compensation
+        int maxIncrement,           // The maximum increment the device can move in a single move operation
+        int maxStep,                // The maximum step the device can move to
+        int stepSize                // The physical size of a single step, in microns
+    ) {}
+
+    /**
+     * A record containing the device status
+     */
+    public record FocuserStatus(
+        boolean connected,
+        int position,
+        double temperature,
+        boolean tempComp,
+        boolean moving
+    ) {}
+
+    //#endregion
 }

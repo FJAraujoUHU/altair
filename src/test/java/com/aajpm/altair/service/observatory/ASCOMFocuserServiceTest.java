@@ -12,6 +12,7 @@ import com.aajpm.altair.utility.webutils.AlpacaClient;
 
 @TestMethodOrder(org.junit.jupiter.api.MethodOrderer.OrderAnnotation.class)
 @SuppressWarnings("java:S2925")
+@Deprecated
 public class ASCOMFocuserServiceTest {
 
     static AlpacaClient client;
@@ -37,13 +38,12 @@ public class ASCOMFocuserServiceTest {
     void testConnect() throws Exception {
         
         System.out.println("/////////////////////////////////////////////////////////////testConnect");
-        ASCOMFocuserService service = new ASCOMFocuserService(client, deviceNumber);
+        ASCOMFocuserService service = new ASCOMFocuserService(client, deviceNumber, 1000, 60000);
         service.connect();
         Thread.sleep(1000);
 
         boolean isConnected = service.isConnected().block();
 
-        assertNotNull(service.absolute);
         assertTrue(isConnected);
     }
 
@@ -51,7 +51,7 @@ public class ASCOMFocuserServiceTest {
     @Order(2)
     void testDisconnect() throws Exception {
         System.out.println("/////////////////////////////////////////////////////////////testConnect");
-        ASCOMFocuserService service = new ASCOMFocuserService(client, deviceNumber);
+        ASCOMFocuserService service = new ASCOMFocuserService(client, deviceNumber, 1000, 60000);
         service.connect();
         Thread.sleep(1000);
 
@@ -71,7 +71,7 @@ public class ASCOMFocuserServiceTest {
         int movement = 100;
         int error = 5;
 
-        ASCOMFocuserService service = new ASCOMFocuserService(client, deviceNumber);
+        ASCOMFocuserService service = new ASCOMFocuserService(client, deviceNumber, 1000, 60000);
         service.connect();
         Thread.sleep(1000);
 

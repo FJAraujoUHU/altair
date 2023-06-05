@@ -344,13 +344,13 @@ public abstract class DomeService {
 
     /**
      * Returns the capabilities of the device
-     * @return A TelescopeCapabilities object containing the capabilities of the weather watch
+     * @return A DomeCapabilities object containing the capabilities of the device
      */
     public abstract Mono<DomeCapabilities> getCapabilities();
 
     /**
      * Returns the status of the device
-     * @return A TelescopeStatus object containing the status of the weather watch
+     * @return A DomeStatus object containing the status of the device
      */
     public abstract Mono<DomeStatus> getStatus();
     

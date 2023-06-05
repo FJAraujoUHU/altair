@@ -13,10 +13,12 @@ import org.springframework.web.bind.annotation.RestController;
 import com.aajpm.altair.config.ObservatoryConfig;
 import com.aajpm.altair.service.ObservatoryService;
 import com.aajpm.altair.service.observatory.FocuserService;
-import com.aajpm.altair.utility.statusreporting.FocuserStatus;
+import com.aajpm.altair.service.observatory.FocuserService.FocuserCapabilities;
+import com.aajpm.altair.service.observatory.FocuserService.FocuserStatus;
 
 import jakarta.annotation.PostConstruct;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 @RestController
 @RequestMapping("/altair/api/focuser")
@@ -41,33 +43,38 @@ public class FocuserAPIController {
                 .flatMap(i -> focuser.getStatus());
     }
 
+    @GetMapping(value = "/capabilities")
+    public Mono<FocuserCapabilities> getCapabilities() {
+        return focuser.getCapabilities();
+    }
+
     @PostMapping(value = "/connect")
-    public void connect() {
-        focuser.connect();
+    public Mono<Void> connect() {
+        return focuser.connect();
     }
 
     @PostMapping(value = "/disconnect")
-    public void disconnect() {
-        focuser.disconnect();
+    public Mono<Void> disconnect() {
+        return focuser.disconnect();
     }
 
     @PostMapping(value = "/abort")
-    public void abort() {
-        focuser.halt();
+    public Mono<Void> abort() {
+        return focuser.halt();
     }
 
     @PostMapping(value = "/move")
-    public void move(@RequestParam(value = "position") int position) {
-        focuser.move(position);
+    public Mono<Void> move(@RequestParam(value = "position") int position) {
+        return focuser.move(position);
     }
 
     @PostMapping(value = "/moverelative")
-    public void moveRelative(@RequestParam(value = "steps") int steps) {
-        focuser.moveRelative(steps);
+    public Mono<Void> moveRelative(@RequestParam(value = "steps") int steps) {
+        return focuser.moveRelative(steps);
     }
 
     @PostMapping(value = "/tempcomp")
-    public void tempComp(@RequestParam(value = "enable") boolean enable) {
-        focuser.setTempComp(enable);
+    public Mono<Void> tempComp(@RequestParam(value = "enable") boolean enable) {
+        return focuser.setTempComp(enable);
     }
 }

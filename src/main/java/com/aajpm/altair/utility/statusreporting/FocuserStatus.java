@@ -2,6 +2,7 @@ package com.aajpm.altair.utility.statusreporting;
 
 /**
  * DTO for reporting the status of a focuser
+ * @deprecated This class is deprecated and will be replaced by {@link FocuserService}'s own implementation
  */
 public class FocuserStatus {
     boolean connected;

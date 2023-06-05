@@ -1,4 +1,5 @@
 let connected, position, temperature, tempComp, moving;
+let canAbsolute, canTempComp, maxIncrement, maxStep, stepSize;
 
 $(document).ready(function () {
     // Set up CSRF token
@@ -7,6 +8,21 @@ $(document).ready(function () {
     $(document).ajaxSend(function (e, xhr, options) {
         xhr.setRequestHeader(header, token);
     });
+
+    // Set up capabilities
+    if (!capabilities) {
+        canAbsolute = false;
+        canTempComp = false;
+        maxIncrement = 1;
+        maxStep = 1;
+        stepSize = 0;
+    } else {
+        canAbsolute = capabilities.canAbsolute;
+        canTempComp = capabilities.canTempComp;
+        maxIncrement = parseInt(capabilities.maxIncrement, 10);
+        maxStep = parseInt(capabilities.maxStep, 10);
+        stepSize = parseInt(capabilities.stepSize, 10);
+    }
 
     // Set up monitoring
     const source = new EventSource("/altair/api/focuser/stream");
@@ -29,7 +45,7 @@ $(document).ready(function () {
         $("#fcTempComp").text(tempComp);
         $("#fcMoving").text(moving);
 
-        // TODO : update controls
+        
         if (connected) {
             $("#fcConnect").text("Disconnect");
         } else {
@@ -37,12 +53,12 @@ $(document).ready(function () {
         }
         $("#fcTempCompToggle").prop('checked', tempComp);
 
-        let enable = connected && !moving;
-        $("#fcInBtnGroup").find("button").prop('disabled', !enable);
-        $("#fcOutBtnGroup").find("button").prop('disabled', !enable);
-        $("#fcMoveToBtn").prop('disabled', !enable);
-        $("#fcAbort").prop('disabled', enable);
-        $("#fcTempCompToggle").prop('disabled', !connected);
+        $("#fcInBtnGroup").find("button").prop('disabled', !connected || moving);
+        $("#fcOutBtnGroup").find("button").prop('disabled', !connected || moving);
+        $("#fcMoveToBtn").prop('disabled', !connected || moving || !(maxIncrement > 0));
+        $("#fcMoveToTxt").prop('disabled', !connected || moving || !(maxIncrement > 0));
+        $("#fcAbort").prop('disabled', !moving);
+        $("#fcTempCompToggle").prop('disabled', !connected || moving || !canTempComp);
 
     }
 
@@ -55,6 +71,9 @@ $(document).ready(function () {
             type: "POST",
             error: function (xhr, status, error) {
                 console.log("Error: " + error);
+            },
+            success: function (result, status, xhr) {
+                location.reload(true);
             }
         });
     });
@@ -109,6 +128,32 @@ $(document).ready(function () {
                 console.log("Error: " + error);
             }
         });
+    });
+
+    // Validate move to input
+    $("#fcMoveToTxt").on("input", function () {
+        let inputValue = $(this).val();
+
+        // Remove any non-digit characters
+        inputValue = inputValue.replace(/\D/g, "");
+
+        if (!inputValue == "") {
+            return;
+        }
+
+        // Convert the input value to a number
+        let value = parseInt(inputValue);
+
+        if (isNaN(value)) {
+            $(this).val("");
+            return;
+        }
+
+        // Clamp the value between 0 and valMax
+        value = Math.max(0, Math.min(maxStep, value));
+
+        // Update the input value with the clamped value
+        $(this).val(value);
     });
 
     // Abort

@@ -61,8 +61,15 @@ public class ObservatoryController {
     }
 
     @GetMapping("/focuser")
-    public String focuser(Model model) {
-        return "observatory/focuser.html";
+    public Mono<String> focuser(Model model) {
+        return observatory.getFocuser()
+            .getCapabilities()
+            .doOnSuccess(capabilities -> model.addAttribute("capabilities", capabilities))
+            .onErrorResume(throwable -> {
+                model.addAttribute("callError", throwable);
+                return Mono.empty();
+            })
+            .thenReturn("observatory/focuser.html");
     }
 
     @GetMapping("/camera")

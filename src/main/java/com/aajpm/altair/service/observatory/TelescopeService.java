@@ -216,13 +216,13 @@ public abstract class TelescopeService {
 
     /**
      * Returns the capabilities of the device
-     * @return A TelescopeCapabilities object containing the capabilities of the weather watch
+     * @return A TelescopeCapabilities object containing the capabilities of the device
      */
     public abstract Mono<TelescopeCapabilities> getCapabilities();
 
     /**
      * Returns the status of the device
-     * @return A TelescopeStatus object containing the status of the weather watch
+     * @return A TelescopeStatus object containing the status of the device
      */
     public abstract Mono<TelescopeStatus> getStatus();
 
