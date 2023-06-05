@@ -13,6 +13,7 @@ import com.aajpm.altair.utility.webutils.AlpacaClient;
 
 @TestMethodOrder(org.junit.jupiter.api.MethodOrderer.OrderAnnotation.class)
 @SuppressWarnings("java:S2925")
+@Deprecated     // This test was written for the old ASCOM service definition, which has been overhauled and tests may no longer work as intended
 public class ASCOMTelescopeServiceTest {
 
     static AlpacaClient client;
@@ -35,7 +36,7 @@ public class ASCOMTelescopeServiceTest {
             service.setTracking(false);
         }
         if (!service.isParked().block()) {
-            service.parkAwait();
+            service.park();
         }
         service.disconnect();
     }
@@ -62,7 +63,7 @@ public class ASCOMTelescopeServiceTest {
 
         service.connect();
         if (service.isParked().block()) {
-            service.unparkAwait();
+            service.unpark();
         }
         double altAz[] = service.getAltAz().block();
 
@@ -94,7 +95,7 @@ public class ASCOMTelescopeServiceTest {
 
         service.connect();
         if (service.isParked().block()) {
-            service.unparkAwait();
+            service.unpark();
         }
         double altAz[] = service.getAltAz().block();
 
@@ -123,7 +124,7 @@ public class ASCOMTelescopeServiceTest {
     void testAbortSlew() throws Exception {
         service.connect();
         if (service.isParked().block()) {
-            service.unparkAwait();
+            service.unpark();
         }
         service.slewToAltAz(45, 90);
         Thread.sleep(1000);

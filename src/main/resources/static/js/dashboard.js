@@ -21,7 +21,7 @@ $(document).ready(function () {
         $("#dmAzimuth").text(toDMS(data.dmAzimuth));
         let shutter;
         if (data.dmShutterStatus.toUpperCase() === "OPEN")
-            shutter = "Open at " + data.dmShutter + "\%";
+            shutter = "Open at " + data.dmShutter + "%";
         else
             shutter = data.dmShutterStatus;
         $("#dmShutter").text(shutter);
@@ -60,12 +60,21 @@ function toHMS(value) {
     let h = Math.floor(value);
     let m = Math.floor((value - h) * 60);
     let s = Math.floor(((value - h) * 60 - m) * 60);
-    return h + ":" + m + ":" + s;
+    let date = new Date(0);
+    date.setUTCHours(h, m, s);
+    return date.toLocaleString('en-GB', {
+        hour12: false,
+        hourCycle: 'h23', // bug in INTL ECMA, 12:00 pm gets converted to 24:00 -> https://stackoverflow.com/a/68646518
+        timeZone: 'UTC',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+    });
 }
 
 function toDMS(value) {
     let d = Math.floor(value);
     let m = Math.floor((value - d) * 60);
     let s = Math.floor(((value - d) * 60 - m) * 60);
-    return d + "° " + m + "\' " + s + "\"";
+    return d + "° " + m + "' " + s + "\"";
 }

@@ -1,21 +1,11 @@
 package com.aajpm.altair.service.observatory;
 
 import com.aajpm.altair.utility.exception.DeviceException;
-import com.aajpm.altair.utility.statusreporting.TelescopeStatus;
 
 import reactor.core.publisher.Mono;
 
 public abstract class TelescopeService {
 
-    /////////////////////////////// CONSTANTS /////////////////////////////////
-    //#region Constants
-
-    public static final int DIRECTION_NORTH = 0;
-    public static final int DIRECTION_EAST = 1;
-    public static final int DIRECTION_SOUTH = 2;
-    public static final int DIRECTION_WEST = 3;
-    
-    //#endregion
     ///////////////////////////////// GETTERS /////////////////////////////////
     //#region Getters
     
@@ -74,42 +64,6 @@ public abstract class TelescopeService {
      */
     public abstract Mono<Double> getSiderealTime() throws DeviceException;
 
-    /**
-     * Returns the current status of the telescope.
-     * @return A POJO containing the current status of the telescope.
-     * @throws DeviceException If there was an error polling the data.
-     */
-    public Mono<TelescopeStatus> getStatus() throws DeviceException {
-        Mono<TelescopeStatus> ret;
-
-        Mono<Boolean> isConnected = isConnected();
-        Mono<double[]> altAz = getAltAz();
-        Mono<double[]> coordinates = getCoordinates();
-        Mono<Boolean> isAtHome = isAtHome();
-        Mono<Boolean> isParked = isParked();
-        Mono<Boolean> isSlewing = isSlewing();
-        Mono<Boolean> isTracking = isTracking();
-        Mono<Double> siderealTime = getSiderealTime();
-
-        ret = Mono.zip(isConnected, altAz, coordinates, isAtHome, isParked, isSlewing, isTracking, siderealTime)
-                .map(tuple -> {
-                    TelescopeStatus status = new TelescopeStatus();
-                    status.setConnected(tuple.getT1());
-                    status.setAltitude(tuple.getT2()[0]);
-                    status.setAzimuth(tuple.getT2()[1]);
-                    status.setRightAscension(tuple.getT3()[0]);
-                    status.setDeclination(tuple.getT3()[1]);
-                    status.setAtHome(tuple.getT4());
-                    status.setParked(tuple.getT5());
-                    status.setSlewing(tuple.getT6());
-                    status.setTracking(tuple.getT7());
-                    status.setSiderealTime(tuple.getT8());
-                    return status;
-                }).onErrorReturn(TelescopeStatus.getErrorStatus());
-        return ret;
-    }
-
-
     //#endregion
     ///////////////////////////// SETTERS/ACTIONS /////////////////////////////
     //#region Setters/Actions
@@ -117,82 +71,73 @@ public abstract class TelescopeService {
     /**
      * Connects to the telescope.
      * @throws DeviceException If there was an error connecting to the telescope.
+     * @return A Mono that completes when the device has been connected.
      */
-    public abstract void connect() throws DeviceException;
+    public abstract Mono<Void> connect() throws DeviceException;
 
     /**
      * Disconnects from the telescope.
      * @throws DeviceException If there was an error disconnecting from the telescope.
+     * @return A Mono that completes when the device has been disconnected.
      */
-    public abstract void disconnect() throws DeviceException;
+    public abstract Mono<Void> disconnect() throws DeviceException;
 
     /**
      * Parks the telescope asynchonously.
      * @throws DeviceException If there was an error parking the telescope.
+     * @return A Mono that completes when the telescope has been parked.
      */
-    public abstract void park() throws DeviceException;
-
-    /**
-     * Parks the telescope synchonously.
-     * @throws DeviceException If there was an error parking the telescope.
-     */
-    public abstract void parkAwait() throws DeviceException;
+    public abstract Mono<Void> park() throws DeviceException;
 
     /**
      * Unparks the telescope asynchronously.
      * @throws DeviceException If there was an error unparking the telescope.
+     * @return A Mono that completes when the telescope has been unparked.
      */
-    public abstract void unpark() throws DeviceException;
-
-    /**
-     * Unparks the telescope.
-     * @throws DeviceException If there was an error unparking the telescope.
-     */
-    public abstract void unparkAwait() throws DeviceException;
+    public abstract Mono<Void> unpark() throws DeviceException;
 
     /**
      * Sets the telescope to the designated home position asynchronously.
      * @throws DeviceException If there was an error setting the telescope to the designated home position.
+     * @return A Mono that completes when the telescope has been set.
      */
-    public abstract void findHome() throws DeviceException;
-
-    /**
-     * Sets the telescope to the designated home position synchronously.
-     * @throws DeviceException If there was an error setting the telescope to the designated home position.
-     */
-    public abstract void findHomeAwait() throws DeviceException;
+    public abstract Mono<Void> findHome() throws DeviceException;
 
     /**
      * Slew the telescope to the designated coordinates asynchronously.
-     * @param ra The Right Ascension to slew to.
-     * @param dec The Declination to slew to.
+     * @param rightAscension The Right Ascension to slew to.
+     * @param declination The Declination to slew to.
      * @throws DeviceException If there was an error slewing the telescope.
+     * @return A Mono that completes when the slew has been ordered.
      */
-    public abstract void slewToCoords(double rightAscension, double declination) throws DeviceException;
+    public abstract Mono<Void> slewToCoords(double rightAscension, double declination) throws DeviceException;
 
     /**
-     * Slew the telescope to the designated coordinates synchronously.
-     * @param ra The Right Ascension to slew to.
-     * @param dec The Declination to slew to.
+     * Slew the telescope to the designated coordinates synchronously, and wait for the slew to complete.
+     * @param rightAscension The Right Ascension to slew to.
+     * @param declination The Declination to slew to.
      * @throws DeviceException If there was an error slewing the telescope.
+     * @return A Mono that completes when slew is complete.
      */
-    public abstract void slewToCoordsAwait(double ra, double dec) throws DeviceException;
+    public abstract Mono<Void> slewToCoordsAwait(double rightAscension, double declination) throws DeviceException;
 
     /**
      * Slew the telescope to the designated altitude and azimuth asynchronously.
      * @param altitude The altitude to slew to.
      * @param azimuth The azimuth to slew to.
      * @throws DeviceException If there was an error slewing the telescope.
+     * @return A Mono that completes when the slew has been ordered.
      */
-    public abstract void slewToAltAz(double altitude, double azimuth) throws DeviceException;
+    public abstract Mono<Void> slewToAltAz(double altitude, double azimuth) throws DeviceException;
 
     /**
-     * Slew the telescope to the designated altitude and azimuth synchronously.
+     * Slew the telescope to the designated altitude and azimuth synchronously, and wait for the slew to complete.
      * @param altitude The altitude to slew to.
      * @param azimuth The azimuth to slew to.
      * @throws DeviceException If there was an error slewing the telescope.
+     * @return A Mono that completes when slew is complete.
      */
-    public abstract void slewToAltAzAwait(double altitude, double azimuth) throws DeviceException;
+    public abstract Mono<Void> slewToAltAzAwait(double altitude, double azimuth) throws DeviceException;
 
     /**
      * Slew the telescope relative to its current position asynchronously.
@@ -200,73 +145,123 @@ public abstract class TelescopeService {
      * @param direction The direction to slew in (0 = North, 1 = East, 2 = South, 3 = West).
      * @throws DeviceException If there was an error slewing the telescope.
      * @throws IllegalArgumentException If the direction is not valid.
+     * @return A Mono that completes when the slew has been ordered.
      */
-    public void slewRelative(double degrees, int direction) throws DeviceException, IllegalArgumentException {
-        getAltAz().subscribe(altAz -> {
+    public Mono<Void> slewRelative(double degrees, int direction) throws DeviceException, IllegalArgumentException {
+        return getAltAz().flatMap(altAz -> {
             if (altAz == null) {
-                throw new DeviceException("Could not get current altitude and azimuth.");
+                return Mono.error(new DeviceException("Could not get current altitude and azimuth."));
             }
             switch (direction) {
                 case DIRECTION_NORTH:
-                    slewToAltAz(altAz[0] + degrees, altAz[1]);
-                    break;
+                    return slewToAltAz(altAz[0] + degrees, altAz[1]);
                 case DIRECTION_SOUTH:
-                    slewToAltAz(altAz[0] - degrees, altAz[1]);
-                    break;
+                    return slewToAltAz(altAz[0] - degrees, altAz[1]);
                 case DIRECTION_EAST:
-                    slewToAltAz(altAz[0], altAz[1] + degrees);
-                    break;
+                    return slewToAltAz(altAz[0], altAz[1] + degrees);
                 case DIRECTION_WEST:
-                    slewToAltAz(altAz[0], altAz[1] - degrees);
-                    break;
+                    return slewToAltAz(altAz[0], altAz[1] - degrees);
                 default:
-                    throw new IllegalArgumentException("Direction must be between 0 and 3.");
+                    return Mono.error(new IllegalArgumentException("Direction must be between 0 and 3."));
             }
         });
     }
 
     /**
-     * Slew the telescope relative to its current position synchronously.
+     * Slew the telescope relative to its current position synchronously, and wait for the slew to complete.
      * @param degrees The number of degrees to slew.
      * @param direction The direction to slew in (0 = North, 1 = East, 2 = South, 3 = West).
      * @throws DeviceException If there was an error slewing the telescope.
      * @throws IllegalArgumentException If the direction is not valid.
+     * @return A Mono that completes when slew is complete.
      */
-    public void slewRelativeAwait(double degrees, int direction) throws DeviceException, IllegalArgumentException {
-        double[] altAz = getAltAz().block();
-        if (altAz == null) {
-            throw new DeviceException("Could not get current altitude and azimuth.");
-        }
-        switch (direction) {
-            case DIRECTION_NORTH:
-                slewToAltAzAwait(altAz[0] + degrees, altAz[1]);
-                break;
-            case DIRECTION_SOUTH:
-                slewToAltAzAwait(altAz[0] - degrees, altAz[1]);
-                break;
-            case DIRECTION_EAST:
-                slewToAltAzAwait(altAz[0], altAz[1] + degrees);
-                break;
-            case DIRECTION_WEST:
-                slewToAltAzAwait(altAz[0], altAz[1] - degrees);
-                break;
-            default:
-                throw new IllegalArgumentException("Direction must be between 0 and 3.");
-        }
+    public Mono<Void> slewRelativeAwait(double degrees, int direction) throws DeviceException, IllegalArgumentException {
+        return getAltAz().flatMap(altAz -> {
+            if (altAz == null) {
+                return Mono.error(new DeviceException("Could not get current altitude and azimuth."));
+            }
+            switch (direction) {
+                case DIRECTION_NORTH:
+                    return slewToAltAzAwait(altAz[0] + degrees, altAz[1]);
+                case DIRECTION_SOUTH:
+                    return slewToAltAzAwait(altAz[0] - degrees, altAz[1]);
+                case DIRECTION_EAST:
+                    return slewToAltAzAwait(altAz[0], altAz[1] + degrees);
+                case DIRECTION_WEST:
+                    return slewToAltAzAwait(altAz[0], altAz[1] - degrees);
+                default:
+                    return Mono.error(new IllegalArgumentException("Direction must be between 0 and 3."));
+            }
+        });
     }
 
     /**
      * Aborts the current slew, if there is one.
      * @throws DeviceException If there was an error aborting the current slew.
+     * @return A Mono that completes when the current operation has been aborted.
      */
-    public abstract void abortSlew() throws DeviceException;
+    public abstract Mono<Void> abortSlew() throws DeviceException;
 
     /**
      * Set the state of the sidereal tracking.
      * @param tracking True to enable tracking, false to disable tracking.
      * @throws DeviceException If there was an error setting the tracking.
+     * @return A Mono that completes when the tracking state has been set.
      */
-    public abstract void setTracking(boolean tracking) throws DeviceException;
+    public abstract Mono<Void> setTracking(boolean tracking) throws DeviceException;
+
+    //#endregion
+    //////////////////////////// STATUS REPORTING /////////////////////////////
+    //#region Status Reporting
+
+    /**
+     * Returns the capabilities of the device
+     * @return A TelescopeCapabilities object containing the capabilities of the weather watch
+     */
+    public abstract Mono<TelescopeCapabilities> getCapabilities();
+
+    /**
+     * Returns the status of the device
+     * @return A TelescopeStatus object containing the status of the weather watch
+     */
+    public abstract Mono<TelescopeStatus> getStatus();
+
+    //#endregion
+    //////////////////////////////// RECORDS //////////////////////////////////
+    //#region Records
+
+    public static final int DIRECTION_NORTH = 0;
+    public static final int DIRECTION_EAST = 1;
+    public static final int DIRECTION_SOUTH = 2;
+    public static final int DIRECTION_WEST = 3;
+
+    /**
+     * A record containing the device capabilities
+     */
+    public record TelescopeCapabilities(
+        boolean canFindHome,
+        boolean canPark,
+        boolean canUnpark,
+        boolean canSlewAwait,
+        boolean canSlew,
+        boolean canTrack
+    ) {}
+
+    /**
+     * A record containing the device status
+     */
+    public record TelescopeStatus(
+        boolean connected,
+        double altitude,
+        double azimuth,
+        double rightAscension,
+        double declination,
+        boolean atHome,
+        boolean parked,
+        boolean slewing,
+        boolean tracking,
+        double siderealTime
+    ) {}
 
     //#endregion
 }

@@ -37,8 +37,15 @@ public class ObservatoryController {
     }
 
     @GetMapping("/telescope")
-    public String telescope(Model model) {
-        return "observatory/telescope.html";
+    public Mono<String> telescope(Model model) {
+        return observatory.getTelescope()
+            .getCapabilities()
+            .doOnSuccess(capabilities -> model.addAttribute("capabilities", capabilities))
+            .onErrorResume(throwable -> {
+                model.addAttribute("callError", throwable);
+                return Mono.empty();
+            })
+            .thenReturn("observatory/telescope.html");
     }
 
     @GetMapping("/dome")

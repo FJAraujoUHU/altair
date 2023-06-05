@@ -1,4 +1,5 @@
 let connected, parked, atHome, slewing, tracking, rightAscension, declination, azimuth, altitude, siderealTime;
+let canFindHome, canPark, canUnpark, canSlewAwait, canSlew, canTrack;
 
 $(document).ready(function () {
     let token = $("meta[name='_csrf']").attr("content");
@@ -6,6 +7,25 @@ $(document).ready(function () {
     $(document).ajaxSend(function (e, xhr, options) {
         xhr.setRequestHeader(header, token);
     });
+
+    // Set up capabilities
+    if (!capabilities) {
+        canFindHome = false;
+        canPark = false;
+        canUnpark = false;
+        canSlewAwait = false;
+        canSlew = false;
+        canTrack = false;
+    } else {
+        canFindHome = capabilities.canFindHome;
+        canPark = capabilities.canPark;
+        canUnpark = capabilities.canUnpark;
+        canSlewAwait = capabilities.canSlewAwait;
+        canSlew = capabilities.canSlew;
+        canTrack = capabilities.canTrack;
+    }
+    
+
     // Set up monitoring
     const source = new EventSource("/altair/api/telescope/stream");
     source.onmessage = function (event) {
@@ -31,10 +51,10 @@ $(document).ready(function () {
         $("#tsDeclination").text(toDMS(declination));
         $("#tsAzimuth").text(toDMS(azimuth));
         $("#tsAltitude").text(toDMS(altitude));
-        $("#tsSlewing").text(slewing);
-        $("#tsTracking").text(tracking);
-        $("#tsAtHome").text(atHome);
-        $("#tsParked").text(parked);
+        $("#tsSlewing").text(canSlew ? slewing : "N/A");
+        $("#tsTracking").text(canTrack ? tracking : "N/A");
+        $("#tsAtHome").text(canFindHome ? atHome : "N/A");
+        $("#tsParked").text(canPark ? parked : "N/A");
 
         // Update control labels
         if (parked) {
@@ -57,11 +77,14 @@ $(document).ready(function () {
 
         // Disable controls if not connected
         $('#controlPanel').find('button:not(#tsConnect)').prop('disabled', !connected);
-        $("#tsTrack").prop('disabled', !connected);
+        $("#tsTrack").prop('disabled', !connected || !canTrack);
         $("#tsSlewRaDecBtn").prop('disabled', !tracking || !couldSlew());
         $("#tsSlewAltAzBtn").prop('disabled', tracking || !couldSlew());
         $(".tsslew").prop('disabled', tracking || !couldSlew());
-        $("#tsAbort").prop('disabled', !(slewing && connected));
+        $("#tsAbort").prop('disabled', !(slewing && connected && canSlew));
+        $("#tsGoHome").prop('disabled', !(connected && canFindHome));
+        $("#tsPark").prop('disabled', !(connected && canPark));
+        
     };
 
     // Set up controls
@@ -73,6 +96,9 @@ $(document).ready(function () {
             type: "POST",
             error: function (xhr, status, error) {
                 console.log("Error: " + error);
+            },
+            success: function (result, status, xhr) {
+                location.reload(true);
             }
         });
     });
@@ -225,8 +251,9 @@ function toHMS(value) {
     let s = Math.floor(((value - h) * 60 - m) * 60);
     let date = new Date(0);
     date.setUTCHours(h, m, s);
-    return date.toLocaleString('en-US', {
+    return date.toLocaleString('en-GB', {
         hour12: false,
+        hourCycle: 'h23', // bug in INTL ECMA, 12:00 pm gets converted to 24:00 -> https://stackoverflow.com/a/68646518
         timeZone: 'UTC',
         hour: '2-digit',
         minute: '2-digit',
@@ -253,7 +280,7 @@ function toSexagesimal(deg, min, seg) {
 }
 
 function couldSlew() {
-    return connected && !parked && !slewing;
+    return connected && !parked && !slewing && canSlew;
 }
 
 // Check if the inputs make sense

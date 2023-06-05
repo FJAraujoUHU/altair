@@ -154,9 +154,12 @@ $(document).ready(function () {
             type: "POST",
             error: function (xhr, status, error) {
                 console.log("Error: " + error);
+            },
+            success: function (result, status, xhr) {
+                location.reload(true); // reload page to update capabilities
             }
         });
-        location.reload(true); // reload page to update capabilities
+        
     });
 
 

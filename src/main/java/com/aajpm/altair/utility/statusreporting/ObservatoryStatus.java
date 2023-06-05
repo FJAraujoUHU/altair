@@ -1,8 +1,12 @@
 package com.aajpm.altair.utility.statusreporting;
 
+import com.aajpm.altair.service.observatory.TelescopeService.TelescopeStatus;
+
 /**
  * DTO for reporting the general status of the observatory
+ * @deprecated This class is deprecated and will be replaced by {@link ObservatoryService}'s own implementation
  */
+@Deprecated
 public class ObservatoryStatus {
     // Telescope status
     boolean tsConnected;
@@ -47,16 +51,16 @@ public class ObservatoryStatus {
     public ObservatoryStatus() {}
     public ObservatoryStatus(TelescopeStatus ts, DomeStatus ds, FocuserStatus fs, CameraStatus cs) {
         // Telescope status
-        tsConnected = ts.isConnected();
-        tsAltitude = ts.getAltitude();
-        tsAzimuth = ts.getAzimuth();
-        tsRightAscension = ts.getRightAscension();
-        tsDeclination = ts.getDeclination();
-        tsAtHome = ts.isAtHome();
-        tsParked = ts.isParked();
-        tsSlewing = ts.isSlewing();
-        tsTracking = ts.isTracking();
-        tsSiderealTime = ts.getSiderealTime();
+        tsConnected = ts.connected();
+        tsAltitude = ts.altitude();
+        tsAzimuth = ts.azimuth();
+        tsRightAscension = ts.rightAscension();
+        tsDeclination = ts.declination();
+        tsAtHome = ts.atHome();
+        tsParked = ts.parked();
+        tsSlewing = ts.slewing();
+        tsTracking = ts.tracking();
+        tsSiderealTime = ts.siderealTime();
         // Dome status
         dmConnected = ds.isConnected();
         dmAzimuth = ds.getAzimuth();
@@ -88,7 +92,12 @@ public class ObservatoryStatus {
     }
 
     public static ObservatoryStatus getErrorStatus() {
-        return new ObservatoryStatus(TelescopeStatus.getErrorStatus(), DomeStatus.getErrorStatus(), FocuserStatus.getErrorStatus(), CameraStatus.getErrorStatus());
+        return new ObservatoryStatus(
+                    new TelescopeStatus(false, Double.NaN, Double.NaN, Double.NaN, Double.NaN, false, false, false, false, Double.NaN),
+                    DomeStatus.getErrorStatus(),
+                    FocuserStatus.getErrorStatus(),
+                    CameraStatus.getErrorStatus()
+                );
     }
     
     /////////////////////////// Getters and Setters ///////////////////////////

@@ -224,6 +224,9 @@
 
 
     <th:block th:replace="~{fragments/controlpanel.html :: bottomDefs}"/>
+    <script th:inline="javascript">
+        var capabilities = /*[[${capabilities}]]*/ null;
+    </script>
     <script src="/js/telescope.js"></script>
 </body>
 

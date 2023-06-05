@@ -25,7 +25,7 @@ public class ASCOMWeatherWatchService extends WeatherWatchService {
     public ASCOMWeatherWatchService(AlpacaClient client, int deviceNumber) {
         this.client = client;
         this.deviceNumber = deviceNumber;
-        this.getCapabilities().subscribe(); // attempt to get the device's capabilities.
+        this.getCapabilities().onErrorComplete().subscribe(); // attempt to get the device's capabilities.
     }
 
     public ASCOMWeatherWatchService(AlpacaClient client) {

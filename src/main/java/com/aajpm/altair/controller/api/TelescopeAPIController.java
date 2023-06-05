@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.aajpm.altair.config.ObservatoryConfig;
 import com.aajpm.altair.service.ObservatoryService;
 import com.aajpm.altair.service.observatory.TelescopeService;
+import com.aajpm.altair.service.observatory.TelescopeService.TelescopeStatus;
 
 import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,9 +15,9 @@ import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 
-import com.aajpm.altair.utility.statusreporting.TelescopeStatus;
-
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+
 import java.time.Duration;
 
 
@@ -44,53 +45,53 @@ public class TelescopeAPIController {
     }
 
     @PostMapping(value = "/connect")
-    public void connect() {
-        telescope.connect();
+    public Mono<Void> connect() {
+        return telescope.connect();
     }
 
     @PostMapping(value = "/disconnect")
-    public void disconnect() {
-        telescope.disconnect();
+    public Mono<Void> disconnect() {
+        return telescope.disconnect();
     }
 
     @PostMapping(value = "/park")
-    public void park() {
-        telescope.park();
+    public Mono<Void> park() {
+        return telescope.park();
     }
 
     @PostMapping(value = "/unpark")
-    public void unpark() {
-        telescope.unpark();
+    public Mono<Void> unpark() {
+        return telescope.unpark();
     }
 
     @PostMapping(value = "/findhome")
-    public void findHome() {
-        telescope.findHome();
+    public Mono<Void> findHome() {
+        return telescope.findHome();
     }
 
     @PostMapping(value = "/abortslew")
-    public void abortSlew() {
-        telescope.abortSlew();
+    public Mono<Void> abortSlew() {
+        return telescope.abortSlew();
     }
 
     @PostMapping(value = "/settracking")
-    public void setTracking(@RequestParam(value = "tracking") boolean tracking) {
-        telescope.setTracking(tracking);
+    public Mono<Void> setTracking(@RequestParam(value = "tracking") boolean tracking) {
+        return telescope.setTracking(tracking);
     }
 
     @PostMapping(value = "/slewrelative")
-    public void slewRelative(@RequestParam(value = "direction") int direction, @RequestParam(value = "degrees") double degrees) {
-        telescope.slewRelative(degrees, direction);
+    public Mono<Void> slewRelative(@RequestParam(value = "direction") int direction, @RequestParam(value = "degrees") double degrees) {
+        return telescope.slewRelative(degrees, direction);
     }
 
     @PostMapping(value = "/slewtocoords")
-    public void slewTo(@RequestParam(value = "ra") double ra, @RequestParam(value = "dec") double dec) {
-        telescope.slewToCoords(ra, dec);
+    public Mono<Void> slewTo(@RequestParam(value = "ra") double ra, @RequestParam(value = "dec") double dec) {
+        return telescope.slewToCoords(ra, dec);
     }
 
     @PostMapping(value = "/slewtoaltaz")
-    public void slewToAltAz(@RequestParam(value = "az") double az, @RequestParam(value = "alt") double alt) {
-        telescope.slewToAltAz(alt, az);
+    public Mono<Void> slewToAltAz(@RequestParam(value = "az") double az, @RequestParam(value = "alt") double alt) {
+        return telescope.slewToAltAz(alt, az);
     }
 
 
