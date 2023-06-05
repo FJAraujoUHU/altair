@@ -13,9 +13,11 @@ import org.springframework.web.bind.annotation.RestController;
 import com.aajpm.altair.config.ObservatoryConfig;
 import com.aajpm.altair.service.ObservatoryService;
 import com.aajpm.altair.service.observatory.DomeService;
-import com.aajpm.altair.utility.statusreporting.DomeStatus;
+import com.aajpm.altair.service.observatory.DomeService.DomeCapabilities;
+import com.aajpm.altair.service.observatory.DomeService.DomeStatus;
 
 import jakarta.annotation.PostConstruct;
+import reactor.core.publisher.Mono;
 import reactor.core.publisher.Flux;
 
 @RestController
@@ -41,68 +43,73 @@ public class DomeAPIController {
                 .flatMap(i -> dome.getStatus());
     }
 
+    @GetMapping(value = "/capabilities")
+    public Mono<DomeCapabilities> getCapabilities() {
+        return dome.getCapabilities();
+    }
+
     @PostMapping(value = "/connect")
-    public void connect() {
-        dome.connect();
+    public Mono<Void> connect() {
+        return dome.connect();
     }
 
     @PostMapping(value = "/disconnect")
-    public void disconnect() {
-        dome.disconnect();
+    public Mono<Void> disconnect() {
+        return dome.disconnect();
     }
 
     @PostMapping(value = "/park")
-    public void park() {
-        dome.park();
+    public Mono<Void> park() {
+        return dome.park();
     }
 
     @PostMapping(value = "/unpark")
-    public void unpark() {
-        dome.unpark();
+    public Mono<Void> unpark() {
+        return dome.unpark();
     }
 
     @PostMapping(value = "/findhome")
-    public void findHome() {
-        dome.findHome();
+    public Mono<Void> findHome() {
+        return dome.findHome();
     }
 
     @PostMapping(value = "/abort")
-    public void abort() {
-        dome.halt();
+    public Mono<Void> abort() {
+        return dome.halt();
     }
 
     @PostMapping(value = "/openshutter")
-    public void openShutter() {
-        dome.openShutter();
+    public Mono<Void> openShutter() {
+        return dome.openShutter();
     }
 
     @PostMapping(value = "/closeshutter")
-    public void closeShutter() {
-        dome.closeShutter();
+    public Mono<Void> closeShutter() {
+        return dome.closeShutter();
     }
 
     @PostMapping(value = "/slavedome")
-    public void slaveDome(@RequestParam(value = "enable") boolean enable) {
-        dome.setSlaved(enable);
+    public Mono<Void> slaveDome(@RequestParam(value = "enable") boolean enable) {
+        return dome.setSlaved(enable);
     }
 
     @PostMapping(value = "/slew")
-    public void slew(@RequestParam(value = "az") double az) {
-        dome.slew(az);
+    public Mono<Void> slew(@RequestParam(value = "az") double az) {
+        return dome.slew(az);
     }
 
     @PostMapping(value = "/slewrelative")
-    public void slewRelative(@RequestParam(value = "degrees") double degrees) {
-        dome.slewRelative(degrees);
+    public Mono<Void> slewRelative(@RequestParam(value = "degrees") double degrees) {
+        return dome.slewRelative(degrees);
     }
 
     @PostMapping(value = "/setshutter")
-    public void setShutter(@RequestParam(value = "amount") double amount) {
-        dome.setShutter(amount);
+    public Mono<Void> setShutter(@RequestParam(value = "amount") double amount) {
+        return dome.setShutter(amount);
     }
 
     @PostMapping(value = "/moveshutter")
-    public void moveShutter(@RequestParam(value = "amount") double amount) {
-        dome.setAltRelative(amount);
+    public Mono<Void> moveShutter(@RequestParam(value = "amount") double amount) {
+        return dome.setAltRelative(amount);
     }
 }

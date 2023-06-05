@@ -1,4 +1,5 @@
 let connected, azimuth, shutter, shutterStatus, slaved, slewing, atHome, parked;
+let canFindHome,canPark,canShutter,canSetAzimuth,canSetAltitude,canSlave;
 
 $(document).ready(function () {
     // Set up CSRF token
@@ -7,6 +8,24 @@ $(document).ready(function () {
     $(document).ajaxSend(function (e, xhr, options) {
         xhr.setRequestHeader(header, token);
     });
+
+    // Set up capabilities
+    if (!capabilities) {
+        canFindHome = false;
+        canPark = false;
+        canShutter = false;
+        canSetAzimuth = false;
+        canSetAltitude = false;
+        canSlave = false;
+    } else {
+        canFindHome = capabilities.canFindHome;
+        canPark = capabilities.canPark;
+        canShutter = capabilities.canShutter;
+        canSetAzimuth = capabilities.canSetAzimuth;
+        canSetAltitude = capabilities.canSetAltitude;
+        canSlave = capabilities.canSlave;
+    }
+
     // Set up monitoring
     const source = new EventSource("/altair/api/dome/stream");
     source.onmessage = function (event) {
@@ -29,7 +48,7 @@ $(document).ready(function () {
 
         let statusStr;
         if (shutterStatus === "OPEN")
-            statusStr = "Open at " + shutter + "\%";
+            statusStr = "Open at " + shutter + " %";
         else
             statusStr = data.shutterStatus;
         $("#dmShutter").text(statusStr);
@@ -69,12 +88,15 @@ $(document).ready(function () {
         $("#dmSlave").prop('checked', slaved);
 
         // Disable controls if not connected
-        $('#controlPanel').find('button:not(#dmConnect, #dmShutterOpen)').prop('disabled', !connected);
-        $("#dmSlave").prop('disabled', !connected);
-        $(".dmmoveshutter").prop('disabled', !connected || (shutterStatus !== "OPEN"));
-        $("#dmSetTo").prop('disabled', !connected || (shutterStatus !== "OPEN"))
+        $('#controlPanel').find('button:not(#dmConnect)').prop('disabled', !connected);
+        $("#dmSlave").prop('disabled', !connected || !canSlave);
+        $(".dmmoveshutter").prop('disabled', !connected || (shutterStatus !== "OPEN") || !canSetAltitude);
+        $("#dmShutterOpen").prop('disabled', !connected || !canShutter);
+        $("#dmSetTo").prop('disabled', !connected || (shutterStatus !== "OPEN") || !canSetAltitude);
         $(".dmslew, .dmslewaz").prop('disabled', !connected || !couldSlew());
         $("#dmAbort").prop('disabled', !(slewing && connected));
+        $("#dmGoHome").prop('disabled', !connected || !canFindHome);
+        $("#dmPark").prop('disabled', !connected || !canPark);
     };
 
     // Set up controls
@@ -86,6 +108,9 @@ $(document).ready(function () {
             type: "POST",
             error: function (xhr, status, error) {
                 console.log("Error: " + error);
+            },
+            success: function (result, status, xhr) {
+                location.reload(true);
             }
         });
     });
@@ -247,26 +272,11 @@ $(document).ready(function () {
     $(".dmslewaz").on("input", validateDmSlew);
 });
 
-function toHMS(value) {
-    let h = Math.floor(value);
-    let m = Math.floor((value - h) * 60);
-    let s = Math.floor(((value - h) * 60 - m) * 60);
-    let date = new Date(0);
-    date.setUTCHours(h, m, s);
-    return date.toLocaleString('en-US', {
-        hour12: false,
-        timeZone: 'UTC',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-    });
-}
-
 function toDMS(value) {
     let d = Math.floor(value);
     let m = Math.floor((value - d) * 60);
     let s = Math.floor(((value - d) * 60 - m) * 60);
-    return d + "° " + m + "\' " + s + "\"";
+    return d + "° " + m + "' " + s + "\"";
 }
 
 function isTrue(input) {
@@ -281,7 +291,7 @@ function toSexagesimal(deg, min, seg) {
 }
 
 function couldSlew() {
-    return connected && !parked && !slewing && !slaved;
+    return connected && !parked && !slewing && !slaved && canSetAzimuth;
 }
 
 // Check if the inputs make sense

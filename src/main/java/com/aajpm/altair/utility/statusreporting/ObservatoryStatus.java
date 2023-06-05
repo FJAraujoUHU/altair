@@ -1,6 +1,7 @@
 package com.aajpm.altair.utility.statusreporting;
 
 import com.aajpm.altair.service.observatory.TelescopeService.TelescopeStatus;
+import com.aajpm.altair.service.observatory.DomeService.DomeStatus;
 
 /**
  * DTO for reporting the general status of the observatory
@@ -62,14 +63,14 @@ public class ObservatoryStatus {
         tsTracking = ts.tracking();
         tsSiderealTime = ts.siderealTime();
         // Dome status
-        dmConnected = ds.isConnected();
-        dmAzimuth = ds.getAzimuth();
-        dmShutter = ds.getShutter();
-        dmAtHome = ds.isAtHome();
-        dmParked = ds.isParked();
-        dmSlewing = ds.isSlewing();
-        dmSlaved = ds.isSlaved();
-        dmShutterStatus = ds.getShutterStatus();
+        dmConnected = ds.connected();
+        dmAzimuth = ds.azimuth();
+        dmShutter = ds.shutter();
+        dmAtHome = ds.atHome();
+        dmParked = ds.parked();
+        dmSlewing = ds.slewing();
+        dmSlaved = ds.slaved();
+        dmShutterStatus = ds.shutterStatus();
         // Focuser status
         fcConnected = fs.isConnected();
         fcPosition = fs.getPosition();
@@ -94,7 +95,7 @@ public class ObservatoryStatus {
     public static ObservatoryStatus getErrorStatus() {
         return new ObservatoryStatus(
                     new TelescopeStatus(false, Double.NaN, Double.NaN, Double.NaN, Double.NaN, false, false, false, false, Double.NaN),
-                    DomeStatus.getErrorStatus(),
+                    new DomeStatus(false, Double.NaN, 4, "Error", false, false, false, false),
                     FocuserStatus.getErrorStatus(),
                     CameraStatus.getErrorStatus()
                 );

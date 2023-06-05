@@ -22,6 +22,9 @@ public class ObservatoryConfig {
     // Interval (in ms) to poll the status and update the UI
     private int statusUpdateInterval = 2500;
 
+    // Timeout (in ms) for synchronous operations
+    private long synchronousTimeout = 60000;
+
     private CameraConfig camera;
 
     private FilterWheelConfig filterWheel;
@@ -37,6 +40,14 @@ public class ObservatoryConfig {
 
     public void setStatusUpdateInterval(int statusUpdateInterval) {
         this.statusUpdateInterval = statusUpdateInterval;
+    }
+
+    public long getSynchronousTimeout() {
+        return synchronousTimeout;
+    }
+
+    public void setSynchronousTimeout(long synchronousTimeout) {
+        this.synchronousTimeout = synchronousTimeout;
     }
 
     public CameraConfig getCamera() {

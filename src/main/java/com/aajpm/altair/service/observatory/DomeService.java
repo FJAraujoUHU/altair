@@ -1,22 +1,11 @@
 package com.aajpm.altair.service.observatory;
 
 import com.aajpm.altair.utility.exception.DeviceException;
-import com.aajpm.altair.utility.statusreporting.DomeStatus;
 
 import reactor.core.publisher.Mono;
 
 public abstract class DomeService {
 
-    /////////////////////////////// CONSTANTS /////////////////////////////////
-    //#region Constants
-
-    public static final int SHUTTER_OPEN = 0;
-    public static final int SHUTTER_CLOSED = 1;
-    public static final int SHUTTER_OPENING = 2;
-    public static final int SHUTTER_CLOSING = 3;
-    public static final int SHUTTER_ERROR = 4;
-
-    //#endregion
     ///////////////////////////////// GETTERS /////////////////////////////////
     //#region Getters
 
@@ -77,6 +66,15 @@ public abstract class DomeService {
     public abstract Mono<Double> getAlt() throws DeviceException;
 
     /**
+     * Returns the azimuth and altitude the dome is pointing at.
+     * @return The azimuth and altitude the dome is pointing at, in degrees, clockwise positive from North.
+     * @throws DeviceException If there was an error polling the data.
+     */
+    public Mono<double[]> getAltAz() throws DeviceException {
+        return Mono.zip(getAz(), getAlt()).map(tuple -> new double[] {tuple.getT1(), tuple.getT2()});
+    }
+
+    /**
      * Returns the status of the shutter.
      * @return The status of the shutter, one of the SHUTTER_* constants.
      * @throws DeviceException If there was an error polling the data.
@@ -93,49 +91,6 @@ public abstract class DomeService {
         return getAlt().map(alt -> alt/90.0);
     }
 
-    /**
-     * Returns the current status of the dome.
-     * @return A POJO containing the current status of the dome.
-     * @throws DeviceException If there was an error polling the data.
-     */
-    public Mono<DomeStatus> getStatus() throws DeviceException {
-        Mono<Boolean> connected =   isConnected().onErrorReturn(false);
-        Mono<Double> az =           getAz().onErrorReturn(Double.NaN);
-        Mono<Double> shutter =      getShutter().onErrorReturn(Double.NaN);
-        Mono<String> shutterStatus = getShutterStatus()
-            .map(status -> {
-                switch (status) {
-                    case SHUTTER_OPEN:
-                        return "Open";
-                    case SHUTTER_CLOSED:
-                        return "Closed";
-                    case SHUTTER_OPENING:
-                        return "Opening";
-                    case SHUTTER_CLOSING:
-                        return "Closing";
-                    default:
-                        return "Error";
-                }}).onErrorReturn("Error");
-        Mono<Boolean> atHome =  isAtHome().onErrorReturn(false);
-        Mono<Boolean> parked =  isParked().onErrorReturn(false);
-        Mono<Boolean> slaved =  isSlaved().onErrorReturn(false);
-        Mono<Boolean> slewing = isSlewing().onErrorReturn(false);
-
-        return Mono.zip(connected, az, shutter, shutterStatus, atHome, parked, slaved, slewing)
-                .map(tuple -> {
-                    DomeStatus status = new DomeStatus();
-                    status.setConnected(tuple.getT1());
-                    status.setAzimuth(tuple.getT2());
-                    status.setShutter((int) (tuple.getT3()*100));
-                    status.setShutterStatus(tuple.getT4());
-                    status.setAtHome(tuple.getT5());
-                    status.setParked(tuple.getT6());
-                    status.setSlaved(tuple.getT7());
-                    status.setSlewing(tuple.getT8());
-                    return status;
-                }).onErrorReturn(DomeStatus.getErrorStatus());
-    }
-
     //#endregion
     ///////////////////////////// SETTERS/ACTIONS /////////////////////////////
     //#region Setters/Actions
@@ -144,51 +99,51 @@ public abstract class DomeService {
      * Connects to the dome.
      * @throws DeviceException If there was an error connecting to the dome.
      */
-    public abstract void connect() throws DeviceException;
+    public abstract Mono<Void> connect() throws DeviceException;
 
     /**
      * Disconnects from the dome.
      * @throws DeviceException If there was an error disconnecting from the dome.
      */
-    public abstract void disconnect() throws DeviceException;
+    public abstract Mono<Void> disconnect() throws DeviceException;
 
     /**
      * Opens the shutter asynchronously.
      * @throws DeviceException If there was an error opening the shutter.
      */
-    public abstract void openShutter() throws DeviceException;
+    public abstract Mono<Void> openShutter() throws DeviceException;
 
     /**
      * Opens the shutter.
      * @throws DeviceException If there was an error opening the shutter.
      */
-    public abstract void openShutterAwait() throws DeviceException;
+    public abstract Mono<Void> openShutterAwait() throws DeviceException;
 
     /**
      * Closes the shutter asynchronously.
      * @throws DeviceException If there was an error closing the shutter.
      */
-    public abstract void closeShutter() throws DeviceException;
+    public abstract Mono<Void> closeShutter() throws DeviceException;
 
     /**
      * Closes the shutter.
      * @throws DeviceException If there was an error closing the shutter.
      */
-    public abstract void closeShutterAwait() throws DeviceException;
+    public abstract Mono<Void> closeShutterAwait() throws DeviceException;
 
     /**
      * Sets the shutter to the specified position asynchronously.
      * @param position The position to set the shutter to, as a fraction of the total range, 0 being closed and 1 being open.
      * @throws DeviceException If there was an error setting the shutter.
      */
-    public void setShutter(double position) throws DeviceException {
+    public Mono<Void> setShutter(double position) throws DeviceException {
         if (position < 0) {
             position = 0;
         }
         if (position > 1) {
             position = 1;
         }
-        setAlt(position*90.0);
+        return setAlt(position*90.0);
     } 
 
     /**
@@ -196,14 +151,14 @@ public abstract class DomeService {
      * @param position The position to set the shutter to, as a fraction of the total range, 0 being closed and 1 being open.
      * @throws DeviceException If there was an error setting the shutter.
      */
-    public void setShutterAwait(double position) throws DeviceException {
+    public Mono<Void> setShutterAwait(double position) throws DeviceException {
         if (position < 0) {
             position = 0;
         }
         if (position > 1) {
             position = 1;
         }
-        setAltAwait(position*90.0);
+        return setAltAwait(position*90.0);
     }
 
     /**
@@ -211,8 +166,8 @@ public abstract class DomeService {
      * @param rate The position to set the shutter to, as a fraction of the total range, 0 being closed and 1 being open.
      * @throws DeviceException If there was an error setting the shutter.
      */
-    public void setShutterRelative(double rate) throws DeviceException {
-        getShutter().subscribe(oldShutter -> {
+    public Mono<Void> setShutterRelative(double rate) throws DeviceException {
+        return getShutter().flatMap(oldShutter -> {
             double newShutter = oldShutter + rate;
             if (newShutter < 0) {
                 newShutter = 0;
@@ -221,7 +176,7 @@ public abstract class DomeService {
                 newShutter = 1;
             }
 
-            setShutter(newShutter);
+            return setShutter(newShutter);
         });
     }
 
@@ -230,17 +185,18 @@ public abstract class DomeService {
      * @param rate The position to set the shutter to, as a fraction of the total range, positive opening the shutter and negative closing it.
      * @throws DeviceException If there was an error setting the shutter.
      */
-    public void setShutterRelativeAwait(double rate) throws DeviceException {
-        double oldShutter = getShutter().block();
-        double newShutter = oldShutter + rate;
-        if (newShutter < 0) {
-            newShutter = 0;
-        }
-        if (newShutter > 1) {
-            newShutter = 1;
-        }
-
-        setShutterAwait(newShutter);
+    public Mono<Void> setShutterRelativeAwait(double rate) throws DeviceException {
+        return getShutter().flatMap(oldShutter -> {
+            double newShutter = oldShutter + rate;
+            if (newShutter < 0) {
+                newShutter = 0;
+            }
+            if (newShutter > 1) {
+                newShutter = 1;
+            }
+    
+            return setShutterAwait(newShutter);
+        });        
     }
 
     /**
@@ -248,22 +204,22 @@ public abstract class DomeService {
      * @param degrees The altitude the shutter is set to, in degrees, 0 being horizontal.
      * @throws DeviceException If there was an error setting the altitude.
      */
-    public abstract void setAlt(double degrees) throws DeviceException;
+    public abstract Mono<Void> setAlt(double degrees) throws DeviceException;
     
     /**
      * Sets the altitude the shutter is set to.
      * @param degrees The altitude the shutter is set to, in degrees, 0 being horizontal.
      * @throws DeviceException If there was an error setting the altitude.
      */
-    public abstract void setAltAwait(double degrees) throws DeviceException;
+    public abstract Mono<Void> setAltAwait(double degrees) throws DeviceException;
 
     /**
      * Sets the altitude the shutter is set to relative to its current position asynchronously.
      * @param degreesDelta The amount of degrees to change the altitude of the shutter by. Positive values will open the shutter, negative values will close it.
      * @throws DeviceException If there was an error setting the altitude.
      */
-    public void setAltRelative(double degreesDelta) throws DeviceException {
-        getAlt().subscribe(oldAlt -> {
+    public Mono<Void> setAltRelative(double degreesDelta) throws DeviceException {
+        return getAlt().flatMap(oldAlt -> {
             double newAlt = oldAlt + degreesDelta;
             if (newAlt < 0) {
                 newAlt = 0;
@@ -271,7 +227,7 @@ public abstract class DomeService {
             if (newAlt > 90) {
                 newAlt = 90;
             }
-            setAlt(newAlt);
+            return setAlt(newAlt);
         });
     }
 
@@ -280,16 +236,17 @@ public abstract class DomeService {
      * @param degreesDelta The amount of degrees to change the altitude of the shutter by. Positive values will open the shutter, negative values will close it.
      * @throws DeviceException If there was an error setting the altitude.
      */
-    public void setAltRelativeAwait(double degreesDelta) throws DeviceException {
-        double oldAlt = getAlt().block();
-        double newAlt = oldAlt + degreesDelta;
-        if (newAlt < 0) {
-            newAlt = 0;
-        }
-        if (newAlt > 90) {
-            newAlt = 90;
-        }
-        setAltAwait(newAlt);
+    public Mono<Void> setAltRelativeAwait(double degreesDelta) throws DeviceException {
+        return getAlt().flatMap(oldAlt -> {
+            double newAlt = oldAlt + degreesDelta;
+            if (newAlt < 0) {
+                newAlt = 0;
+            }
+            if (newAlt > 90) {
+                newAlt = 90;
+            }
+            return setAltAwait(newAlt);
+        });
     }
 
     /**
@@ -297,25 +254,25 @@ public abstract class DomeService {
      * @param az The azimuth the dome is pointing at, in degrees, clockwise positive from North.
      * @throws DeviceException If there was an error setting the azimuth.
      */
-    public abstract void slew(double az) throws DeviceException;
+    public abstract Mono<Void> slew(double az) throws DeviceException;
 
     /**
      * Sets the azimuth the dome is pointing at.
      * @param az The azimuth the dome is pointing at, in degrees, clockwise positive from North.
      * @throws DeviceException If there was an error setting the azimuth.
      */
-    public abstract void slewAwait(double az) throws DeviceException;
+    public abstract Mono<Void> slewAwait(double az) throws DeviceException;
 
     /**
      * Slew the dome relative to its current position asynchronously.
      * @param degrees The number of degrees to slew the dome, positive being clockwise.
      * @throws DeviceException If there was an error setting the azimuth.
      */
-    public void slewRelative(double degrees) throws DeviceException {
-        getAz().subscribe(azimuth -> {
+    public Mono<Void> slewRelative(double degrees) throws DeviceException {
+        return getAz().flatMap(azimuth -> {
             double newAzimuth = azimuth + degrees;
             newAzimuth = newAzimuth % 360; // Wrap around
-            slew(newAzimuth);
+            return slew(newAzimuth);
         });
     }
 
@@ -324,61 +281,117 @@ public abstract class DomeService {
      * @param degrees The number of degrees to slew the dome, positive being clockwise.
      * @throws DeviceException If there was an error setting the azimuth.
      */
-    public void slewRelativeAwait(double degrees) throws DeviceException {
-        double currentAz = getAz().block();
-        double newAzimuth = currentAz + degrees;
-        newAzimuth = newAzimuth % 360; // Wrap around
-        slewAwait(newAzimuth);
+    public Mono<Void> slewRelativeAwait(double degrees) throws DeviceException {
+        return getAz().flatMap(currentAz -> {
+            double newAzimuth = currentAz + degrees;
+            newAzimuth = newAzimuth % 360; // Wrap around
+            return slewAwait(newAzimuth);
+        });
     }
 
     /**
      * Parks the dome asynchronously. Note that parking does not involve closing the shutter.
      * @throws DeviceException If there was an error parking the dome.
      */
-    public abstract void park() throws DeviceException;
+    public abstract Mono<Void> park() throws DeviceException;
 
     /**
-     * Parks the dome.
+     * Sends a signal to park, and waits until it does. Note that parking does not involve closing the shutter.
      * @throws DeviceException If there was an error parking the dome.
      */
-    public abstract void parkAwait() throws DeviceException;
+    public abstract Mono<Void> parkAwait() throws DeviceException;
 
     /**
      * Unparks the dome asynchronously.
      * @throws DeviceException If there was an error unparking the telescope.
      */
-    public abstract void unpark() throws DeviceException;
+    public abstract Mono<Void> unpark() throws DeviceException;
 
     /**
-     * Unparks the dome.
+     * Unparks the dome synchronously.
      * @throws DeviceException If there was an error unparking the telescope.
      */
-    public abstract void unparkAwait() throws DeviceException;
+    public abstract Mono<Void> unparkAwait() throws DeviceException;
 
     /**
      * Sets if the dome is slaved to the telescope.
      * @throws DeviceException If there was an error slaving the dome.
      */
-    public abstract void setSlaved(boolean slaved) throws DeviceException;
+    public abstract Mono<Void> setSlaved(boolean slaved) throws DeviceException;
 
     /**
      * Sets the dome to the designated home position asynchronously.
      * @throws DeviceException If there was an error setting the telescope to the designated home position.
      */
-    public abstract void findHome() throws DeviceException;
+    public abstract Mono<Void> findHome() throws DeviceException;
 
     /**
-     * Sets the dome to the designated home position synchronously.
+     * Sets the dome to the designated home position, and waits until it reaches it.
      * @throws DeviceException If there was an error setting the telescope to the designated home position.
      */
-    public abstract void findHomeAwait() throws DeviceException;
+    public abstract Mono<Void> findHomeAwait() throws DeviceException;
 
     /**
      * Halts the dome. This should stop the dome from rotating, the shutter from moving, and should
      * disengage slaving.
      * @throws DeviceException If there was an error halting the dome.
      */
-    public abstract void halt() throws DeviceException;
+    public abstract Mono<Void> halt() throws DeviceException;
 
     //#endregion
+    //////////////////////////// STATUS REPORTING /////////////////////////////
+    //#region Status Reporting
+
+    /**
+     * Returns the capabilities of the device
+     * @return A TelescopeCapabilities object containing the capabilities of the weather watch
+     */
+    public abstract Mono<DomeCapabilities> getCapabilities();
+
+    /**
+     * Returns the status of the device
+     * @return A TelescopeStatus object containing the status of the weather watch
+     */
+    public abstract Mono<DomeStatus> getStatus();
+    
+
+    //#endregion
+    //////////////////////////////// RECORDS //////////////////////////////////
+    //#region Records
+
+    public static final int SHUTTER_OPEN = 0;
+    public static final int SHUTTER_CLOSED = 1;
+    public static final int SHUTTER_OPENING = 2;
+    public static final int SHUTTER_CLOSING = 3;
+    public static final int SHUTTER_ERROR = 4;
+
+    /**
+     * A record containing the device capabilities
+     */
+    public record DomeCapabilities(
+        boolean canFindHome,
+        boolean canPark,
+        boolean canUnpark,
+        boolean canShutter,
+        boolean canSetAzimuth,
+        boolean canSetAltitude,
+        boolean canSlave
+    ) {}
+
+    /**
+     * A record containing the device status
+     */
+    public record DomeStatus(
+        boolean connected,
+        double azimuth,
+        int shutter,
+        String shutterStatus,
+        boolean atHome,
+        boolean parked,
+        boolean slewing,
+        boolean slaved   
+    ) {}
+
+
+
 }

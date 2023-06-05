@@ -26,8 +26,8 @@ public class ASCOMObservatoryService extends ObservatoryService {
     // TODO : remove the hard coded URL for the camera
     public ASCOMObservatoryService(String baseURL, ObservatoryConfig config) {
         alpaca = new AlpacaClient(baseURL, connTimeout, responseTimeout);
-        telescope = new ASCOMTelescopeService(alpaca);
-        dome = new ASCOMDomeService(alpaca);
+        telescope = new ASCOMTelescopeService(alpaca, config.getStatusUpdateInterval(), config.getSynchronousTimeout());
+        dome = new ASCOMDomeService(alpaca, config.getStatusUpdateInterval(), config.getSynchronousTimeout());
         focuser = new ASCOMFocuserService(alpaca);
         camera = new ASCOMCameraService(new AlpacaClient("http://localhost:11111/", connTimeout, responseTimeout), config.getCamera());
         filterWheel = new ASCOMFilterWheelService(alpaca, config.getFilterWheel());

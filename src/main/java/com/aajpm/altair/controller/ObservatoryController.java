@@ -49,8 +49,15 @@ public class ObservatoryController {
     }
 
     @GetMapping("/dome")
-    public String dome(Model model) {
-        return "observatory/dome.html";
+    public Mono<String> dome(Model model) {
+        return observatory.getDome()
+            .getCapabilities()
+            .doOnSuccess(capabilities -> model.addAttribute("capabilities", capabilities))
+            .onErrorResume(throwable -> {
+                model.addAttribute("callError", throwable);
+                return Mono.empty();
+            })
+            .thenReturn("observatory/dome.html");
     }
 
     @GetMapping("/focuser")

@@ -19,17 +19,27 @@ public class ASCOMTelescopeService extends TelescopeService {
 
     final int deviceNumber;
 
+    final int statusUpdateInterval; // how often checks the state of the device for synchronous methods
+
+    final long synchronousTimeout; // how long to wait for synchronous methods to complete
+
     private TelescopeCapabilities capabilities;
 
-    public ASCOMTelescopeService(AlpacaClient client) {
+
+    public ASCOMTelescopeService(AlpacaClient client, int statusUpdateInterval, long synchronousTimeout) {
         this.client = client;
         this.deviceNumber = 0;
+        this.statusUpdateInterval = statusUpdateInterval;
+        this.synchronousTimeout = synchronousTimeout;
         this.getCapabilities().onErrorComplete().subscribe(); // attempt to get the device's capabilities
     }
 
-    public ASCOMTelescopeService(AlpacaClient client, int deviceNumber) {
+    public ASCOMTelescopeService(AlpacaClient client, int deviceNumber, int statusUpdateInterval, long synchronousTimeout) {
         this.client = client;
+        this.statusUpdateInterval = statusUpdateInterval;
         this.deviceNumber = deviceNumber;
+        this.synchronousTimeout = synchronousTimeout;
+        this.getCapabilities().onErrorComplete().subscribe(); // attempt to get the device's capabilities
     }
 
     ///////////////////////////////// GETTERS /////////////////////////////////
@@ -183,12 +193,14 @@ public class ASCOMTelescopeService extends TelescopeService {
                 return this.put("slewtocoordinates", args).then();
             } else if (caps.canSlew()) {
                 return this.slewToCoords(rightAscension, declination)
-                    .delayElement(Duration.ofSeconds(2))                // wait 2 seconds before checking if slewing
-                    .thenMany(Flux.interval(Duration.ofSeconds(1)))     // check every second if slewing
-                    .flatMap(i -> this.isSlewing()                              // check until it stops slewing
-                        .filter(slewing -> !slewing)
+                    .then(Mono.delay(Duration.ofMillis(statusUpdateInterval * 2)))      // wait before checking state
+                    .thenMany(Flux.interval(Duration.ofMillis(statusUpdateInterval)))   // check periodically if slewing
+                    .flatMap(i -> this.isSlewing()                                      // check until it stops slewing
+                        .filter(Boolean.FALSE::equals)
                         .flatMap(slewing -> Mono.empty())
-                    ).next().then();
+                    ).next()
+                    .timeout(Duration.ofMillis((synchronousTimeout > 0) ? synchronousTimeout : Long.MAX_VALUE)) // timeout if it takes too long
+                    .then();
             } else {
                 return Mono.error(new DeviceException("Telescope does not support slewing."));
             }
@@ -219,12 +231,14 @@ public class ASCOMTelescopeService extends TelescopeService {
                 return this.put("slewtoaltaz", args).then();
             } else if (caps.canSlew()) {
                 return this.slewToAltAz(altitude, azimuth)
-                    .delayElement(Duration.ofSeconds(2))                // wait 2 seconds before checking if slewing
-                    .thenMany(Flux.interval(Duration.ofSeconds(1)))     // check every second if slewing
-                    .flatMap(i -> this.isSlewing()                              // check until it stops slewing
-                        .filter(slewing -> !slewing)
+                    .then(Mono.delay(Duration.ofMillis(statusUpdateInterval * 2)))      // wait before checking state
+                    .thenMany(Flux.interval(Duration.ofMillis(statusUpdateInterval)))   // check periodically if slewing
+                    .flatMap(i -> this.isSlewing()                                      // check until it stops slewing
+                        .filter(Boolean.FALSE::equals)
                         .flatMap(slewing -> Mono.empty())
-                    ).next().then();
+                    ).next()
+                    .timeout(Duration.ofMillis((synchronousTimeout > 0) ? synchronousTimeout : Long.MAX_VALUE)) // timeout if it takes too long
+                    .then();
             } else {
                 return Mono.error(new DeviceException("Telescope does not support slewing."));
             }
@@ -292,7 +306,7 @@ public class ASCOMTelescopeService extends TelescopeService {
 
     @Override
     public Mono<TelescopeStatus> getStatus() {
-        Mono<Boolean> connected = this.isConnected();
+        Mono<Boolean> connected = this.isConnected().onErrorReturn(false);
         Mono<double[]> altAz = this.getAltAz().onErrorReturn(new double[] { Double.NaN, Double.NaN });
         Mono<double[]> raDec = this.getCoordinates().onErrorReturn(new double[] { Double.NaN, Double.NaN });
         Mono<Boolean> atHome = this.isAtHome().onErrorReturn(false);

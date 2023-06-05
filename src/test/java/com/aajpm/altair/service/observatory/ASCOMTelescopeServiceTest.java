@@ -27,7 +27,7 @@ public class ASCOMTelescopeServiceTest {
     @BeforeAll
     static void beforeClass() {
         client = new AlpacaClient(url, 5000, 60000);
-        service = new ASCOMTelescopeService(client, deviceNumber);
+        service = new ASCOMTelescopeService(client, deviceNumber, 2000, 60000);
 
         if (!service.isConnected().block()) {
             service.connect();

@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.aajpm.altair.config.ObservatoryConfig;
 import com.aajpm.altair.service.ObservatoryService;
 import com.aajpm.altair.service.observatory.TelescopeService;
+import com.aajpm.altair.service.observatory.TelescopeService.TelescopeCapabilities;
 import com.aajpm.altair.service.observatory.TelescopeService.TelescopeStatus;
 
 import jakarta.annotation.PostConstruct;
@@ -42,6 +43,11 @@ public class TelescopeAPIController {
     public Flux<TelescopeStatus> getStatus() {
         return Flux.interval(Duration.ofMillis(config.getStatusUpdateInterval()))
                 .flatMap(i -> telescope.getStatus());
+    }
+
+    @GetMapping(value = "/capabilities")
+    public Mono<TelescopeCapabilities> getCapabilities() {
+        return telescope.getCapabilities();
     }
 
     @PostMapping(value = "/connect")

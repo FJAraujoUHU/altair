@@ -174,6 +174,9 @@
     </main>
 
     <th:block th:replace="~{fragments/controlpanel.html :: bottomDefs}"/>
+    <script th:inline="javascript">
+        var capabilities = /*[[${capabilities}]]*/ null;
+    </script>
     <script src="/js/dome.js"></script>
 </body>
 
