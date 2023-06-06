@@ -27,11 +27,7 @@ public class ASCOMTelescopeService extends TelescopeService {
 
 
     public ASCOMTelescopeService(AlpacaClient client, int statusUpdateInterval, long synchronousTimeout) {
-        this.client = client;
-        this.deviceNumber = 0;
-        this.statusUpdateInterval = statusUpdateInterval;
-        this.synchronousTimeout = synchronousTimeout;
-        this.getCapabilities().onErrorComplete().subscribe(); // attempt to get the device's capabilities
+        this(client, 0, statusUpdateInterval, synchronousTimeout);
     }
 
     public ASCOMTelescopeService(AlpacaClient client, int deviceNumber, int statusUpdateInterval, long synchronousTimeout) {
@@ -193,7 +189,7 @@ public class ASCOMTelescopeService extends TelescopeService {
                 return this.put("slewtocoordinates", args).then();
             } else if (caps.canSlew()) {
                 return this.slewToCoords(rightAscension, declination)
-                    .then(Mono.delay(Duration.ofMillis(statusUpdateInterval * 2)))      // wait before checking state
+                    .then(Mono.delay(Duration.ofMillis(statusUpdateInterval)))          // wait before checking state
                     .thenMany(Flux.interval(Duration.ofMillis(statusUpdateInterval)))   // check periodically if slewing
                     .flatMap(i -> this.isSlewing()                                      // check until it stops slewing
                         .filter(Boolean.FALSE::equals)
@@ -231,7 +227,7 @@ public class ASCOMTelescopeService extends TelescopeService {
                 return this.put("slewtoaltaz", args).then();
             } else if (caps.canSlew()) {
                 return this.slewToAltAz(altitude, azimuth)
-                    .then(Mono.delay(Duration.ofMillis(statusUpdateInterval * 2)))      // wait before checking state
+                    .then(Mono.delay(Duration.ofMillis(statusUpdateInterval)))          // wait before checking state
                     .thenMany(Flux.interval(Duration.ofMillis(statusUpdateInterval)))   // check periodically if slewing
                     .flatMap(i -> this.isSlewing()                                      // check until it stops slewing
                         .filter(Boolean.FALSE::equals)

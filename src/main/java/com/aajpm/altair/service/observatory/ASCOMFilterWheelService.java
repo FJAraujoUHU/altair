@@ -5,8 +5,10 @@ import com.aajpm.altair.utility.exception.DeviceException;
 import com.aajpm.altair.utility.webutils.AlpacaClient;
 import com.fasterxml.jackson.databind.JsonNode;
 
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -19,19 +21,25 @@ public class ASCOMFilterWheelService extends FilterWheelService {
     AlpacaClient client;
 
     final int deviceNumber;
+    
+    final int statusUpdateInterval; // how often checks the state of the device for synchronous methods
+
+    final long synchronousTimeout; // how long to wait for synchronous methods to complete
 
     List<String> filterNames = null;
     List<Integer> focusOffsets = null;
-    Integer filterCount = null;
+    int currentPosition = -1;
 
-    public ASCOMFilterWheelService(AlpacaClient client, FilterWheelConfig config) {
-        this(client, 0, config);
+    public ASCOMFilterWheelService(AlpacaClient client, FilterWheelConfig config, int statusUpdateInterval, long synchronousTimeout) {
+        this(client, 0, config, statusUpdateInterval, synchronousTimeout);
     }
 
-    public ASCOMFilterWheelService(AlpacaClient client, int deviceNumber, FilterWheelConfig config) {
+    public ASCOMFilterWheelService(AlpacaClient client, int deviceNumber, FilterWheelConfig config, int statusUpdateInterval, long synchronousTimeout) {
         super(config);
         this.client = client;
         this.deviceNumber = deviceNumber;
+        this.statusUpdateInterval = statusUpdateInterval;
+        this.synchronousTimeout = synchronousTimeout;
 
         // If there are custom filter names/offsets, use them. Else, use the ones provided by the service.
         if (config != null) {
@@ -43,6 +51,13 @@ public class ASCOMFilterWheelService extends FilterWheelService {
                 this.focusOffsets = config.getFocusOffsets();
             }
         }
+
+        // Attempt to get current position
+        this.isConnected()
+            .flatMap(connected -> Boolean.TRUE.equals(connected) ? this.get("position").map(JsonNode::asInt) : Mono.error(new DeviceException("Device is not connected.")))
+            .doOnSuccess(position -> currentPosition = position)
+            .onErrorComplete()
+            .subscribe();
     }
 
 
@@ -51,18 +66,16 @@ public class ASCOMFilterWheelService extends FilterWheelService {
 
     @Override
     public Mono<Integer> getFilterCount() throws DeviceException {
-        if (filterCount == null) {      // if we haven't gotten the filter count yet, get it from the service.
-            return this.get("names")
-                .map(JsonNode::size)
-                .doOnSuccess(count -> filterCount = count);
+        if (filterNames == null) {      // if we haven't gotten the filter count yet, get it from the service.
+            return this.get("names").map(JsonNode::size);
         } else {                        // else, return the cached value.
-            return Mono.just(filterCount);
+            return Mono.just(filterNames.size());
         }
     }
 
     @Override
     public Mono<String> getFilterName() throws DeviceException {
-        if (this.filterNames == null) {
+        if (filterNames == null) {
             return Mono.zip(this.getFilterNames(), this.getPosition()).flatMap(tuple -> {
                 List<String> names = tuple.getT1();
                 int position = tuple.getT2();
@@ -76,16 +89,12 @@ public class ASCOMFilterWheelService extends FilterWheelService {
     @Override
     public Mono<List<String>> getFilterNames() throws DeviceException {
         if (filterNames == null) {      // if we haven't gotten the filter names yet or there are no custom ones, get them from the service.
-            return this.get("names")
-                .map(listNode -> {
+            return this.get("names").map(listNode -> {
                     List<String> names = new ArrayList<>();
                     listNode.forEach(node -> names.add(node.asText()));
                     return names;
                 })
-                .doOnSuccess(names -> {
-                    filterNames = names;
-                    filterCount = names.size();
-                });
+                .doOnSuccess(names -> filterNames = names);
         } else {                        // else, return the cached value.
             return Mono.just(filterNames);
         }
@@ -122,7 +131,19 @@ public class ASCOMFilterWheelService extends FilterWheelService {
 
     @Override
     public Mono<Integer> getPosition() throws DeviceException {
-        return this.get("position").map(JsonNode::asInt);
+        if (currentPosition == -1) {
+            return this.get("position").map(JsonNode::asInt)
+                .flatMap(position -> {
+                    if (position < 0) {
+                        return Mono.error(new DeviceException("Unknown position."));
+                    } else {
+                        return Mono.just(position);
+                    }
+                })
+                .doOnSuccess(position -> currentPosition = position);
+        } else {
+            return Mono.just(currentPosition);
+        }
     }
 
     @Override
@@ -130,48 +151,79 @@ public class ASCOMFilterWheelService extends FilterWheelService {
         return this.get("connected").map(JsonNode::asBoolean);
     }
 
+    @Override
+    public Mono<Boolean> isMoving() throws DeviceException {
+        return this.get("position").map(val -> (val.asInt() == -1));
+    }
+
     //#endregion
     ///////////////////////////// SETTERS/ACTIONS /////////////////////////////
     //#region Setters/Actions
 
     @Override
-    public void connect() throws DeviceException {
+    public Mono<Void> connect() throws DeviceException {
         MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
         params.add("Connected", String.valueOf(true));
-        this.execute("connected", params);
+        return this.put("connected", params)
+            .doOnSuccess(v -> this.getPosition().subscribe())
+            .then();
     }
 
     @Override
-    public void disconnect() throws DeviceException {
+    public Mono<Void> disconnect() throws DeviceException {
         MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
         params.add("Connected", String.valueOf(false));
-        this.execute("connected", params);
+        return this.put("connected", params).then();
     }
 
     @Override
-    public void setPosition(int position) throws DeviceException {
-        if (position < 0 || (this.filterCount != null && position >= this.filterCount)) {
-            throw new IndexOutOfBoundsException(position);
+    public Mono<Void> setPosition(int position) throws DeviceException {
+        if (position < 0 || (this.filterNames != null && position >= this.filterNames.size())) {
+            return Mono.error(new IndexOutOfBoundsException(position));
         }
         MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
         params.add("Position", String.valueOf(position));
-        this.execute("position", params);
+        return this.put("position", params)
+                .doOnSuccess(v -> currentPosition = position)   // ASCOM returns -1 if it's currently moving, so we can't rely on the response.
+                .then();
     }
 
     @Override
-    public void setPositionAwait(int position) throws DeviceException {
-        setPosition(position);
-        
-        Integer lastPos = getPosition()
-            .repeatWhen(repeat -> repeat
-                .delayElements(java.time.Duration.ofMillis(1000))
-                .takeUntil(pos -> pos != -1)
-            ).blockLast(java.time.Duration.ofSeconds(20));
-
-        if (lastPos == null || lastPos != position) {
-            throw new DeviceException("Filter wheel did not move to position " + position + " in time.");
-        }
+    public Mono<Void> setPositionAwait(int position) throws DeviceException {
+        return setPosition(position)
+            .then(Mono.delay(Duration.ofMillis(statusUpdateInterval)))          // wait before checking state
+            .thenMany(Flux.interval(Duration.ofMillis(statusUpdateInterval)))   // check periodically if moving
+            .flatMap(i -> this.isMoving()                                       // check until it stops moving
+                .filter(Boolean.FALSE::equals)
+                .flatMap(moving -> Mono.empty())
+            ).next()
+            .timeout(Duration.ofMillis((synchronousTimeout > 0) ? synchronousTimeout : Long.MAX_VALUE)) // timeout if it takes too long
+            .then();
     }
+
+    //#endregion
+    //////////////////////////// STATUS REPORTING /////////////////////////////
+    //#region Status Reporting
+
+    @Override
+    public Mono<FilterWheelStatus> getStatus() throws DeviceException {
+            Mono<Boolean> connected =   this.isConnected().onErrorReturn(false);
+            Mono<Integer> pos =         this.getPosition().onErrorReturn(-1);
+            Mono<String> name =         this.getFilterName().onErrorReturn("Unknown");
+            Mono<Integer> offset =      this.getFocusOffset().onErrorReturn(0);
+            Mono<Boolean> moving =      this.isMoving().onErrorReturn(false);
+    
+            return Mono.zip(connected, pos, name, offset, moving).map(
+                tuple -> new FilterWheelStatus(
+                    tuple.getT1(),
+                    tuple.getT2(),
+                    tuple.getT3(),
+                    tuple.getT4(),
+                    tuple.getT5()
+                )
+            );
+    }
+
 
     //#endregion
      ///////////////////////////////// HELPERS /////////////////////////////////
@@ -183,10 +235,6 @@ public class ASCOMFilterWheelService extends FilterWheelService {
 
     private Mono<JsonNode> put(String action, MultiValueMap<String, String> params) {
         return client.put("filterwheel", deviceNumber, action, params);
-    }
-
-    private void execute(String action, MultiValueMap<String, String> params) {
-        client.put("filterwheel", deviceNumber, action, params).subscribe();
     }
 
     //#endregion

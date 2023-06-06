@@ -32,7 +32,7 @@ public class ASCOMObservatoryService extends ObservatoryService {
         dome = new ASCOMDomeService(alpaca, config.getStatusUpdateInterval(), config.getSynchronousTimeout());
         focuser = new ASCOMFocuserService(alpaca, config.getStatusUpdateInterval(), config.getSynchronousTimeout());
         camera = new ASCOMCameraService(new AlpacaClient("http://localhost:11111/", connTimeout, responseTimeout), config.getCamera());
-        filterWheel = new ASCOMFilterWheelService(alpaca, config.getFilterWheel());
+        filterWheel = new ASCOMFilterWheelService(alpaca, config.getFilterWheel(), config.getStatusUpdateInterval(), config.getSynchronousTimeout());
         weather = new ASCOMWeatherWatchService(alpaca);
     }
 

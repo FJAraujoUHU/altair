@@ -23,7 +23,6 @@ import reactor.netty.http.client.HttpClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-// TODO: Should check which Alpaca calls are really synchronous, and add sleeps to the bad behaving ones.
 public class AlpacaClient {
 
     WebClient alpaca;

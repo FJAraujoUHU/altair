@@ -36,8 +36,15 @@ public abstract class FilterWheelService {
     public abstract Mono<Boolean> isConnected();
 
     /**
+     * Returns whether the filter wheel is moving or stationary
+     * @return TRUE if moving, FALSE otherwise
+     * @throws DeviceException
+     */
+    public abstract Mono<Boolean> isMoving() throws DeviceException;
+
+    /**
      * Returns the current position of the filter wheel
-     * @return The current selected filter, as a zero-based index
+     * @return The current selected filter, as a zero-based index. If the filter wheel is moving, returns the filter it is moving to.
      * @throws DeviceException If there was an error polling the data.
      */
     public abstract Mono<Integer> getPosition() throws DeviceException;
@@ -86,53 +93,40 @@ public abstract class FilterWheelService {
      * Connects the filter wheel
      * @throws DeviceException If there was an error connecting the filter wheel.
      */
-    public abstract void connect() throws DeviceException;
+    public abstract Mono<Void> connect() throws DeviceException;
 
     /**
      * Disconnects the filter wheel
      * @throws DeviceException If there was an error disconnecting the filter wheel.
      */
-    public abstract void disconnect() throws DeviceException;
+    public abstract Mono<Void> disconnect() throws DeviceException;
 
     /**
      * Moves the filter wheel to the specified position
      * @param position The position to move to, as a zero-based index
      * @throws DeviceException If there was an error moving the filter wheel.
      */
-    public abstract void setPosition(int position) throws DeviceException;
+    public abstract Mono<Void> setPosition(int position) throws DeviceException;
 
     /**
-     * Moves the filter wheel to the specified position synchronously
+     * Moves the filter wheel to the specified position synchronously, and wait for the operation to complete
      * @param position The position to move to, as a zero-based index
      * @throws DeviceException If there was an error moving the filter wheel.
      */
-    public abstract void setPositionAwait(int position) throws DeviceException;
+    public abstract Mono<Void> setPositionAwait(int position) throws DeviceException;
 
     //#endregion
     //////////////////////////// STATUS REPORTING /////////////////////////////
     //#region Status reporting
 
-    public Mono<FilterWheelStatus> getStatus() {
-        Mono<Boolean> connected =   this.isConnected().onErrorReturn(false);
-        Mono<Integer> pos =         this.getPosition().onErrorReturn(-1);
-        Mono<String> name =         this.getFilterName().onErrorReturn("Unknown");
-        Mono<Integer> offset =      this.getFocusOffset().onErrorReturn(0);
-
-        return Mono.zip(connected, pos, name, offset).map(
-            tuple -> new FilterWheelStatus(
-                tuple.getT1(),
-                tuple.getT2(),
-                tuple.getT3(),
-                tuple.getT4()
-            )
-        );
-    }
+    public abstract Mono<FilterWheelStatus> getStatus();
 
     public record FilterWheelStatus (
         Boolean connected,
         Integer curPosition,
         String curName,
-        Integer curOffset
+        Integer curOffset,
+        Boolean isMoving
     ) {}
 
     //#endregion

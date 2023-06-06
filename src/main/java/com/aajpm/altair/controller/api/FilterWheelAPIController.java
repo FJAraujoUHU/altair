@@ -42,7 +42,6 @@ public class FilterWheelAPIController {
                 .flatMap(i -> filterWheel.getStatus());
     }
 
-
     @GetMapping(value = "/connected")
     public Mono<Boolean> isConnected() {
         return filterWheel.isConnected();
@@ -78,19 +77,18 @@ public class FilterWheelAPIController {
         return filterWheel.getFocusOffsets();
     }
 
-
     @PostMapping(value = "/connect")
-    public void connect() {
-        filterWheel.connect();
+    public Mono<Void> connect() {
+        return filterWheel.connect();
     }
 
     @PostMapping(value = "/disconnect")
-    public void disconnect() {
-        filterWheel.disconnect();
+    public Mono<Void> disconnect() {
+        return filterWheel.disconnect();
     }
 
     @PostMapping(value = "/setposition")
-    public void setPosition(int position) {
-        filterWheel.setPosition(position);
+    public Mono<Void> setPosition(int position) {
+        return filterWheel.setPosition(position);
     }
 }

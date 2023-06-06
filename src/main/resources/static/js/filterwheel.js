@@ -1,4 +1,4 @@
-let fwConnected, filterName, filterPos, filterOffset;
+let fwConnected, filterName, filterPos, filterOffset, fwIsMoving;
 const filterList = [];
 $(document).ready(function () {
     // Set up CSRF token
@@ -16,10 +16,11 @@ $(document).ready(function () {
 
         fwConnected = data.connected;
         filterName = data.curName;
-        filterPos = data.curPosition;
-        filterOffset = data.curOffset;
+        filterPos = parseInt(data.curPosition);
+        filterOffset = parseInt(data.curOffset);
+        fwIsMoving = data.isMoving;
 
-        $("#fwChangeTo").prop('disabled', !fwConnected);
+        $("#fwChangeTo").prop('disabled', !(fwConnected && !fwIsMoving));
         $("#fwSelect").prop('disabled', !fwConnected);
 
         if (fwConnected) {
@@ -31,7 +32,14 @@ $(document).ready(function () {
 
         } else $("#fwConnect").text("Connect");
 
-        $("#fwCurrentPos").text(filterPos);
+        if (fwIsMoving) {
+            $("#fwCurrentPos").text("Moving...");
+
+        } else {
+            if (filterPos === -1) $("#fwCurrentPos").text("Unknown");
+            $("#fwCurrentPos").text(filterPos);
+        }
+                
         $("#fwCurrentOff").text(filterOffset);
         $("#fwCurrentName").text(filterName);
     }
