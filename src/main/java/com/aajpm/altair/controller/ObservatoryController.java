@@ -72,9 +72,17 @@ public class ObservatoryController {
             .thenReturn("observatory/focuser.html");
     }
 
+    // TODO : Add support for filter wheel
     @GetMapping("/camera")
-    public String camera(Model model) {
-        return "observatory/camera.html";
+    public Mono<String> camera(Model model) {
+        return observatory.getCamera()
+            .getCapabilities()
+            .doOnSuccess(capabilities -> model.addAttribute("capabilities", capabilities))
+            .onErrorResume(throwable -> {
+                model.addAttribute("callError", throwable);
+                return Mono.empty();
+            })
+            .thenReturn("observatory/camera.html");
     }
 
     @GetMapping("/weatherwatch")

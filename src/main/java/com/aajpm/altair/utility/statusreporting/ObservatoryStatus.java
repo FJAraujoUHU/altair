@@ -3,6 +3,8 @@ package com.aajpm.altair.utility.statusreporting;
 import com.aajpm.altair.service.observatory.TelescopeService.TelescopeStatus;
 import com.aajpm.altair.service.observatory.DomeService.DomeStatus;
 import com.aajpm.altair.service.observatory.FocuserService.FocuserStatus;
+import com.aajpm.altair.service.observatory.CameraService;
+import com.aajpm.altair.service.observatory.CameraService.CameraStatus;
 
 /**
  * DTO for reporting the general status of the observatory
@@ -79,17 +81,17 @@ public class ObservatoryStatus {
         fcTempComp = fs.tempComp();
         fcMoving = fs.moving();
         // Camera status
-        caConnected = cs.isConnected();
-        caTemperature = cs.getTemperature();
-        caCoolerStatus = cs.getCoolerStatus();
-        caCoolerPower = cs.getCoolerPower();
-        caStatus = cs.getStatus();
-        caBinning = cs.getBinning();
-        caStatusCompletion = cs.getStatusCompletion();
-        caSfWidth = cs.getSfWidth();
-        caSfHeight = cs.getSfHeight();
-        caSfX = cs.getSfX();
-        caSfY = cs.getSfY();
+        caConnected = cs.connected();
+        caTemperature = cs.temperature();
+        caCoolerStatus = cs.coolerStatus();
+        caCoolerPower = cs.coolerPower();
+        caStatus = cs.status();
+        caBinning = cs.binning();
+        caStatusCompletion = cs.statusCompletion();
+        caSfWidth = cs.sfWidth();
+        caSfHeight = cs.sfHeight();
+        caSfX = cs.sfX();
+        caSfY = cs.sfY();
 
     }
 
@@ -98,7 +100,7 @@ public class ObservatoryStatus {
                     new TelescopeStatus(false, Double.NaN, Double.NaN, Double.NaN, Double.NaN, false, false, false, false, Double.NaN),
                     new DomeStatus(false, Double.NaN, 4, "Error", false, false, false, false),
                     new FocuserStatus(false, -1, Double.NaN, false, false),
-                    CameraStatus.getErrorStatus()
+                    new CameraStatus(false, Double.NaN, CameraService.COOLER_ERROR, Double.NaN, CameraService.STATUS_ERROR, 0, 0, Double.NaN, 0, 0, 0, 0)
                 );
     }
     

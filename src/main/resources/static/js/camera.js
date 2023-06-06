@@ -1,4 +1,8 @@
 let connected, temperature, cameraStatus, binning, binningSym, subframe, cooler, coolerConnected, lastCoolerStatus;
+let canAbortExposure, canStopExposure, canBinning, canAsymBinning, canSetCoolerTemp, canGetCoolerPower, sensorName, sensorType, bayOffX, bayOffY, sensorX, sensorY, maxBinX, maxBinY, exposureMin, exposureMax;
+const binningXList = [];
+const binningYList = [];
+
 $(document).ready(function () {
     // Set up CSRF token
     let token = $("meta[name='_csrf']").attr("content");
@@ -7,8 +11,55 @@ $(document).ready(function () {
         xhr.setRequestHeader(header, token);
     });
 
+    // Set up capabilities
+    if (!capabilities) {
+        canAbortExposure = false;
+        canStopExposure = false;
+        canBinning = false;
+        canAsymBinning = false;
+        canSetCoolerTemp = false;
+        canGetCoolerPower = false;
+        sensorName = "Unknown";
+        sensorType = "Monochrome";
+        bayOffX = 0;
+        bayOffY = 0;
+        sensorX = 0;
+        sensorY = 0;
+        maxBinX = 1;
+        maxBinY = 1;
+        exposureMin = 0;
+        exposureMax = 0;
+    } else {
+        canAbortExposure = capabilities.canAbortExposure;
+        canStopExposure = capabilities.canStopExposure;
+        canBinning = capabilities.canBinning;
+        canAsymBinning = capabilities.canAsymBinning;
+        canSetCoolerTemp = capabilities.canSetCoolerTemp;
+        canGetCoolerPower = capabilities.canGetCoolerPower;
+        sensorName = capabilities.sensorName;
+        sensorType = capabilities.sensorType;
+        bayOffX = parseInt(capabilities.bayOffX,10);
+        bayOffY = parseInt(capabilities.bayOffY,10);
+        sensorX = parseInt(capabilities.sensorX,10);
+        sensorY = parseInt(capabilities.sensorY,10);
+        maxBinX = parseInt(capabilities.maxBinX,10);
+        maxBinY = parseInt(capabilities.maxBinY,10);
+        exposureMin = parseFloat(capabilities.exposureMin,10);
+        exposureMax = parseFloat(capabilities.exposureMax,10);
+    }
+
     lastCoolerStatus = null;
     binningSym = false;
+
+    // Hide non supported features
+    if (canBinning) $(".caBinningCtrl").show();   
+    else $(".caBinningCtrl").hide();
+
+    if (canAbortExposure) $("#caExposureAbort").show();
+    else $("#caExposureAbort").hide();
+
+    if (canStopExposure) $("#caExposureStop").show();
+    else $("#caExposureStop").hide();
 
     // Set up monitoring
     const source = new EventSource("/altair/api/camera/stream");
@@ -28,6 +79,34 @@ $(document).ready(function () {
         cooler = data.coolerStatus;
         if (parseFloat(data.coolerPower)) {
             cooler += " (" + parseFloat(data.coolerPower).toFixed(2) + "%)";
+        }
+
+        // parse from binning, a string like "2x3"
+        let binX = parseInt(binning.split("x")[0],10);
+        let binY = parseInt(binning.split("x")[1],10);
+        // if neither binX nor binY are falsy, clamp, limit and scale the subframe inputs
+        if (binX && binY) {
+            let currVal;
+
+            $("#caSubframeStartX").prop("max", sensorX / binX);
+            currVal = parseInt($("#caSubframeStartX").val());
+            currVal = isNaN(currVal) ? 0 : Math.min(currVal, sensorX / binX);
+            $("#caSubframeStartX").val(currVal);
+
+            $("#caSubframeStartY").prop("max", sensorY / binY);
+            currVal = parseInt($("#caSubframeStartY").val());
+            currVal = isNaN(currVal) ? 0 : Math.min(currVal, sensorY / binY);
+            $("#caSubframeStartY").val(currVal);
+
+            $("#caSubframeWidth").prop("max", sensorX / binX);
+            currVal = parseInt($("#caSubframeWidth").val());
+            currVal = isNaN(currVal) ? 0 : Math.min(currVal, sensorX / binX);
+            $("#caSubframeWidth").val(currVal)
+
+            $("#caSubframeHeight").prop("max", sensorY / binY);
+            currVal = parseInt($("#caSubframeHeight").val());
+            currVal = isNaN(currVal) ? 0 : Math.min(currVal, sensorY / binY);
+            $("#caSubframeHeight").val(currVal);
         }
 
         $("#caConnected").text(connected);
@@ -53,13 +132,31 @@ $(document).ready(function () {
         }
         
         $("#caSubframeButton").prop('disabled', !connected);
-        $("#caBinningSym").prop('disabled', !connected);
-        $("#caBinningSet").prop('disabled', !connected);
+
+        
+
+        if (canAsymBinning) {
+            $(".caBinningAsymCtrl").show();
+            $("#caBinningSym").prop('disabled', !connected);
+        } else {
+            $(".caBinningAsymCtrl").hide();
+            $("#caBinningSym").prop('disabled', true);
+            $("#caBinningY").prop('disabled', true);
+            binningSym = true;
+        }
+
+       
+        $("#caBinningSet").prop('disabled', !(connected && canBinning));
+
+        // TODO 
+
         $("#caExposureBtns").find('button').prop('disabled', !connected);
+        $("#caExposureStop").prop('disabled', !(connected && canStopExposure));
+        $("#caExposureAbort").prop('disabled', !(connected && canAbortExposure));
         $("#caExposureDLBtns").find('button').prop('disabled', !connected);
-        $("#caCoolerEnable").prop('disabled', !connected);
-        $("#caCoolerWarmup").prop('disabled', !connected);
-        $("#caCoolerTempSetPane").find('button').prop('disabled', !connected);
+        $("#caCoolerEnable").prop('disabled', !(connected && canSetCoolerTemp));
+        $("#caCoolerWarmup").prop('disabled', !(connected && canSetCoolerTemp));
+        $("#caCoolerTempSetPane").find('button').prop('disabled', !(connected && canSetCoolerTemp));
 
         if (data.coolerStatus !== lastCoolerStatus) {
             $(".caCoolerStateIndicator").removeClass("text-bg-warning text-bg-success text-bg-danger text-bg-info text-bg-primary");
@@ -106,6 +203,9 @@ $(document).ready(function () {
             type: "POST",
             error: function (xhr, status, error) {
                 console.log("Error: " + error);
+            },
+            success: function (result, status, xhr) {
+                location.reload(true);
             }
         });
     });
@@ -187,7 +287,7 @@ $(document).ready(function () {
         let duration = (hours * 3600) + (minutes * 60) + seconds;
         let lightframe = $("#caExposureLight").is(":checked");
 
-        if (duration === undefined || duration === null || duration <= 0 ||  duration > 3600 * 12) {
+        if (duration === undefined || duration === null || (lightframe && duration < exposureMin)  || duration < 0 ||  duration > exposureMax) {
             console.log("Invalid exposure duration");
             return;
         }
@@ -339,22 +439,44 @@ function validateExposureTime() {
         sVal = $("#caExposureSecs").val().trim();
     } catch (e) { return; }
 
+    // If all three fields are filled, check if they are valid
     if (twoDigits.test(hVal) && twoDigits.test(mVal) && twoDigits.test(sVal)) {
         let hours = parseInt(hVal);
         let mins = parseInt(mVal);
         let secs = parseInt(sVal);
-        if (hours > 23) {
-            $("#caExposureHrs").val("23");
-            $("#caExposureMins").val("59");
-            $("#caExposureSecs").val("59");
+
+        // Max exposure time from camera
+        let maxHours = exposureMax / 3600;
+        let maxMins = (exposureMax % 3600) / 60;
+        let maxSecs = exposureMax % 60;
+
+        // If hours is too big, clamp to exposureMax
+        if (hours > maxHours) {
+            $("#caExposureHrs").val(maxHours);
+            $("#caExposureMins").val(maxMins);
+            $("#caExposureSecs").val(maxSecs);
+            return;
         }
+        // If max hours, check hours and secs and clamp
+        if (hours === maxHours) {
+            if (mins > maxMins) {
+                $("#caExposureMins").val(maxMins);
+                $("#caExposureSecs").val(maxSecs);
+                return;
+            }
+            if (mins === maxMins && secs > maxSecs) {
+                $("#caExposureSecs").val(maxSecs);
+                return;
+            }
+        }
+        // If hours != max, clamp mins and secs normally
         if (mins > 59) {
             $("#caExposureMins").val("59");
         }
         if (secs > 59) {
             $("#caExposureSecs").val("59");
         }
-    } else {
+    } else { // If not all three fields are filled right, check which ones are wrong and clear them
         if (!twoDigits.test(hVal)) {
             $("#caExposureHrs").val("");
         }

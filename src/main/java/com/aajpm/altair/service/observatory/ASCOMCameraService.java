@@ -39,8 +39,9 @@ import com.aajpm.altair.utility.exception.*;
 import reactor.core.publisher.Mono;
 import reactor.netty.http.client.HttpClient;
 import reactor.util.function.Tuple2;
+import reactor.util.function.Tuple4;
+import reactor.util.function.Tuple7;
 import reactor.util.function.Tuples;
-
 
 public class ASCOMCameraService extends CameraService {
 
@@ -48,11 +49,11 @@ public class ASCOMCameraService extends CameraService {
 
     final int deviceNumber;
 
-    private boolean isWarmingUp = false;
-    private boolean isCoolingDown = false;
     private final Logger logger = LoggerFactory.getLogger(ASCOMCameraService.class.getName());
 
-    private WebClient cameraClient;
+    private WebClient cameraClient; // Uses a separate WebClient to have a larger buffer size
+    
+    private CameraCapabilities capabilities;
 
     public ASCOMCameraService(AlpacaClient client, CameraConfig config) {
         this(client, 0, config);
@@ -71,6 +72,7 @@ public class ASCOMCameraService extends CameraService {
                         .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 60000)))
             .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(config.getImageBufferSize()))
             .build();
+        this.getCapabilities().onErrorComplete().subscribe();
     }
 
     ///////////////////////////////// GETTERS /////////////////////////////////
@@ -79,24 +81,6 @@ public class ASCOMCameraService extends CameraService {
     @Override
     public Mono<Boolean> isConnected() {
         return this.get("connected").map(JsonNode::asBoolean);
-    }
-
-    @Override
-    public Mono<Integer> getCameraStatus() {
-        return this.get("camerastate").map(JsonNode::asInt);
-    }
-
-    @Override
-    public Mono<Double> getStatusCompletion() {
-        return this.get("percentcompleted")
-            .map(JsonNode::asDouble)
-            .onErrorReturn(e -> { // If the current status doesn't have a completion percentage, return NaN
-                if (e instanceof ASCOMException) {
-                    return (((ASCOMException) e).getErrorCode() == ASCOMException.INVALID_OPERATION);
-                } else {
-                    return false;
-                }
-            }, Double.NaN);
     }
 
     //#region Temperature info
@@ -108,48 +92,86 @@ public class ASCOMCameraService extends CameraService {
 
     @Override
     public Mono<Double> getTemperatureTarget() {
-        //yes, even if it's called "setccdtemperature", it returns the target temperature. ASCOM can be weird.
-        return this.get("setccdtemperature").map(JsonNode::asDouble);
+        return getCapabilities().flatMap(caps -> {
+            if (caps.canSetCoolerTemp()) {
+                //yes, even if it's called "setccdtemperature", it returns the target temperature. ASCOM can be weird.
+                return this.get("setccdtemperature").map(JsonNode::asDouble);
+            } else {
+                return Mono.error(new DeviceException("Camera does not support temperature control."));
+            }
+        });
     }
 
     @Override
     public Mono<Double> getTemperatureAmbient() {
-        return this.get("heatsinktemperature").map(JsonNode::asDouble);
+        return getCapabilities().flatMap(caps -> {
+            if (caps.canSetCoolerTemp()) {
+                return this.get("heatsinktemperature").map(JsonNode::asDouble);
+            } else {
+                return Mono.error(new DeviceException("Camera does not support temperature control."));
+            }
+        });
     }
 
     @Override
     public Mono<Double> getCoolerPower() {
-        return this.get("coolerpower").map(JsonNode::asDouble);
+        return getCapabilities().flatMap(caps -> {
+            if (caps.canGetCoolerPower()) {
+                return this.get("coolerpower").map(JsonNode::asDouble);
+            } else {
+                return Mono.error(new DeviceException("Camera cooler does not report power."));
+            }
+        });
     }
 
     @Override
+    @SuppressWarnings("java:S3776")
     public Mono<Integer> getCoolerStatus() {
-        if (this.isCoolingDown) return Mono.just(CameraService.COOLER_COOLDOWN);
-        if (this.isWarmingUp) return Mono.just(CameraService.COOLER_WARMUP);
+        return getCapabilities().flatMap(caps -> {
+            if (!caps.canSetCoolerTemp())
+                return Mono.error(new DeviceException("Camera does not support temperature control."));
 
-        Mono<Boolean> isCoolerOn = this.get("cooleron").map(JsonNode::asBoolean);
-        Mono<Double> coolerPower = this.getCoolerPower();
-        Mono<Double> currentTemp = this.getTemperature();
-        Mono<Double> targetTemp = this.getTemperatureTarget();
-
-        return Mono.zip(isCoolerOn, coolerPower, currentTemp, targetTemp).flatMap(tuples -> {
-            if (Boolean.FALSE.equals(tuples.getT1())) { // If not ON
-                return Mono.just(CameraService.COOLER_OFF);
-            }
-
-            if (tuples.getT2() > config.getCoolerSaturationThreshold()) {   // If the cooler is on and at full power
-                return Mono.just(CameraService.COOLER_SATURATED);
-            }
-
-            if (Math.abs(tuples.getT3() - tuples.getT4()) < 1.1) { // If the cooler is on and at the target temperature
-                return Mono.just(CameraService.COOLER_STABLE);
-            }
+            Mono<Boolean> isCoolerOn = this.get("cooleron").map(JsonNode::asBoolean);
+            Mono<Double> currentTemp = this.getTemperature();
+            Mono<Double> targetTemp = this.getTemperatureTarget();            
             
-            // If the cooler is on, but neither at full power or at the target temperature, it must be warming up or cooling down.
-            return Mono.just(CameraService.COOLER_ACTIVE);
-        }).onErrorReturn(CameraService.COOLER_ERROR);
-    }
+            
+            if (caps.canGetCoolerPower()) {
+                Mono<Double> coolerPower = this.getCoolerPower();
 
+                return Mono.zip(isCoolerOn, coolerPower, currentTemp, targetTemp).flatMap(tuples -> {
+                    if (Boolean.FALSE.equals(tuples.getT1())) { // If not ON
+                        return Mono.just(CameraService.COOLER_OFF);
+                    }
+
+                    if (tuples.getT2() > config.getCoolerSaturationThreshold()) {   // If the cooler is on and at full power
+                        return Mono.just(CameraService.COOLER_SATURATED);
+                    }
+
+                    if (Math.abs(tuples.getT3() - tuples.getT4()) < 1.1) { // If the cooler is on and at the target temperature
+                        return Mono.just(CameraService.COOLER_STABLE);
+                    }
+                    
+                    // If the cooler is on, but neither at full power or at the target temperature, it is just active.
+                    return Mono.just(CameraService.COOLER_ACTIVE);
+                }).onErrorReturn(CameraService.COOLER_ERROR);
+            } else {
+                // Same, but without the cooler power
+                return Mono.zip(isCoolerOn, currentTemp, targetTemp).flatMap(tuples -> {
+                    if (Boolean.FALSE.equals(tuples.getT1())) { // If not ON
+                        return Mono.just(CameraService.COOLER_OFF);
+                    }
+
+                    if (Math.abs(tuples.getT2() - tuples.getT3()) < 1.1) { // If the cooler is on and at the target temperature
+                        return Mono.just(CameraService.COOLER_STABLE);
+                    }
+
+                    // If the cooler is on, but neither at full power or at the target temperature, it is just active.
+                    return Mono.just(CameraService.COOLER_ACTIVE);
+                }).onErrorReturn(CameraService.COOLER_ERROR);
+            }
+        });
+    }
 
     //#endregion
 
@@ -184,38 +206,6 @@ public class ASCOMCameraService extends CameraService {
     @Override
     public Mono<Integer> getBinningY() {
         return this.get("biny").map(JsonNode::asInt);
-    }
-
-    //#endregion
-    
-
-    //#region Sensor info
-
-    public Mono<String> getSensorType() {
-        return this.get("sensortype").map(type -> {
-            switch (type.asInt()) {
-                case 0:
-                    return "Monochrome";
-                case 1:
-                    return "Colour";
-                case 2:
-                    return "RGGB";
-                case 3:
-                    return "CMYG";
-                case 4:
-                    return "CMYG2";
-                case 5:
-                    return "LRGB";
-                default:
-                    return "Unknown";
-            }
-        });
-    }
-
-    public Mono<Tuple2<Integer, Integer>> getBayerOffset() {
-        Mono<Integer> x = this.get("bayeroffsetx").map(JsonNode::asInt);
-        Mono<Integer> y = this.get("bayeroffsety").map(JsonNode::asInt);
-        return Mono.zip(x, y);
     }
 
     //#endregion
@@ -274,7 +264,7 @@ public class ASCOMCameraService extends CameraService {
             });
     }
 
-    
+    @SuppressWarnings("java:S3776")
     public void dumpImage(String name) {
         cameraClient.get()
         .uri("/imagearray")
@@ -358,7 +348,7 @@ public class ASCOMCameraService extends CameraService {
         });
     }
 
-    @SuppressWarnings({"java:S128", "java:S1481", "536870973", "java:S3776"}) // Shut up, I know what I'm doing with the switch statement and null checks are unavoidable
+    @SuppressWarnings({"java:S128", "java:S1481", "java:S3776", "unused"}) // Shut up, I know what I'm doing with the switch statement and null checks are unavoidable
     protected static ImageHDU readImageBytes(byte[] bytes, HeaderData headerData) throws DeviceException {
         DataInputStream dis = new DataInputStream(new ByteArrayInputStream(bytes));
 
@@ -646,120 +636,79 @@ public class ASCOMCameraService extends CameraService {
     //#region Setters/Actions
 
     @Override
-    public void connect() {
-        MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
-        params.add("Connected", String.valueOf(true));
-        this.execute("connected", params);
+    public Mono<Void> connect() {
+        MultiValueMap<String, String> args = new LinkedMultiValueMap<>(1);
+        args.add("Connected", "true");
+        return this.put("connected", args)
+            .doOnSuccess(v -> this.getCapabilities().subscribe())   // attempt to get the device's capabilities
+            .then();
     }
 
     @Override
-    public void disconnect() {
-        MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
-        params.add("Connected", String.valueOf(false));
-        this.execute("connected", params);
+    public Mono<Void> disconnect() {
+        MultiValueMap<String, String> args = new LinkedMultiValueMap<>(1);
+        args.add("Connected", "false");
+        return this.put("connected", args).then();
     }
-
 
     //#region Cooler
 
     @Override
-    public void setCooler(boolean enable) {
+    public Mono<Void> setCooler(boolean enable) {
         MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
         params.add("CoolerOn", String.valueOf(enable));
-        this.execute("cooleron", params);
+
+        return this.getCapabilities().flatMap(caps -> {
+            if (caps.canSetCoolerTemp()) {
+                return this.put("cooleron", params).then();
+            } else {
+                return Mono.error(new DeviceException("Camera does not support temperature control."));
+            }
+        });
     }
 
     @Override
-    public void setTargetTemp(double temperature) {
-        if (isCoolingDown) isCoolingDown = false;
-        if (isWarmingUp) isWarmingUp = false;
-
+    public Mono<Void> setTargetTemp(double temperature) {
         MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
         params.add("SetCCDTemperature", String.valueOf(temperature));
-        this.execute("setccdtemperature", params);
-    }
-
-    @Override
-    public void cooldown(double target) {
-        Thread t = new Thread(() -> {
-            this.setCooler(true);
-            this.isWarmingUp = false;
-            this.isCoolingDown = true;
-            double delta = this.config.getMaxCooldownRate();
-            double threshold = this.config.getCoolerSaturationThreshold();
-            double minRate = this.config.getMinCooldownRate();
-            try {
-                while (this.isCoolingDown) {
-                    double startTemp = this.getTemperature().block();
-                    // Set new target as current temp minus delta, or the target temp if that is closer.
-                    double newTarget = (startTemp - target > delta) ? startTemp - delta : target;
-
-                    this.setTargetTemp(newTarget);
-                    Thread.sleep(60000);
-
-                    double newTemp = this.getTemperature().block();
-                    
-                    // If it's saturated and barely cooled, stop cooling further.
-                    if (startTemp - newTemp < minRate && this.getCoolerPower().block() > threshold) {
-                        this.isCoolingDown = false;
-                    }
-
-                    // If it's cooled down enough, stop cooling further.
-                    if (newTemp - target < 1.1) {
-                        this.isCoolingDown = false;
-                    }
-                }
-            } catch (InterruptedException e) {
-                this.logger.error("Error while cooling down", e);
+        
+        return this.getCapabilities().flatMap(caps -> {
+            if (caps.canSetCoolerTemp()) {
+                return this.put("setccdtemperature", params).then();
+            } else {
+                return Mono.error(new DeviceException("Camera does not support temperature control."));
             }
         });
-        t.start();
     }
 
     @Override
-    public void warmup() {
-        Double target;
-        try {
-            target = this.getTemperatureAmbient().block();
-            if (target == null) {
-                target = 25.0;  // Default to 25C if we can't get the ambient temperature.
-            }
-        } catch (Exception e) {
-            target = 25.0;  
-        }
-        this.warmup(target);
+    public Mono<Void> cooldown(double target) {
+        // ASCOM Standard specifies cooler ramping is driver/hardware's responsibility and not the client's,
+        // so no need for a cooldown method. Just set the target temp and let the driver/hardware do the rest.
+        return this.setTargetTemp(target);
     }
 
     @Override
-    public void warmup(double target) {
-        Thread t = new Thread(() -> {
-            this.setCooler(true);
-            this.isCoolingDown = false;
-            this.isWarmingUp = true;
-            double delta = this.config.getMaxWarmupRate();
-            try {
-                while (this.isWarmingUp) {
-                    double startTemp = this.getTemperature().block();
-                    // Set new target as current temp plus delta, or the target temp if that is closer.
-                    double newTarget = (target - startTemp > delta) ? target - startTemp : target;
+    public Mono<Void> warmup(double target) {
+        // ASCOM Standard specifies cooler ramping is driver/hardware's responsibility and not the client's,
+        // so no need for a warmup method. Just set the target temp and let the driver/hardware do the rest.
+        return this.setTargetTemp(target);
+    }
 
-                    this.setTargetTemp(newTarget);
-                    Thread.sleep(60000);
-
-                    double newTemp = this.getTemperature().block();
-
-                    // If it's warm enough, stop warming.
-                    if (target - newTemp < 1.1) {
-                        this.isWarmingUp = false;
-                    }
-                }
-            } catch (InterruptedException e) {
-                this.logger.error("Error while warming up", e);
+    @Override
+    @SuppressWarnings("java:S1612") // Suppress warning about not using lambda, if using lambda it escalates to a senseless NPE when Monos can't even return null.
+    public Mono<Void> warmup() {
+        // Fetches the ambient temperature and sets the target temp to that.
+        return this.getCapabilities().flatMap(caps -> {
+            if (caps.canSetCoolerTemp()) {
+                return this.getTemperatureAmbient()
+                    .onErrorReturn(25.0)
+                    .flatMap(ambient -> this.setTargetTemp(ambient));
+            } else {
+                return Mono.error(new DeviceException("Camera does not support temperature control."));
             }
         });
-        t.start();
     }
-    
 
     //#endregion
 
@@ -767,79 +716,304 @@ public class ASCOMCameraService extends CameraService {
     //#region Exposure
 
     @Override
-    public void setSubframeStartX(int startX) {
+    public Mono<Void> setSubframeStartX(int startX) {
         MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
         params.add("StartX", String.valueOf(startX));
-        this.execute("startx", params);
+
+        return this.getCapabilities().flatMap(caps -> {
+            if (startX < 0 || startX > caps.sensorX())
+                return Mono.error(new IllegalArgumentException("StartX is out of bounds: " + startX));
+
+            return this.put("startx", params).then();
+        });
     }
 
     @Override
-    public void setSubframeStartY(int startY) {
+    public Mono<Void> setSubframeStartY(int startY) {
         MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
         params.add("StartY", String.valueOf(startY));
-        this.execute("starty", params);
+
+        return this.getCapabilities().flatMap(caps -> {
+            if (startY < 0 || startY > caps.sensorY())
+                return Mono.error(new IllegalArgumentException("StartY is out of bounds: " + startY));
+
+            return this.put("starty", params).then();
+        });
     }
 
     @Override
-    public void setSubframeWidth(int width) {
+    public Mono<Void> setSubframeWidth(int width) {
+        if (width < 0)
+            return Mono.error(new IllegalArgumentException("Subframe width must be a positive integer: " + width));
+        
         MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
         params.add("NumX", String.valueOf(width));
-        this.execute("numx", params);
+
+        return this.getCapabilities().flatMap(caps -> {
+            if (width > caps.sensorX())
+                return Mono.error(new IllegalArgumentException("Subframe width can't be larger than total width" + width));
+
+            return this.put("numx", params).then();
+        });
     }
 
     @Override
-    public void setSubframeHeight(int height) {
+    public Mono<Void> setSubframeHeight(int height) {
+        if (height < 0)
+            return Mono.error(new IllegalArgumentException("Subframe height must be a positive integer: " + height));
+        
         MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
         params.add("NumY", String.valueOf(height));
-        this.execute("numy", params);
-    }
 
-    private void setBinningX(int binx) {
-        MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
-        params.add("BinX", String.valueOf(binx));
-        this.execute("binx", params);
-    }
+        return this.getCapabilities().flatMap(caps -> {
+            if (height > caps.sensorY())
+                return Mono.error(new IllegalArgumentException("Subframe height can't be larger than total height" + height));
 
-    private void setBinningY(int biny) {
-        MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
-        params.add("BinY", String.valueOf(biny));
-        this.execute("biny", params);
+            return this.put("numy", params).then();
+        });
     }
 
     @Override
-    public void setBinning(int bin) {
-        setBinning(bin, bin);
+    public Mono<Void> setBinning(int bin) {
+        return setBinning(bin, bin);
     }
 
     @Override
-    public void setBinning(int binx, int biny) {
-        setBinningX(binx);
-        setBinningY(biny);
+    @SuppressWarnings("java:S3776")
+    public Mono<Void> setBinning(int binx, int biny) {
+        return this.getCapabilities().flatMap(caps -> {
+            if (!caps.canBinning())
+                return Mono.error(new DeviceException("Camera does not support binning."));
+
+            if (binx < 1)
+                return Mono.error(new IllegalArgumentException("X Binning must be greater than 0: " + binx));
+
+            if (biny < 1)
+                return Mono.error(new IllegalArgumentException("Y Binning must be greater than 0: " + biny));
+
+            if (binx > caps.maxBinX())
+                return Mono.error(new IllegalArgumentException("X Binning can't be larger than max binning: " + binx + " > " + caps.maxBinX()));
+
+            if (biny > caps.maxBinY())
+                return Mono.error(new IllegalArgumentException("Y Binning can't be larger than max binning: " + biny + " > " + caps.maxBinY()));
+
+            if (!caps.canAsymBinning() && binx != biny)
+                return Mono.error(new IllegalArgumentException("Camera does not support asymmetrical binning."));
+
+            MultiValueMap<String, String> paramsX = new LinkedMultiValueMap<>();
+            paramsX.add("BinX", String.valueOf(binx));
+                
+            if (!caps.canAsymBinning()) {   // Uses symmetrical binning, only need to set binx
+                return this.put("binx", paramsX).then();
+            } else {                        // Uses asymmetrical binning, need to set binx and biny
+                MultiValueMap<String, String> paramsY = new LinkedMultiValueMap<>();
+                paramsY.add("BinY", String.valueOf(biny));
+    
+                return this.put("binx", paramsX).then(this.put("biny", paramsY)).then();
+            }
+        });
     }
 
     @Override
-    public void startExposure(double duration, boolean useLightFrame) {
+    public Mono<Void> startExposure(double duration, boolean useLightFrame) {
         MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
         params.add("Duration", String.valueOf(duration));
         params.add("Light", String.valueOf(useLightFrame));
-        this.execute("startexposure", params);
+
+        return this.getCapabilities().flatMap(caps -> {
+            if (useLightFrame && (duration < caps.exposureMin()))    // If using light frame, check if duration is less than min exposure. Must allow lower exposures for bias frames.
+                return Mono.error(new IllegalArgumentException("Exposure duration can't be less than min exposure: " + duration + " < " + caps.exposureMin()));
+
+            if (duration > caps.exposureMax())
+                return Mono.error(new IllegalArgumentException("Exposure duration can't be greater than max exposure: " + duration + " > " + caps.exposureMax()));
+
+            return this.put("startexposure", params).then();
+        });
     }
 
     @Override
-    public void stopExposure() {
-        this.execute("stopexposure", null);
+    public Mono<Void> stopExposure() {
+        return this.getCapabilities().flatMap(caps -> {
+            if (!caps.canStopExposure())
+                return Mono.error(new DeviceException("Camera does not support stopping exposures."));
+
+            return this.put("stopexposure", null).then();
+        });
     }
 
     @Override
-    public void abortExposure() {
-        this.execute("abortexposure", null);
+    public Mono<Void> abortExposure() {
+        return this.getCapabilities().flatMap(caps -> {
+            if (!caps.canAbortExposure())
+                return Mono.error(new DeviceException("Camera does not support aborting exposures."));
+
+            return this.put("abortexposure", null).then();
+        });
     }
 
     //#endregion
 
+    //#endregion
+    //////////////////////////// STATUS REPORTING /////////////////////////////
+    //#region Status Reporting
 
+    @Override
+    public Mono<CameraCapabilities> getCapabilities() {
+        if (capabilities != null) {
+            return Mono.just(capabilities);
+        }
 
+        // Load the capabilities from the ASCOM driver
+        Mono<Boolean> canAbortExposure = this.get("canabortexposure").map(JsonNode::asBoolean).onErrorReturn(false);
+        Mono<Boolean> canStopExposure = this.get("canstopexposure").map(JsonNode::asBoolean).onErrorReturn(false);
+        Mono<Boolean> canAsymBinning = this.get("canasymmetricbin").map(JsonNode::asBoolean).onErrorReturn(false);
+        Mono<Boolean> canSetCoolerTemp = this.get("cansetccdtemperature").map(JsonNode::asBoolean).onErrorReturn(false);
+        Mono<Boolean> canGetCoolerPower = this.get("cangetcoolerpower").map(JsonNode::asBoolean).onErrorReturn(false);
+        Mono<String> sensorName = this.get("sensorname").map(JsonNode::asText).onErrorReturn("ASCOM-CAM");
+        Mono<String> sensorType = getSensorType().onErrorReturn("Unknown");
+        Mono<Tuple2<Integer, Integer>> bayerOffset = getBayerOffset().onErrorReturn(Tuples.of(0, 0));
+        Mono<Tuple2<Integer, Integer>> res = getRes().onErrorReturn(Tuples.of(0, 0));
+        Mono<Tuple2<Integer, Integer>> maxBin = getMaxBinning().onErrorReturn(Tuples.of(1, 1));
+        Mono<Tuple2<Double, Double>> exposureLimits = getExposureLimits().onErrorReturn(Tuples.of(0.0, 0.0));
+        
+        
+        // Zips in 2 steps to workaround the 8 mono zip limit
+        Mono<Tuple7<Boolean, Boolean, Boolean, Boolean, Boolean, String, String>> tuple1 = Mono.zip(
+            canAbortExposure,
+            canStopExposure,
+            canAsymBinning,
+            canSetCoolerTemp,
+            canGetCoolerPower,
+            sensorName,
+            sensorType
+        );
 
+        Mono<Tuple4<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>, Tuple2<Integer, Integer>, Tuple2<Double, Double>>> tuple2 = Mono.zip(
+            bayerOffset,
+            res,
+            maxBin,
+            exposureLimits
+        );
+
+        Mono<CameraCapabilities> ret = tuple1.zipWith(tuple2, (t1,t2) -> new CameraCapabilities(
+            t1.getT1(),
+            t1.getT2(),
+            (t2.getT3().getT1() > 1 || t2.getT3().getT2() > 1),
+            t1.getT3(),
+            t1.getT4(),
+            t1.getT5(),
+            true,   // ASCOM delegates auto ramping to the driver
+            t1.getT6(),
+            t1.getT7(),
+            t2.getT1().getT1(),
+            t2.getT1().getT2(),
+            t2.getT2().getT1(),
+            t2.getT2().getT2(),
+            t2.getT3().getT1(),
+            t2.getT3().getT2(),
+            t2.getT4().getT1(),
+            t2.getT4().getT2()
+        ));
+
+        // Only run if the device is connected.
+        return this.isConnected()
+            .flatMap(connected -> Boolean.TRUE.equals(connected) ? ret : Mono.error(new DeviceException("Device is not connected.")))
+            .doOnSuccess(caps -> capabilities = caps);
+    }
+
+    private Mono<Tuple2<Integer, Integer>> getRes() {
+        Mono<Integer> x = this.get("cameraxsize").map(JsonNode::asInt);
+        Mono<Integer> y = this.get("cameraysize").map(JsonNode::asInt);
+        return Mono.zip(x, y);
+    }
+
+    private Mono<Tuple2<Integer, Integer>> getMaxBinning() {
+        Mono<Integer> x = this.get("maxbinx").map(JsonNode::asInt);
+        Mono<Integer> y = this.get("maxbiny").map(JsonNode::asInt);
+        return Mono.zip(x, y);
+    }
+
+    private Mono<Tuple2<Double, Double>> getExposureLimits() {
+        Mono<Double> min = this.get("exposuremin").map(JsonNode::asDouble);
+        Mono<Double> max = this.get("exposuremax").map(JsonNode::asDouble);
+        return Mono.zip(min, max);
+    }
+
+    private Mono<String> getSensorType() {
+        return this.get("sensortype").map(type -> {
+            switch (type.asInt()) {
+                case 0:
+                    return "Monochrome";
+                case 1:
+                    return "Colour";
+                case 2:
+                    return "RGGB";
+                case 3:
+                    return "CMYG";
+                case 4:
+                    return "CMYG2";
+                case 5:
+                    return "LRGB";
+                default:
+                    return "Unknown";
+            }
+        });
+    }
+
+    private Mono<Tuple2<Integer, Integer>> getBayerOffset() {
+        Mono<Integer> x = this.get("bayeroffsetx").map(JsonNode::asInt);
+        Mono<Integer> y = this.get("bayeroffsety").map(JsonNode::asInt);
+        return Mono.zip(x, y);
+    }
+
+    @Override
+    public Mono<Integer> getCameraState() {
+        return this.get("camerastate").map(JsonNode::asInt);
+    }
+
+    @Override
+    public Mono<Double> getStatusCompletion() {
+        return this.get("percentcompleted")
+            .map(JsonNode::asDouble) // ASCOM returns a short, but we want a double
+            .onErrorReturn(e -> {   // If the current status doesn't have a completion percentage, return NaN
+                if (e instanceof ASCOMException) {
+                    return (((ASCOMException) e).getErrorCode() == ASCOMException.INVALID_OPERATION);
+                } else {
+                    return false;
+                }
+            }, Double.NaN);
+    }
+
+    @Override
+    public Mono<CameraStatus> getStatus() {
+        Mono<Boolean> connected = isConnected().onErrorReturn(false);
+        Mono<Double> temperature = getTemperature().onErrorReturn(Double.NaN);
+        Mono<Integer> coolerStatus = getCoolerStatus().onErrorReturn(COOLER_ERROR);
+        Mono<Double> coolerPower = getCoolerPower().onErrorReturn(Double.NaN);
+        Mono<Integer> status = getCameraState().onErrorReturn(STATUS_ERROR);
+        Mono<Tuple2<Integer, Integer>> binning = getBinning().onErrorReturn(Tuples.of(1, 1));
+        Mono<Double> statusCompletion = getStatusCompletion().onErrorReturn(Double.NaN);
+        Mono<Tuple4<Integer, Integer, Integer, Integer>> subFrame = getSubFrame().onErrorReturn(Tuples.of(0, 0, 0, 0));
+
+        return Mono
+            .zip(connected, temperature, coolerStatus, coolerPower, status, binning, statusCompletion, subFrame)
+            .map(tuple -> 
+                new CameraStatus(
+                    tuple.getT1(),
+                    tuple.getT2(),
+                    tuple.getT3(),
+                    tuple.getT4(),
+                    tuple.getT5(),
+                    tuple.getT6().getT1(),
+                    tuple.getT6().getT2(),
+                    tuple.getT7(),
+                    tuple.getT8().getT3(),
+                    tuple.getT8().getT4(),
+                    tuple.getT8().getT1(),
+                    tuple.getT8().getT2()
+                )
+            );
+    }
 
     //#endregion
     ///////////////////////////////// HELPERS /////////////////////////////////
@@ -853,11 +1027,12 @@ public class ASCOMCameraService extends CameraService {
         return client.put("camera", deviceNumber, action, params);
     }
 
-    private void execute(String action, MultiValueMap<String, String> params) {
-        client.put("camera", deviceNumber, action, params).subscribe();
-    }
-
-
+    /**
+     * Takes a JSON node and casts it to the specified numeric type.
+     * @param value The JSON node to cast.
+     * @param castTo The type to cast to.
+     * @return The casted value.
+     */
     private static Object asObject(JsonNode value, NumberVarType castTo) {
         Object ret = null;
         switch (castTo) {
@@ -911,6 +1086,12 @@ public class ASCOMCameraService extends CameraService {
         }
     }
 
+    /**
+     * Unwraps a 2D array of primitive wrappers into a 2D array of the corresponding primitives.
+     * @param array The array to unwrap
+     * @param dataType The data type of the array
+     * @return The unwrapped array. Note that this is a new array, not a reference to the original.
+     */
     private static Object unwrap2d(Object array, NumberVarType dataType) {
         Object[][] array2D = (Object[][]) array;
             int width = array2D.length;
@@ -973,6 +1154,12 @@ public class ASCOMCameraService extends CameraService {
             }
     }
 
+    /**
+     * Unwraps a 3D array of primitive wrappers into a 3D array of the corresponding primitives.
+     * @param array The array to unwrap
+     * @param dataType The data type of the array
+     * @return The unwrapped array. Note that this is a new array, not a reference to the original.
+     */
     @SuppressWarnings("java:S3776")
     private static Object unwrap3d(Object array, NumberVarType dataType) {
         Object[][][] array3D = (Object[][][]) array;
@@ -1038,12 +1225,16 @@ public class ASCOMCameraService extends CameraService {
         }
     }
 
-
+    /**
+     * Fetches all the available header data from the camera to be used in the FITS header.
+     * @return A Mono that emits the header data
+     */
     @SuppressWarnings("java:S3776")
     private Mono<HeaderData> getHeaderData() {
         Mono<String> dateObs = this.get("lastexposurestarttime").map(JsonNode::asText).onErrorReturn("");
         Mono<Integer> expTime = this.get("lastexposureduration").map(JsonNode::asInt).onErrorReturn(Integer.MIN_VALUE);
         Mono<Integer> gain = this.get("gain").map(JsonNode::asInt).onErrorReturn(Integer.MIN_VALUE);
+
         Mono<String> bayerPat = this.get("sensortype").map(type -> {
             switch (type.asInt()) {
                 case 2:
@@ -1060,6 +1251,7 @@ public class ASCOMCameraService extends CameraService {
         }).onErrorReturn("");
 
         Mono<Tuple2<Integer, Integer>> bayerXY = this.getBayerOffset().onErrorReturn(Tuples.of(Integer.MIN_VALUE, Integer.MIN_VALUE));
+        
         Mono<Tuple2<Integer, Integer>> binXY = this.getBinning().onErrorReturn(Tuples.of(Integer.MIN_VALUE, Integer.MIN_VALUE));
         Mono<Tuple2<Integer, Integer>> numXY = Mono.zip(
             this.getSubframeWidth().onErrorReturn(Integer.MIN_VALUE),

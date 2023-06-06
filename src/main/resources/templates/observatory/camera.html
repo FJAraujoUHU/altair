@@ -75,27 +75,25 @@
                         </div>
                             
                         <!-- Binning -->
-                        <h5 class="text-primary-emphasis mt-2">Binning</h5>
+                        <h5 class="text-primary-emphasis mt-2 caBinningCtrl">Binning</h5>
 
-                        <div class="row flex-nowrap input-group justify-content-between align-items-center">
+                        <div class="row flex-nowrap input-group justify-content-between align-items-center caBinningCtrl">
                             <div class="col-5 d-flex">
-                                <select title="lorem" class="form-select text-bg-primary" id="caBinningX">
-                                    <option value="1">1</option>
-                                    <option value="2">2</option>
-                                    <option value="3">3</option>
-                                    <option value="4">4</option>
+                                <select title="lorem" class="form-select text-bg-primary" id="caBinningX" disabled>
+                                    <th:block th:if="${(capacities != null) && (capacities.maxBinX != null)}">
+                                        <option  th:each="i : ${#numbers.sequence(1, capacities.maxBinX)}" th:value="${i}" th:text="${i}"></option>
+                                    </th:block> 
                                 </select>
                                 <span class="input-group-text hideOnSym" id="caBinningTxt">X</span>
-                                <select title="ipsum" class="form-select text-bg-primary hideOnSym" id="caBinningY">
-                                    <option value="1">1</option>
-                                    <option value="2">2</option>
-                                    <option value="3">3</option>
-                                    <option value="4">4</option>
+                                <select title="ipsum" class="form-select text-bg-primary hideOnSym" id="caBinningY" disabled>
+                                    <th:block th:if="${(capacities != null) && (capacities.maxBinY != null)}">
+                                        <option th:each="i : ${#numbers.sequence(1, capacities.maxBinY)}" th:value="${i}" th:text="${i}"></option>
+                                    </th:block>  
                                 </select>
                             </div>
 
 
-                            <div class="col">
+                            <div class="col caBinningAsymCtrl">
                                 <div class="form-check form-switch">
                                     <input class="form-check-input" type="checkbox" role="switch" id="caBinningSym">
                                     <label class="form-check-label" for="caBinningSym">Symmetric</label>
@@ -140,19 +138,13 @@
                             </div>
                         </div>
                         
-                        
-
-
-
-
-
                     </div>
                 </div>
 
             </div>
 
             <!-- Cooler control -->
-            <div class="col mx-auto" sec:authorize="hasRole('ADVANCED_USER')">
+            <div class="col mx-auto" sec:authorize="hasRole('ADVANCED_USER')" th:if="${(capacities != null) && capacities.canSetCoolerTemp}">
 
                 <div class="card text-bg-primary" style="max-width: 32rem; min-width: 15rem" id="coolerCard">
                     <div class="card-header"><h5 class="card-title">Cooler</h5></div>
@@ -234,7 +226,6 @@
                             <div class="col-5 align-items-center">
                                 <select class="form-select text-bg-primary-emphasis" id="fwSelect" disabled>
                                     <!-- Populated by JS -->
-                                    <!--option value="0.00416666">15"</option-->
                                 </select>
                             </div>    
                         </div>                         
@@ -247,6 +238,9 @@
 
 
     <th:block th:replace="~{fragments/controlpanel.html :: bottomDefs}"/>
+    <script th:inline="javascript">
+        var capabilities = /*[[${capabilities}]]*/ null;
+    </script>
     <script src="/js/camera.js"></script>
     <script src="/js/filterwheel.js"></script>
 </body>
