@@ -39,3 +39,4 @@ src/main/resources/static/favicon.ico
 *.fits
 *.fits.gz
 *.bin
+/*.txt
