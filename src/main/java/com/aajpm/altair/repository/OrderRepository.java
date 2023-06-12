@@ -4,17 +4,16 @@ import java.util.Collection;
 import java.util.List;
 
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
 
 import com.aajpm.altair.entity.Order;
 
-@Repository
+//@Repository - not needed because this is a subinterface of JpaRepository
 public interface OrderRepository extends JpaRepository<Order, Long> {
 
-    Collection<Order> findByUserID(long userID);
+    Collection<Order> findByUserId(long userID);
 
     Collection<Order> findByCompletedFalse();
 
-    List<Order> findByCompletedFalseOrderedByCreationTime();
+    List<Order> findByCompletedFalseOrderByCreationTimeAsc();
     
 }

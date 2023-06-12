@@ -27,7 +27,7 @@ public abstract class Order extends BasicEntity implements Serializable {
     @Column(name = "creation_time", nullable = false)
     private Instant creationTime;
 
-    @Column(name = "is_completed", nullable = false)
+    @Column(name = "completed", nullable = false)
     private Boolean completed;
 
 

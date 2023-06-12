@@ -420,8 +420,8 @@ public class ASCOMWeatherWatchService extends WeatherWatchService {
 
     @Override
     public Mono<WeatherWatchStatus> getStatus() {
-        Mono<Boolean> connected = this.isConnected();
-        Mono<Boolean> safe = this.isSafe();
+        Mono<Boolean> connected = this.isConnected().onErrorReturn(false);
+        Mono<Boolean> safe = this.isSafe().onErrorReturn(false);
         Mono<Double> cloudCover = this.getCloudCoverValue().onErrorReturn(Double.NaN);
         Mono<Double> humidity = this.getHumidityValue().onErrorReturn(Double.NaN);
         Mono<Double> pressure = this.getPressureValue().onErrorReturn(Double.NaN);
@@ -433,7 +433,7 @@ public class ASCOMWeatherWatchService extends WeatherWatchService {
             if (caps.canSkyQuality() == CAPABILITIES_SPECIFIC)
                 return this.getSkyQualityValue().map(value -> String.format("%.2f", value));	
             return Mono.just(String.valueOf(Double.NaN));
-        });
+        }).onErrorReturn("Unknown");
         Mono<Double> temperatureSky = this.getTemperatureSkyValue().onErrorReturn(Double.NaN);
         Mono<Double> temperatureAmbient = this.getTemperatureAmbientValue().onErrorReturn(Double.NaN);
         Mono<Double> windSpeed = this.getWindSpeedValue().onErrorReturn(Double.NaN);

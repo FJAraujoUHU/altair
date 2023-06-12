@@ -1,5 +1,6 @@
 package com.aajpm.altair.entity;
 
+import java.io.Serializable;
 import java.util.Collection;
 
 import jakarta.persistence.*;
@@ -7,7 +8,7 @@ import jakarta.validation.constraints.NotBlank;
 
 @Entity
 @Table(name = "image_attributes")
-public class ImageAttribute {
+public class ImageAttribute extends BasicEntity implements Serializable {
     
     ////////////////////////////// CONSTRUCTORS ///////////////////////////////	
     //#region Constructors

@@ -4,19 +4,18 @@ import java.util.Collection;
 import java.util.List;
 
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
 
 import com.aajpm.altair.entity.ProgramOrder;
 
-@Repository
+//@Repository - not needed because this is a subinterface of JpaRepository
 public interface ProgramOrderRepository extends JpaRepository<ProgramOrder, Long> {
 
-    Collection<ProgramOrder> findByUserID(long userID);
+    Collection<ProgramOrder> findByUserId(long userID);
 
     Collection<ProgramOrder> findByCompletedFalse();
 
-    List<ProgramOrder> findByCompletedFalseOrderedByCreationTime();
+    List<ProgramOrder> findByCompletedFalseOrderByCreationTimeAsc();
 
-    Collection<ProgramOrder> findByProgramTargetID(long astroObjectID);
+    Collection<ProgramOrder> findByProgramTargetId(long astroObjectID);
     
 }

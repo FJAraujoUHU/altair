@@ -1,3 +1,5 @@
+// TODO: Review missing fields
+
 $(document).ready(function () {
     const source = new EventSource("/altair/observatory/stream");
     source.onmessage = function (event) {
@@ -5,52 +7,52 @@ $(document).ready(function () {
         console.log(data);
 
         // Telescope
-        $("#tsConnected").text(data.tsConnected);
-        $("#tsSiderealTime").text(toHMS(data.tsSiderealTime));
-        $("#tsRightAscension").text(toHMS(data.tsRightAscension));
-        $("#tsDeclination").text(toDMS(data.tsDeclination));
-        $("#tsAzimuth").text(toDMS(data.tsAzimuth));
-        $("#tsAltitude").text(toDMS(data.tsAltitude));
-        $("#tsSlewing").text(data.tsSlewing);
-        $("#tsTracking").text(data.tsTracking);
-        $("#tsAtHome").text(data.tsAtHome);
-        $("#tsParked").text(data.tsParked);
+        $("#tsConnected").text(data.telescope.connected);
+        $("#tsSiderealTime").text(toHMS(data.telescope.siderealTime));
+        $("#tsRightAscension").text(toHMS(data.telescope.rightAscension));
+        $("#tsDeclination").text(toDMS(data.telescope.declination));
+        $("#tsAzimuth").text(toDMS(data.telescope.azimuth));
+        $("#tsAltitude").text(toDMS(data.telescope.altitude));
+        $("#tsSlewing").text(data.telescope.slewing);
+        $("#tsTracking").text(data.telescope.tracking);
+        $("#tsAtHome").text(data.telescope.atHome);
+        $("#tsParked").text(data.telescope.parked);
         
         // Dome
-        $("#dmConnected").text(data.dmConnected);
-        $("#dmAzimuth").text(toDMS(data.dmAzimuth));
+        $("#dmConnected").text(data.dome.connected);
+        $("#dmAzimuth").text(toDMS(data.dome.azimuth));
         let shutter;
-        if (data.dmShutterStatus.toUpperCase() === "OPEN")
-            shutter = "Open at " + data.dmShutter + "%";
+        if (data.dome.shutterStatus.toUpperCase() === "OPEN")
+            shutter = "Open at " + data.dome.shutter + "%";
         else
             shutter = data.dmShutterStatus;
         $("#dmShutter").text(shutter);
-        $("#dmSlaved").text(data.dmSlaved);
-        $("#dmSlewing").text(data.dmSlewing);
-        $("#dmAtHome").text(data.dmAtHome);
-        $("#dmParked").text(data.dmParked);
+        $("#dmSlaved").text(data.dome.slaved);
+        $("#dmSlewing").text(data.dome.slewing);
+        $("#dmAtHome").text(data.dome.atHome);
+        $("#dmParked").text(data.dome.parked);
 
         // Focuser
-        $("#fcConnected").text(data.fcConnected);
-        $("#fcPosition").text(data.fcPosition);
-        $("#fcTemperature").text(data.fcTemperature);
-        $("#fcTempComp").text(data.fcTempComp);
-        $("#fcMoving").text(data.fcMoving);
+        $("#fcConnected").text(data.focuser.connected);
+        $("#fcPosition").text(data.focuser.position);
+        $("#fcTemperature").text(data.focuser.temperature);
+        $("#fcTempComp").text(data.focuser.tempComp);
+        $("#fcMoving").text(data.focuser.moving);
 
         // Camera
-        let caStatus = data.caStatus;
-        if (parseFloat(data.caStatusCompletion)) {    // if statusCompletion is not falsy AKA not null or undefined
-            caStatus += " (" + parseFloat(data.caStatusCompletion * 100).toFixed(2) + "%)";
+        let caStatus = data.camera.status;
+        if (parseFloat(data.camera.statusCompletion)) {    // if statusCompletion is not falsy AKA not null or undefined
+            caStatus += " (" + parseFloat(data.camera.statusCompletion * 100).toFixed(2) + "%)";
         }
-        let caSubframe = data.caSfWidth + "x" + data.caSfHeight + " @(" + data.caSfX + "," + data.caSfY + ")";
-        let caCooler = data.caCoolerStatus;
-        if (parseFloat(data.caCoolerPower)) {
-            caCooler += " (" + parseFloat(data.caCoolerPower).toFixed(2) + "%)";
+        let caSubframe = data.camera.sfWidth + "x" + data.camera.sfHeight + " @(" + data.camera.sfX + "," + data.camera.sfY + ")";
+        let caCooler = data.camera.coolerStatus;
+        if (parseFloat(data.camera.coolerPower)) {
+            caCooler += " (" + parseFloat(data.camera.coolerPower).toFixed(2) + "%)";
         }
-        $("#caConnected").text(data.caConnected);
-        $("#caTemperature").text(data.caTemperature);
+        $("#caConnected").text(data.camera.connected);
+        $("#caTemperature").text(data.camera.temperature);
         $("#caStatus").text(caStatus);
-        $("#caBinning").text(data.caBinning);
+        $("#caBinning").text(data.camera.binning);
         $("#caSubframe").text(caSubframe);
         $("#caCooler").text(caCooler);
     };

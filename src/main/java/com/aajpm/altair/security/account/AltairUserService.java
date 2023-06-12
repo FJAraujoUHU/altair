@@ -26,7 +26,6 @@ public class AltairUserService implements UserDetailsService {
 
     private AltairSecurityConfig securityConfig;
 
-    @Autowired
     public AltairUserService(AltairSecurityConfig securityConfig) {
         this.securityConfig = securityConfig;
     }

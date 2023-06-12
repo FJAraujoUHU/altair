@@ -8,7 +8,6 @@ import com.aajpm.altair.utility.webutils.AlpacaClient;
 import com.aajpm.altair.utility.exception.DeviceException;
 import com.aajpm.altair.utility.exception.DeviceUnavailableException;
 
-// TODO : Add Job stuff
 public class ASCOMObservatoryService extends ObservatoryService {
 
     AlpacaClient alpaca;

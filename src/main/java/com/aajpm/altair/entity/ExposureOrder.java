@@ -19,17 +19,17 @@ public class ExposureOrder extends BasicEntity implements Serializable {
     /////////////////////////////// ATTRIBUTES ////////////////////////////////
     //#region Attributes
 
-    @Column(name = "complete", nullable = false)
-    private Boolean complete;
+    @Column(name = "completed", nullable = false)
+    private Boolean completed;
 
 
     //#region Getters & Setters
-    public Boolean isComplete() {
-        return complete;
+    public Boolean isCompleted() {
+        return completed;
     }
 
-    public void setComplete(Boolean complete) {
-        this.complete = complete;
+    public void setCompleted(Boolean completed) {
+        this.completed = completed;
     }
     //#endregion
 

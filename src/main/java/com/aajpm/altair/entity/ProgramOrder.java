@@ -32,7 +32,7 @@ public class ProgramOrder extends Order {
     @ManyToOne(fetch = FetchType.EAGER, optional = false)
     private Program program;
 
-    @OneToMany(mappedBy = "programOrder", fetch = FetchType.EAGER, cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "program", fetch = FetchType.EAGER, cascade = CascadeType.ALL)
     private Collection<ExposureOrder> exposureOrders;
 
 
