@@ -6,6 +6,4 @@ public class BodyNotFoundException extends SolverException {
             super("Body " + body + " not found");
         }
 
-        
-    
 }

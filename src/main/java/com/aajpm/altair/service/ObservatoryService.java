@@ -1,13 +1,18 @@
 package com.aajpm.altair.service;
 
-import com.aajpm.altair.entity.Job;
+import com.aajpm.altair.entity.Program;
 import com.aajpm.altair.security.account.AltairUser;
 import com.aajpm.altair.utility.exception.*;
-import com.aajpm.altair.utility.statusreporting.*;
 
 import reactor.core.publisher.Mono;
 
 import com.aajpm.altair.service.observatory.*;
+import com.aajpm.altair.service.observatory.CameraService.CameraStatus;
+import com.aajpm.altair.service.observatory.DomeService.DomeStatus;
+import com.aajpm.altair.service.observatory.FilterWheelService.FilterWheelStatus;
+import com.aajpm.altair.service.observatory.FocuserService.FocuserStatus;
+import com.aajpm.altair.service.observatory.TelescopeService.TelescopeStatus;
+import com.aajpm.altair.service.observatory.WeatherWatchService.WeatherWatchStatus;
 
 
 // TODO : Add other useful methods to this class
@@ -25,7 +30,7 @@ public abstract class ObservatoryService {
 
     protected State state;
 
-    protected Job currentJob;
+    protected Program currentJob;
 
     protected AltairUser currentUser;
 
@@ -71,7 +76,7 @@ public abstract class ObservatoryService {
      * Returns the current job being performed by the telescope, if any.
      * @return The current job being performed by the telescope, or null if there is none.
      */
-    public Job getCurrentJob() { return currentJob; }
+    public Program getCurrentJob() { return currentJob; }
 
     /**
      * Stops the current job and returns to the idle state.
@@ -136,9 +141,14 @@ public abstract class ObservatoryService {
      * @throws DeviceException If there was an error getting the status.
      */
     public Mono<ObservatoryStatus> getStatus() throws DeviceException {
-        return Mono.zip(getTelescope().getStatus(), getDome().getStatus(), getFocuser().getStatus(), getCamera().getStatus())
-                .map(tuple -> new ObservatoryStatus(tuple.getT1(), tuple.getT2(), tuple.getT3(), tuple.getT4()))
-                .onErrorReturn(ObservatoryStatus.getErrorStatus()); 
+        return Mono.zip(
+            getTelescope().getStatus(),
+            getDome().getStatus(),
+            getFocuser().getStatus(),
+            getCamera().getStatus(),
+            getFilterWheel().getStatus(),
+            getWeatherWatch().getStatus()
+        ).map(tuple -> new ObservatoryStatus(tuple.getT1(), tuple.getT2(), tuple.getT3(), tuple.getT4(), tuple.getT5(), tuple.getT6())); 
     }
 
     /**
@@ -182,5 +192,15 @@ public abstract class ObservatoryService {
      * @throws DeviceUnavailableException If the service is unaccessible/not configured.
      */
     public abstract WeatherWatchService getWeatherWatch();
+
+
+    public record ObservatoryStatus(
+        TelescopeStatus telescope,
+        DomeStatus dome,
+        FocuserStatus focuser,
+        CameraStatus camera,
+        FilterWheelStatus filterWheel,
+        WeatherWatchStatus weatherWatch
+    ) {}
 
 }

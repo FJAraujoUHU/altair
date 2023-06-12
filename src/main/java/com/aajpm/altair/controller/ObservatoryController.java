@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.ResponseBody;
 
 import com.aajpm.altair.config.ObservatoryConfig;
 import com.aajpm.altair.service.ObservatoryService;
-import com.aajpm.altair.utility.statusreporting.ObservatoryStatus;
+import com.aajpm.altair.service.ObservatoryService.ObservatoryStatus;
 
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;

@@ -3,10 +3,13 @@ package com.aajpm.altair.security.account;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.HashSet;
-import java.util.Set;
 
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
+
+import com.aajpm.altair.entity.BasicEntity;
+import com.aajpm.altair.entity.Order;
+
 import org.springframework.beans.factory.annotation.Value;
 
 import jakarta.persistence.*;
@@ -16,11 +19,33 @@ import jakarta.validation.constraints.*;
 
 @Entity
 @Table(name = "users")
-public class AltairUser implements UserDetails {
+public class AltairUser extends BasicEntity implements UserDetails {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    ////////////////////////////// CONSTRUCTORS ///////////////////////////////
+    //#region Constructors
+
+    // JPA requires a no-arg constructor
+    public AltairUser() {
+        super();
+        roles = new HashSet<>(2);
+        orders = new HashSet<>();
+    }
+
+    // Creates a new user with the given username and password, no roles and disabled
+    public AltairUser(String username, String password) {
+        super();
+        this.username = username;
+        this.password = password;
+        this.enabled = false;
+        this.locked = false;
+        this.failedLoginAttempts = 0;
+        roles = new HashSet<>(2);
+        orders = new HashSet<>();
+    }
+
+    //#endregion
+    /////////////////////////////// ATTRIBUTES ////////////////////////////////
+    //#region Attributes
 
     @NotBlank(message = "Username is mandatory")
     @Size(min = 3, max = 24, message = "Username must be between 3 and 24 characters")
@@ -45,39 +70,11 @@ public class AltairUser implements UserDetails {
     @Min(value = 0, message = "Login attempts must be greater than or equal to 0")
     private int failedLoginAttempts;
 
-    // Roles act as permissions since Spring hasn't ported RoleHierarchy yet and the
-    // old method is deprecated. Change it if ever porting to Spring 6.X?
-    @ManyToMany(fetch = FetchType.EAGER)
-    @JoinTable(name = "user_roles",
-        joinColumns = @JoinColumn(name = "user_id"),
-        inverseJoinColumns = @JoinColumn(name = "role_id"))
-    private Set<Role> roles = new HashSet<>(2);
-
-
     @Transient
     @Value("${altair.security.maxAttempts:3}}")
     private int maxAttempts;
 
 
-    // JPA requires a no-arg constructor
-    public AltairUser() {}
-
-    // Creates a new user with the given username and password, no roles and disabled
-    public AltairUser(String username, String password) {
-        this.username = username;
-        this.password = password;
-        this.enabled = false;
-        this.locked = false;
-        this.failedLoginAttempts = 0;
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
 
     @Override
     public String getUsername() {
@@ -149,11 +146,31 @@ public class AltairUser implements UserDetails {
         this.failedLoginAttempts = failedLoginAttempts;
     }
 
-    public Set<Role> getRoles() {
+
+
+
+    //#endregion
+    /////////////////////////////// RELATIONSHIPS ////////////////////////////////
+    //#region Relationships
+
+    // Roles act as permissions since Spring hasn't ported RoleHierarchy yet and the
+    // old method is deprecated. Change it if ever porting to Spring 6.X?
+    @ManyToMany(fetch = FetchType.EAGER)
+    @JoinTable(name = "user_roles",
+        joinColumns = @JoinColumn(name = "user_id"),
+        inverseJoinColumns = @JoinColumn(name = "role_id"))
+    private Collection<Role> roles;
+
+    @OneToMany(mappedBy = "user")
+    private Collection<Order> orders;
+
+
+
+    public Collection<Role> getRoles() {
         return roles;
     }
 
-    public void setRoles(Set<Role> roles) {
+    public void setRoles(Collection<Role> roles) {
         this.roles = roles;
     }
 
@@ -170,8 +187,26 @@ public class AltairUser implements UserDetails {
         return getRoles();
     }
 
+    public void setOrders(Collection<Order> orders) {
+        this.orders = orders;
+    }
 
-    // generate equals() and hashCode() methods
+    public Collection<Order> getOrders() {
+        return orders;
+    }
+
+    public void addOrder(Order order) {
+        orders.add(order);
+    }
+
+    public void removeOrder(Order order) {
+        orders.remove(order);
+    }
+
+    //#endregion
+    /////////////////////////////// METHODS ////////////////////////////////
+    //#region Methods
+
     @Override
     public boolean equals(Object o) {
         if (this == o)
@@ -181,7 +216,9 @@ public class AltairUser implements UserDetails {
 
         AltairUser that = (AltairUser) o;
 
-        if (id != null ? !id.equals(that.id) : that.id != null)
+        Long thisId = this.getId();
+        Long thatId = that.getId();
+        if (thisId != null ? !thisId.equals(thatId) : thatId != null)
             return false;
         if (username != null ? !username.equals(that.username) : that.username != null)
             return false;
@@ -199,7 +236,7 @@ public class AltairUser implements UserDetails {
 
     @Override
     public int hashCode() {
-        int result = id != null ? id.hashCode() : 0;
+        int result = this.getId() != null ? this.getId().hashCode() : 0;
         result = 31 * result + (username != null ? username.hashCode() : 0);
         result = 31 * result + (password != null ? password.hashCode() : 0);
         result = 31 * result + (enabled ? 1 : 0);
@@ -221,7 +258,7 @@ public class AltairUser implements UserDetails {
         censoredPwd = sb.toString();
         sb.setLength(0);
         sb.append("AltairUser{")
-            .append("id=").append(id)
+            .append("id=").append(this.getId())
             .append(", username='").append(username).append('\'')
             .append(", password='").append(censoredPwd).append('\'')
             .append(", enabled=").append(enabled)
@@ -232,4 +269,6 @@ public class AltairUser implements UserDetails {
         
         return sb.toString();
     }
+
+    //#endregion
 }
