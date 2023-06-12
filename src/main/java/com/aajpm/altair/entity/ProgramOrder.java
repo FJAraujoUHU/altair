@@ -29,7 +29,7 @@ public class ProgramOrder extends Order {
     //////////////////////////// RELATIONSHIPS ////////////////////////////////
     //#region Relationships
 
-    @ManyToOne(fetch = FetchType.EAGER)
+    @ManyToOne(fetch = FetchType.EAGER, optional = false)
     private Program program;
 
     @OneToMany(mappedBy = "programOrder", fetch = FetchType.EAGER, cascade = CascadeType.ALL)

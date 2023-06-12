@@ -24,10 +24,10 @@ public abstract class Order extends BasicEntity implements Serializable {
     /////////////////////////////// ATTRIBUTES ////////////////////////////////
     //#region Attributes
 
-    @Column(name = "creation_time")
+    @Column(name = "creation_time", nullable = false)
     private Instant creationTime;
 
-    @Column(name = "is_completed")
+    @Column(name = "is_completed", nullable = false)
     private Boolean completed;
 
 
@@ -53,7 +53,7 @@ public abstract class Order extends BasicEntity implements Serializable {
     //////////////////////////// RELATIONSHIPS ////////////////////////////////
     //#region Relationships
 
-    @ManyToOne(fetch = FetchType.EAGER)
+    @ManyToOne(fetch = FetchType.EAGER, optional = false)
     private AltairUser user;
 
 

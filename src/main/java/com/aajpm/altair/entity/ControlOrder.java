@@ -25,11 +25,11 @@ public class ControlOrder extends Order	{
     /////////////////////////////// ATTRIBUTES ////////////////////////////////
     //#region Attributes
 
-    @Column(name = "requested_time")
+    @Column(name = "requested_time", nullable = false)
     @NotNull
     private Instant requestedTime;
 
-    @Column(name = "requested_duration")
+    @Column(name = "requested_duration", nullable = false)
     @NotNull
     private Duration requestedDuration;
 

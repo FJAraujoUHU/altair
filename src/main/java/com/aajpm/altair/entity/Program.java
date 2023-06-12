@@ -5,6 +5,7 @@ import java.util.Collection;
 import java.util.HashSet;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
 
 @Entity
 @Table(name = "programs")
@@ -22,13 +23,14 @@ public class Program extends BasicEntity implements Serializable {
     /////////////////////////////// ATTRIBUTES ////////////////////////////////
     //#region Attributes
     
-    @Column(name = "name")
+    @Column(name = "name", unique = true, nullable = false)
+    @NotBlank
     private String name;
 
     @Column(name = "description")
     private String description;
 
-    @Column(name = "enabled")
+    @Column(name = "enabled", nullable = false)
     private Boolean enabled;
 
 

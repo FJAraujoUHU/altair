@@ -23,10 +23,10 @@ public class AstroImage extends BasicEntity implements Serializable {
     /////////////////////////////// ATTRIBUTES ////////////////////////////////
     //#region Attributes
 
-    @Column(name = "file_name")
+    @Column(name = "file_name", unique = true, nullable = false)
     private String fileName;
 
-    @Column(name = "date")
+    @Column(name = "date", nullable = false)
     private Instant creationDate;
 
 
