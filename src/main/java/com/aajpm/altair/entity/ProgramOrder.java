@@ -1,6 +1,5 @@
 package com.aajpm.altair.entity;
 
-import java.time.Instant;
 import java.util.Collection;
 import java.util.HashSet;
 
@@ -63,14 +62,10 @@ public class ProgramOrder extends Order {
     //#endregion
 
     //#endregion
-    /////////////////////////////// METHODS ///////////////////////////////////
+    ////////////////////////////// METHODS ////////////////////////////////////
     //#region Methods
 
-    @Override
-    public Instant[] getAvailableTime() {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getAvailableTime'");
-    }
+    // None
     
     //#endregion
 

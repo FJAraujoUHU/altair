@@ -71,11 +71,7 @@ public abstract class Order extends BasicEntity implements Serializable {
     //////////////////////////////// METHODS ///////////////////////////////////
     //#region Methods
 
-    /**
-     * Gets a time range this order is available to be run.
-     * @return A Instant array of length 2, where the first element is the start time and the second element is the end time.
-     */
-    public abstract Instant[] getAvailableTime();
+    
 
     //#endregion
     

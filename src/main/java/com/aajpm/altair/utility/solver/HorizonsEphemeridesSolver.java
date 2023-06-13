@@ -1,6 +1,5 @@
 package com.aajpm.altair.utility.solver;
 
-import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
@@ -16,19 +15,36 @@ import java.util.regex.Pattern;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.util.UriBuilder;
 
+import com.aajpm.altair.config.AstrometricsConfig;
+import com.aajpm.altair.utility.Interval;
 import com.aajpm.altair.utility.exception.BodyNotFoundException;
 import com.aajpm.altair.utility.exception.SolverException;
 import com.fasterxml.jackson.databind.JsonNode;
 
 import reactor.core.publisher.Mono;
 
+/**
+ * An {@link EphemeridesSolver} that uses the JPL Horizons API to calculate
+ * ephemerides for solar system bodies. Uses a {@link WebClient} to make
+ * requests to the public Horizons System API.
+ * 
+ * @see <a href="https://ssd.jpl.nasa.gov/?horizons">JPL Horizons</a>
+ * @see <a href="https://ssd.jpl.nasa.gov/?horizons_doc">Horizons Documentation</a>
+ */
 public class HorizonsEphemeridesSolver extends EphemeridesSolver {
 
     private WebClient client;
     private Map<String, String> baseParams;
 
-    public HorizonsEphemeridesSolver(double latitude, double longitude, double elevation) {
-        super(latitude, longitude, elevation);
+    /**
+     * Creates a new {@link HorizonsEphemeridesSolver} with the given
+     * {@link AstrometricsConfig}.
+     * 
+     * @param config The {@link AstrometricsConfig} to use, containing the
+     *               observatory location and other settings.
+     */
+    public HorizonsEphemeridesSolver(AstrometricsConfig config) {
+        super(config);
         client = WebClient.builder()
                 .baseUrl("https://ssd.jpl.nasa.gov/api/")
                 .build();
@@ -39,12 +55,19 @@ public class HorizonsEphemeridesSolver extends EphemeridesSolver {
         baseParams.put("OBJ_DATA", "NO");           // Don't include object data
         baseParams.put("EPHEM_TYPE", "OBSERVER");   // Select observer ephemerides
         baseParams.put("CENTER", "coord@399");      // Center on the observatory
-        baseParams.put("SITE_COORD", String.format("%f,%f,%f", longitude, latitude, elevation / 1000)); // Set the observatory coordinates
+        baseParams.put("SITE_COORD", String.format("%f,%f,%f", config.getSiteLongitude(), config.getSiteLatitude(), config.getSiteElevation() / 1000)); // Set the observatory coordinates
         baseParams.put("APPARENT", "REFRACTED");    // Account for atmospheric refraction
         baseParams.put("EXTRA_PREC", "YES");        // Use extra precision for coordinates
         baseParams.put("CSV_FORMAT", "YES");        // Add commas to separate values
     }
 
+    /**
+     * {@inheritDoc}
+     * 
+     * <p>This method uses the Horizons API to get the ID of the body with the
+     * given name. If the body is not found, a {@link BodyNotFoundException} is
+     * thrown as a {@link Mono#error(Throwable)}.
+     */
     @Override
     public Mono<double[]> getAltAz(String body, Instant time) {
         Map<String, String> params = new HashMap<>(baseParams);
@@ -82,6 +105,13 @@ public class HorizonsEphemeridesSolver extends EphemeridesSolver {
         });
     }
 
+    /**
+     * {@inheritDoc}
+     * 
+     * <p>This method uses the Horizons API to get the ID of the body with the
+     * given name. If the body is not found, a {@link BodyNotFoundException} is
+     * thrown as a {@link Mono#error(Throwable)}.
+     */
     @Override
     @SuppressWarnings("java:S3776")
     public Mono<Boolean> isVisible(String body, Instant time, double altitude) {
@@ -133,17 +163,25 @@ public class HorizonsEphemeridesSolver extends EphemeridesSolver {
         });
     }
 
+    /**
+     * {@inheritDoc}
+     * 
+     * <p>This method uses the Horizons API to get the ID of the body with the
+     * given name. If the body is not found, a {@link BodyNotFoundException} is
+     * thrown as a {@link Mono#error(Throwable)}.
+     */
     @Override
     @SuppressWarnings("java:S3776")
-    public Mono<Instant[]> getRiseSetTimes(String body, Instant baseTime, Duration howFar, double altitude) {
+    public Mono<Interval> getRiseSetTime(String body, Interval searchInterval, double altitude) {
         
         Map<String, String> params = new HashMap<>(baseParams);
+        Instant baseTime = searchInterval.getStart();
+        Instant endTime = searchInterval.getEnd();
 
         // Fix the time string to be in the correct format for Horizons
         String baseTimeString = baseTime.toString().replace("T", " ").replace("Z", "");
         params.put("START_TIME", baseTimeString);
         
-        Instant endTime = baseTime.plus(howFar);
         String endTimeString = endTime.toString().replace("T", " ").replace("Z", "");
         params.put("STOP_TIME", endTimeString);
 
@@ -214,16 +252,28 @@ public class HorizonsEphemeridesSolver extends EphemeridesSolver {
                     return Mono.error(new SolverException("Horizons returned no ephemeris for " + body + " from " + baseTimeString + " to " + endTimeString));
                 }
 
-                return Mono.just(new Instant[] {riseTime, setTime});
+                return Mono.just(new Interval(riseTime, setTime));
             });
         });
     }
 
+    /**
+     * {@inheritDoc}
+     * 
+     * <p>This method uses a formula from
+     * {@link http://www.stargazing.net/kepler/altaz.html#twig02}. While
+     * an approximation, it is accurate to within 0.3 seconds for dates
+     * within 100 years of J2000.
+     * 
+     */
     @Override
     public Mono<Double> getLST(Instant time, double longitude, boolean useHoursInstead) {
         return Mono.just(getLSTImpl(time, longitude, useHoursInstead));
     }
 
+    /**
+     * Implementation of {@link #getLST(Instant, double, boolean)}.
+     */
     protected double getLSTImpl(Instant time, double longitude, boolean useHoursInstead) {
         // Using the formula from http://www.stargazing.net/kepler/altaz.html
         double daysSinceJ2000 = getJ2000Time(time).toSeconds() / 86400.0;
@@ -234,11 +284,23 @@ public class HorizonsEphemeridesSolver extends EphemeridesSolver {
         return useHoursInstead ? lst / 15.0 : lst;
     }
     
+    /**
+     * {@inheritDoc}
+     * 
+     * <p>This method uses spherical trigonometry to calculate the altitude
+     * and azimuth of a body, based on the formula from
+     * {@link http://www.stargazing.net/kepler/altaz.html#twig04}. It is a
+     * rough approximation, with an experimental error of approx. +/- 2%
+     * 
+     */
     @Override
     public Mono<double[]> raDecToAltAz(double ra, double dec, double latitude, double longitude, Instant time) {
         return Mono.just(raDecToAltAzImpl(ra, dec, latitude, longitude, time));
     }
 
+    /**
+     * Implementation of {@link #raDecToAltAz(double, double, double, double, Instant)}.
+     */
     protected double[] raDecToAltAzImpl(double ra, double dec, double latitude, double longitude, Instant time) {
         // Using the formula from http://www.stargazing.net/kepler/altaz.html
         
@@ -260,25 +322,51 @@ public class HorizonsEphemeridesSolver extends EphemeridesSolver {
         return new double[] {radToDeg(altRad), radToDeg(azRad)};
     }
 
+    /**
+     * {@inheritDoc}
+     * 
+     * @return The value 98.0, based on observations of its precision.
+     */
+    @Override
+    public double getRaDecToAltAzPrecision() { return 98.0; }
+
+    /**
+     * {@inheritDoc}
+     * 
+     * <p>This method uses a naive implementation of a greedy algorithm to
+     * find the rise and set times of a body, dividing the search interval
+     * into equal length steps and checking the altitude at each step. Since
+     * it uses {@link #raDecToAltAz(double, double, double, double, Instant)},
+     * it is subject to some degree of error, but it should be almost negligible
+     * for rise and set times, since the altitude changes rapidly around those
+     * times and it is not advisable to be taking observations at those times.
+     * 
+     * @see #raDecToAltAz(double, double, double, double, Instant)
+     * @see #getRaDecToAltAzPrecision()
+     * 
+     * @implNote This method should be overhauled to use a proper astrophysical
+     *           algorithm, but it is not a priority at the moment.
+     * 
+     */
     @Override
     @SuppressWarnings("java:S2589") // False positive
-    public Mono<Instant[]> getRiseSetTimes(double ra, double dec, double latitude, double longitude, Instant baseTime, Duration howFar, double targetAltitude) {
+    public Mono<Interval> getRiseSetTime(double ra, double dec, double latitude, double longitude, Interval searchInterval, double targetAltitude) {
 
         int maxIterations = 2048;
 
-        double farLimitSecs = howFar.toSeconds();
+        double farLimitSecs = searchInterval.getDurationSeconds();
         long stepSize = (long) Math.floor(farLimitSecs / maxIterations);
 
         
-        double lastAlt = raDecToAltAzImpl(ra, dec, latitude, longitude, baseTime)[0];
-        Instant riseTime = (lastAlt >= targetAltitude) ? baseTime : null;
+        double lastAlt = raDecToAltAzImpl(ra, dec, latitude, longitude, searchInterval.getStart())[0];
+        Instant riseTime = (lastAlt >= targetAltitude) ? searchInterval.getStart() : null;
         Instant setTime = null;
 
         // This is a very naive implementation, it should be improved by a proper astrophysicist.
         for (int i = 1; i < maxIterations; i++) {
 
             // Get the time for the current iteration
-            Instant time = baseTime.plusSeconds(stepSize * i);
+            Instant time = searchInterval.getStart().plusSeconds(stepSize * i);
             // Calculate the altitude for the current iteration
             double alt = raDecToAltAzImpl(ra, dec, latitude, longitude, time)[0];
 
@@ -301,13 +389,19 @@ public class HorizonsEphemeridesSolver extends EphemeridesSolver {
         if (riseTime == null)
             return Mono.error(new SolverException("No times found for the given parameters"));
 
-        return Mono.just(new Instant[] {riseTime, setTime});
+        if (setTime == null)    // If we didn't find a set time, set it to the end of the search interval
+            setTime = searchInterval.getEnd();
+
+        return Mono.just(new Interval(riseTime, setTime));
     }
 
     /**
      * Gets the Horizons System ID of a body from its name.
-     * @param body
-     * @return
+     * 
+     * @param body The name of the body
+     * 
+     * @return A {@link Mono} containing the Horizons System ID of the body, or
+     *         a {@link Mono#error(Throwable)} if the body was not found.
      */
     private Mono<String> getBodyId(String body) {
         Map<String, String> params = new HashMap<>(baseParams);
@@ -351,9 +445,13 @@ public class HorizonsEphemeridesSolver extends EphemeridesSolver {
 
     /**
      * Parses the response from a small body search.
+     * 
      * @param lines The lines of the response
      * @param body The name of the body
-     * @return The Horizons System ID of the body, with added ; to indicate it's a small body
+     * 
+     * @return The Horizons System ID of the body, with an added ; to indicate
+     *         it's a small body, or a {@link Mono#error(Throwable)} if the
+     *         body was not found.
      */
     private Mono<String> parseSmallBody(String[] lines, String body) {
         int i = 3;
@@ -372,9 +470,12 @@ public class HorizonsEphemeridesSolver extends EphemeridesSolver {
 
     /**
      * Parses the response from a major body search.
+     * 
      * @param lines The lines of the response
      * @param body The name of the body
-     * @return The Horizons System ID of the body
+     * 
+     * @return The Horizons System ID of the body, or a {@link Mono#error(Throwable)}
+     *         if the body was not found.
      */
     private Mono<String> parseMajorBody(String[] lines, String body) {
         String regex = "Number of matches =\\s+(\\d+)";
@@ -414,8 +515,10 @@ public class HorizonsEphemeridesSolver extends EphemeridesSolver {
 
     /**
      * Sets up a request to Horizons API.
-     * @param params The parameters to send to Horizons
-     * @return A Mono containing the response from Horizons
+     * 
+     * @param params The parameters to send to Horizons.
+     * 
+     * @return A {@link Mono} containing the response from Horizons API.
      */
     protected Mono<String> getReq(Map<String, String> params) {
         return client
@@ -454,6 +557,14 @@ public class HorizonsEphemeridesSolver extends EphemeridesSolver {
             });
     }
 
+    /**
+     * Parses a date {@link String} from Horizons API into an
+     * {@link Instant}.
+     * 
+     * @param response The response from Horizons API.
+     * 
+     * @return A {@link Mono} containing the parsed response.
+     */
     private static Instant parseHorizonsDate(String date) {
         DateTimeFormatter formatter = DateTimeFormatter
             .ofPattern("yyyy-MMM-dd HH:mm")
@@ -465,6 +576,9 @@ public class HorizonsEphemeridesSolver extends EphemeridesSolver {
     private static final String MARKER_RISE = "r";
     private static final String MARKER_SET = "s";
 
+    /**
+     * A record representing a tuple from a major body search.
+     */
     private record MajorSearchResult(long id, String name, String designation, String aliases) {}
 
     

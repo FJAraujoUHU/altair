@@ -145,9 +145,7 @@ public class AltairUser extends BasicEntity implements UserDetails {
     public void setFailedLoginAttempts(int failedLoginAttempts) {
         this.failedLoginAttempts = failedLoginAttempts;
     }
-
-
-
+    
 
     //#endregion
     /////////////////////////////// RELATIONSHIPS ////////////////////////////////
@@ -236,7 +234,7 @@ public class AltairUser extends BasicEntity implements UserDetails {
 
     @Override
     public int hashCode() {
-        int result = this.getId() != null ? this.getId().hashCode() : 0;
+        int result = (int) (this.getId() ^ (this.getId() >>> 32));
         result = 31 * result + (username != null ? username.hashCode() : 0);
         result = 31 * result + (password != null ? password.hashCode() : 0);
         result = 31 * result + (enabled ? 1 : 0);

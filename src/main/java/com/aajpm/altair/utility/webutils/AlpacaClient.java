@@ -63,7 +63,7 @@ public class AlpacaClient {
      * @param user The user to set as the current user, or null to set the current user to "Unknown"
      */
     public void setCurrentUser(AltairUser user) {
-        int userID = (user == null)? 0 : user.getId().intValue();
+        int userID = ((Long) user.getId()).intValue();
         if (userID != clientID) {
             clientID = userID;
             transactionCounter = 1;

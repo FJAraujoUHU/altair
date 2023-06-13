@@ -3,6 +3,7 @@ package com.aajpm.altair.entity;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.HashSet;
+
 import java.time.Duration;
 
 import jakarta.persistence.*;
@@ -85,13 +86,28 @@ public class ControlOrder extends Order	{
     //#endregion
 
     //#endregion
-    ///////////////////////////////// METHODS /////////////////////////////////
+    ////////////////////////////// METHODS ////////////////////////////////////
     //#region Methods
     
-    @Override
-    public Instant[] getAvailableTime() {
-        return new Instant[] {requestedTime, requestedTime.plus(requestedDuration)};
+    /*@Override
+    public Interval getAvailableTime(Interval interval) {
+        Interval requested = new Interval(requestedTime, requestedDuration);
+
+        if (requested.contains(interval)) {
+            return interval;
+        } else {
+            return null;
+        }
     }
+
+    @Override
+    public Interval getAvailableTime() {
+        if (Instant.now().isBefore(requestedTime)) {
+            return new Interval(requestedTime, requestedDuration);
+        } else {
+            return null;
+        }
+    }*/
 
     //#endregion
 

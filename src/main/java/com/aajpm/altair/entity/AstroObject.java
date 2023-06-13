@@ -120,7 +120,26 @@ public class AstroObject extends BasicEntity implements Serializable {
     /////////////////////////////// METHODS ////////////////////////////////////
     //#region Methods
 
+    public boolean isSol() {
+        boolean isStar = this.type != null && this.type.equals(AstroType.STAR);
+        boolean isSun = this.name != null && (this.name.equalsIgnoreCase("Sun") || this.name.equalsIgnoreCase("Sol"));
 
+        return isStar && isSun;
+    }
+
+    public boolean isLuna() {
+        boolean isMoon = this.type != null && this.type.equals(AstroType.MOON);
+        boolean isLuna = this.name != null && (this.name.equalsIgnoreCase("Moon") || this.name.equalsIgnoreCase("Luna"));
+
+        return isMoon || isLuna;
+    }
+
+    public boolean isEarth() {
+        boolean isPlanet = this.type != null && this.type.equals(AstroType.PLANET);
+        boolean isEarth = this.name != null && (this.name.equalsIgnoreCase("Earth") || this.name.equalsIgnoreCase("Terra"));
+
+        return isPlanet && isEarth;
+    }
 
     //#endregion
 

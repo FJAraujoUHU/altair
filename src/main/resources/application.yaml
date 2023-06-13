@@ -33,6 +33,11 @@ altair:
             max-warmup-rate: 1.5                # Maximum warmup rate for the camera, in °C/min, if hardware does not support auto ramping.
             cooler-saturation-threshold: 95.0   # If the cooler reaches this power level, it is considered saturated
             image-buffer-size: 268435456        # Size of the image processing buffer, in bytes. Use '-1' to disable the limiter and use the maximum available memory.
+    astrometrics:
+        site-latitude: 37.2597                  # Latitude of the observatory, in decimal degrees, north is positive
+        site-longitude: -6.9325                 # Longitude of the observatory, in decimal degrees, east is positive
+        site-elevation: 130.0                   # Elevation of the observatory, in meters
+        horizon-line: 3.0                       # Horizon line, in degrees, above which the telescope can see
 
 
 

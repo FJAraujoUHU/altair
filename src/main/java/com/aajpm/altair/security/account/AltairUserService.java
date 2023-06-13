@@ -1,5 +1,7 @@
 package com.aajpm.altair.security.account;
 
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.*;
 
 import java.time.LocalDateTime;
@@ -9,6 +11,7 @@ import java.time.LocalDateTime;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.util.Assert;
 
 import com.aajpm.altair.config.AltairSecurityConfig;
 import com.aajpm.altair.utility.exception.UsernameTakenException;
@@ -37,6 +40,27 @@ public class AltairUserService implements UserDetailsService {
             throw new UsernameNotFoundException("User " + username + " not found");
         }
         return user;
+    }
+
+    /**
+     * Returns the current user from the security context.
+     * @return A {@code AltairUser} object representing the current user.
+     */
+    @Transactional
+    @SuppressWarnings("null") // It is already checking with Assert.notNull
+    public static AltairUser getCurrentUser() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        boolean isAuthenticated = auth != null && auth.isAuthenticated();
+
+        Assert.notNull(auth, "The authentication object is null.");
+        Assert.isTrue(isAuthenticated, "The authentication object is not authenticated.");
+        Assert.isTrue(auth.getPrincipal() instanceof AltairUser, "The authentication object does not contain a valid AltairUser.");
+
+        AltairUser principal = (AltairUser) auth.getPrincipal();
+        Assert.notNull(principal, "The authentication object does not contain a valid AltairUser.");
+        Assert.isTrue(principal.getId() != 0, "The principal has not been persisted.");
+
+        return principal;
     }
 
     // Registers a new basic AltairUser from a list of attributes.

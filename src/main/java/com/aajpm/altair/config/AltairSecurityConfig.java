@@ -7,6 +7,9 @@ import org.springframework.context.annotation.Configuration;
 @ConfigurationProperties(prefix = "altair.security")
 public class AltairSecurityConfig {
 
+    ///////////////////////////////// FIELDS //////////////////////////////////
+    //#region Fields
+
     // Maximum number of failed login attempts before lockout
     private int maxAttempts = 3;
     // Time in seconds to lockout after maxAttempts
@@ -14,10 +17,8 @@ public class AltairSecurityConfig {
     // This is the default password for the admin. Should be changed before rollout.
     private String defaultPassword = "hikoboshi";
 
-    /////////////////////////// Getters and Setters ///////////////////////////
-    //#region Getters and Setters
-    // These are used by Spring to set the values from the application.properties file.
-    
+
+    //#region Getters/Setters
     public int getMaxAttempts() {
         return maxAttempts;
     }
@@ -41,6 +42,8 @@ public class AltairSecurityConfig {
     public void setDefaultPassword(String defaultPassword) {
         this.defaultPassword = defaultPassword;
     }
+    //#endregion
 
     //#endregion
+
 }

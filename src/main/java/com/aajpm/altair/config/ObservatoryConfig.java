@@ -19,6 +19,9 @@ import jakarta.validation.constraints.NotNull;
 @ConfigurationProperties(prefix = "altair.observatory")
 public class ObservatoryConfig {
 
+    ///////////////////////////////// FIELDS //////////////////////////////////
+    //#region Fields
+
     // Interval (in ms) to poll the status and update the UI
     private int statusUpdateInterval = 2500;
 
@@ -29,11 +32,8 @@ public class ObservatoryConfig {
 
     private FilterWheelConfig filterWheel;
 
-    @Bean
-    public ObservatoryService observatoryService() {
-        return new ASCOMObservatoryService("http://localhost:32323/", this);
-    }
-    
+
+    //#region Getters/Setters
     public int getStatusUpdateInterval() {
         return statusUpdateInterval;
     }
@@ -65,6 +65,20 @@ public class ObservatoryConfig {
     public void setFilterWheel(FilterWheelConfig filterWheel) {
         this.filterWheel = filterWheel;
     }
+    //#endregion
+
+    //#endregion
+    ////////////////////////////////// BEANS //////////////////////////////////
+    //#region Beans
+
+    @Bean
+    public ObservatoryService observatoryService() {
+        return new ASCOMObservatoryService("http://localhost:32323/", this);
+    }
+
+    //#endregion
+    ////////////////////////////// INNER CLASSES //////////////////////////////
+    //#region Inner classes
 
     public static class CameraConfig {
         // Maximum rate (in °C/min) to cool the camera
@@ -186,4 +200,6 @@ public class ObservatoryConfig {
         }
 
     }
+
+    //#endregion
 }

@@ -8,11 +8,24 @@ import java.time.Instant;
 
 import org.junit.jupiter.api.Test;
 
+import com.aajpm.altair.config.AstrometricsConfig;
+import com.aajpm.altair.utility.Interval;
+
 public class HorizonsEphemeridesSolverTest {
+
+    private AstrometricsConfig config = new AstrometricsConfig();
+
+    HorizonsEphemeridesSolverTest() {
+        super();
+        config.setSiteLatitude(37.2597);
+        config.setSiteLongitude(-6.9325);
+        config.setSiteElevation(130.0);
+        config.setHorizonLine(0.0);
+    }
     
     @Test
     void testGetAltAz() {
-        EphemeridesSolver solver = new HorizonsEphemeridesSolver(37.2597, -6.9325, 130);
+        EphemeridesSolver solver = new HorizonsEphemeridesSolver(config);
 
         double[] expectedAltAz = { 2.589722257, 121.561196473 };
         double[] altAz = solver.getAltAz("Sun", Instant.parse("2012-12-31T08:00:00Z"))
@@ -26,20 +39,18 @@ public class HorizonsEphemeridesSolverTest {
 
     @Test
     void testGetRiseSetTimes() {
-        EphemeridesSolver solver = new HorizonsEphemeridesSolver(37.2597, -6.9325, 130);
+        EphemeridesSolver solver = new HorizonsEphemeridesSolver(config);
 
-        Instant[] expectedRiseSetTimes = { Instant.parse("2012-12-31T07:40:00Z"),Instant.parse("2012-12-31T17:23:00Z") };
-        Instant[] riseSetTimes = solver.getRiseSetTimes("Sun", Instant.parse("2012-12-31T00:00:00Z"), Duration.ofDays(1), 0.0).block();
+        Interval expectedRiseSetTimes = new Interval(Instant.parse("2012-12-31T07:40:00Z"),Instant.parse("2012-12-31T17:23:00Z"));
+        Interval riseSetTimes = solver.getRiseSetTime("Sun", new Interval(Instant.parse("2012-12-31T00:00:00Z"), Duration.ofDays(1)), 0.0).block();
 
-        boolean isRiseCorrect = expectedRiseSetTimes[0].equals(riseSetTimes[0]);
-        boolean isSetCorrect = expectedRiseSetTimes[1].equals(riseSetTimes[1]);
-        assertTrue(isRiseCorrect && isSetCorrect);
+        assertEquals(expectedRiseSetTimes, riseSetTimes);
 
     }
 
     @Test
     void testIsVisible() {
-        EphemeridesSolver solver = new HorizonsEphemeridesSolver(37.2597, -6.9325, 130);
+        EphemeridesSolver solver = new HorizonsEphemeridesSolver(config);
 
         boolean expected = true;
         boolean isVisible = solver.isVisible("Sun", Instant.parse("2012-12-31T12:00:00Z")).block();
@@ -50,7 +61,7 @@ public class HorizonsEphemeridesSolverTest {
 
     @Test
     void testLST() {
-        EphemeridesSolver solver = new HorizonsEphemeridesSolver(37.2597, -6.9325, 130);
+        EphemeridesSolver solver = new HorizonsEphemeridesSolver(config);
 
         double expected = 10 + 3/60.0 + 16/3600.0;
         double lst = solver.getLST(Instant.parse("2023-06-09T17:19:43Z"), true).block();
@@ -60,7 +71,7 @@ public class HorizonsEphemeridesSolverTest {
 
     @Test
     void testRaDecToAltAz() {
-        EphemeridesSolver solver = new HorizonsEphemeridesSolver(37.2597, -6.9325, 130);
+        EphemeridesSolver solver = new HorizonsEphemeridesSolver(config);
 
         double ra = 18.61555;
         double dec = 38.783;
@@ -76,17 +87,20 @@ public class HorizonsEphemeridesSolverTest {
 
     @Test
     void testGetRiseSetTimesSpace() {
-        EphemeridesSolver solver = new HorizonsEphemeridesSolver(37.2597, -6.9325, 130);
+        EphemeridesSolver solver = new HorizonsEphemeridesSolver(config);
 
         int minuteMargin = 10;
 
-        Instant[] expectedRiseSetTimes = { Instant.parse("2023-06-09T00:00:00Z"),Instant.parse("2023-06-09T10:30:00Z") };
-        Instant[] riseSetTimes = solver.getRiseSetTimes(18.61666, 38.78333, 37.2597, -6.9325, Instant.parse("2023-06-09T00:00:00Z"), Duration.ofDays(1), 0.0).block();
+        double ra = 18.61666;
+        double dec = 38.78333;
 
-        System.out.println(riseSetTimes[0] + " " + riseSetTimes[1]);
+        Interval expectedRiseSetTimes = new Interval(Instant.parse("2023-06-09T00:00:00Z"),Instant.parse("2023-06-09T10:30:00Z"));
+        Interval riseSetTimes = solver.getRiseSetTime(ra, dec, 37.2597, -6.9325, new Interval(Instant.parse("2023-06-09T00:00:00Z"), Duration.ofDays(1)), 0.0).block();
 
-        boolean isRiseCorrect = Duration.between(expectedRiseSetTimes[0], riseSetTimes[0]).abs().toMinutes() < minuteMargin;
-        boolean isSetCorrect =  Duration.between(expectedRiseSetTimes[1], riseSetTimes[1]).abs().toMinutes() < minuteMargin;
+        System.out.println(riseSetTimes.toString());
+
+        boolean isRiseCorrect = Duration.between(expectedRiseSetTimes.getStart(), riseSetTimes.getStart()).abs().toMinutes() < minuteMargin;
+        boolean isSetCorrect =  Duration.between(expectedRiseSetTimes.getEnd(), riseSetTimes.getEnd()).abs().toMinutes() < minuteMargin;
         assertTrue(isRiseCorrect && isSetCorrect);
     }
 }
