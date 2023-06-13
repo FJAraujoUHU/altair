@@ -4,6 +4,8 @@ import java.time.Instant;
 import java.util.Collection;
 import java.util.HashSet;
 
+import com.aajpm.altair.utility.Interval;
+
 import java.time.Duration;
 
 import jakarta.persistence.*;
@@ -89,25 +91,9 @@ public class ControlOrder extends Order	{
     ////////////////////////////// METHODS ////////////////////////////////////
     //#region Methods
     
-    /*@Override
-    public Interval getAvailableTime(Interval interval) {
-        Interval requested = new Interval(requestedTime, requestedDuration);
-
-        if (requested.contains(interval)) {
-            return interval;
-        } else {
-            return null;
-        }
+    public Interval getRequestedInterval() {
+        return new Interval(requestedTime, requestedDuration);
     }
-
-    @Override
-    public Interval getAvailableTime() {
-        if (Instant.now().isBefore(requestedTime)) {
-            return new Interval(requestedTime, requestedDuration);
-        } else {
-            return null;
-        }
-    }*/
 
     //#endregion
 

@@ -45,6 +45,33 @@ public class ControlOrderService extends BasicEntityCRUDService<ControlOrder> {
         return new ControlOrder();
     }
 
+    //////////////////////////////// SAVE METHODS //////////////////////////////
+
+    @Override
+    public ControlOrder save(ControlOrder order) {
+        Assert.notNull(order, "The order cannot be null.");
+
+        Assert.notNull(order.getRequestedTime(), "Requested time cannot be null.");
+        boolean isStartTimeValid = order.getRequestedTime().isAfter(Instant.now());
+        Assert.isTrue(isStartTimeValid, "Requested time must be in the future.");
+
+        Assert.notNull(order.getRequestedDuration(), "Requested duration cannot be null.");
+        Assert.isTrue(order.getRequestedDuration().toMinutes() > 0, "Requested duration must be greater than 0.");
+
+        return super.save(order);
+    }
+
+    @Override
+    public ControlOrder update(ControlOrder order) {
+        Assert.notNull(order, "The order cannot be null.");
+
+        Assert.notNull(order.getRequestedTime(), "Requested time cannot be null.");
+
+        Assert.notNull(order.getRequestedDuration(), "Requested duration cannot be null.");
+
+        return super.update(order);
+    }
+
     ///////////////////////////////// METHODS /////////////////////////////////
     //#region Methods
 
@@ -90,6 +117,10 @@ public class ControlOrderService extends BasicEntityCRUDService<ControlOrder> {
 
     /**
      * Finds all {@link ControlOrder} scheduled in the given interval.
+     * <p>
+     * This method does not include orders that might have already started before
+     * the start of the given interval, or orders that might end after the end of
+     * the given interval.
      * 
      * @param interval The interval to find orders in.
      * 
@@ -102,6 +133,10 @@ public class ControlOrderService extends BasicEntityCRUDService<ControlOrder> {
 
     /**
      * Finds all {@link ControlOrder} scheduled in the given interval.
+     * <p>
+     * This method does not include orders that might have already started before
+     * the start of the given interval, or orders that might end after the end of
+     * the given interval.
      * 
      * @param startTime The start of the interval to find orders in.
      * @param endTime   The end of the interval to find orders in.
@@ -120,6 +155,52 @@ public class ControlOrderService extends BasicEntityCRUDService<ControlOrder> {
                 .toList();
 
         return orders;
+    }
+
+    /**
+     * Finds all {@link ControlOrder} scheduled in the given interval.
+     * <p>
+     * As opposed to {@link #findInRange(Interval)}, this method includes orders
+     * that might have already started before the start of the given interval, or
+     * orders that might end after the end of the given interval.
+     * 
+     * @param interval The interval to find orders in.
+     * @return A {@link List} of orders that are requested to be scheduled in the
+     *         given interval, ordered by the start of the requested time.
+     */
+    public List<ControlOrder> findInRangeOpen(Interval interval) {
+        return findInRangeOpen(interval.getStart(), interval.getEnd());
+    }
+
+    /**
+     * Finds all {@link ControlOrder} scheduled in the given interval.
+     * <p>
+     * As opposed to {@link #findInRange(Interval)}, this method includes orders
+     * that might have already started before the start of the given interval, or
+     * orders that might end after the end of the given interval.
+     * 
+     * @param startTime The start of the interval to find orders in.
+     * @param endTime  The end of the interval to find orders in.
+     * 
+     * @return A {@link List} of orders that are requested to be scheduled in the
+     *         given interval, ordered by the start of the requested time.
+     */
+    public List<ControlOrder> findInRangeOpen(Instant startTime, Instant endTime) {
+        List<ControlOrder> orders = controlOrderRepository.findByRequestedTimeBeforeOrderByRequestedTimeAsc(endTime);
+        Interval interval = new Interval(startTime, endTime);
+
+        return orders.stream()
+                .filter(order -> {
+                    Instant orderStartTime = order.getRequestedTime();
+                    Instant orderEndTime = order.getRequestedTime().plus(order.getRequestedDuration());
+
+                    boolean isStartTimeInInterval = interval.contains(orderStartTime);
+                    boolean isEndTimeInInterval = interval.contains(orderEndTime);
+                    
+                    return isStartTimeInInterval || isEndTimeInInterval;
+                })
+                .sorted((o1, o2) -> o1.getRequestedTime().compareTo(o2.getRequestedTime()))
+                .toList();
     }
 
     /**
@@ -144,7 +225,7 @@ public class ControlOrderService extends BasicEntityCRUDService<ControlOrder> {
      * @return A {@link List} of intervals that are free in the given interval.
      */
     public List<Interval> findAvailableTime(Instant startTime, Instant endTime) {
-        List<ControlOrder> orders = findInRange(startTime, endTime);
+        List<ControlOrder> orders = findInRangeOpen(startTime, endTime);
 
         // If there are no orders, then the entire interval is available
         if (orders.isEmpty()) {
@@ -170,12 +251,14 @@ public class ControlOrderService extends BasicEntityCRUDService<ControlOrder> {
                 available.add(new Interval(curr.getEnd(), next.getStart()));
             }
         }
-        if (taken.get(taken.size() - 1).getEnd().isBefore(endTime)) {
+        if (endTime.isAfter(taken.get(taken.size() - 1).getEnd())) {
             available.add(new Interval(taken.get(taken.size() - 1).getEnd(), endTime));
         }
 
         return available;
     }
+
+    // TODO: add available times and find in range for ProgramOrder, then add them to OrderService
 
     //#endregion
 

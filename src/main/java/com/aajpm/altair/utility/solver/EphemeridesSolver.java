@@ -156,11 +156,16 @@ public abstract class EphemeridesSolver {
      * @param body The name of the body to calculate the rise and set times for.
      * @param searchInterval The interval to search for the rise and set times.
      * 
-     * @return A {@link Mono} containing the closest rise and set times of the
-     *         body, or if it is already visible, the current time and the
-     *         setting time, or if it doesn't set, it returns {@code searchInterval},
-     *         or a {@link Mono#error(Throwable)} if the body is not found or
-     *         is out of bounds.
+     * @return <ul>
+     *         <li>If the body is not visible within the search interval, an
+     *             empty {@link Interval} is returned.</li>
+     *         <li>If the body is visible within the search interval, an
+     *             {@link Interval} containing the closest rise and set times
+     *             is returned. The result will be clamped to stay within the
+     *             {@code searchInterval}</li>
+     *         <li>If the body is not found or is out of bounds, a
+     *             {@link Mono#error(Throwable)} is returned.</li>
+     *         </ul>
      */
     public Mono<Interval> getRiseSetTime(String body, Interval searchInterval) {
         return getRiseSetTime(body, searchInterval, config.getHorizonLine());
@@ -174,11 +179,16 @@ public abstract class EphemeridesSolver {
      * @param searchInterval The interval to search for the rise and set times.
      * @param targetAltitude The altitude to consider as set or rise.
      * 
-     * @return A {@link Mono} containing the closest rise and set times of the
-     *         body, or if it is already visible, the current time and the
-     *         setting time, or if it doesn't set, it returns {@code searchInterval},
-     *         or a {@link Mono#error(Throwable)} if the body is not found or
-     *         is out of bounds.
+     * @return <ul>
+     *         <li>If the body is not visible within the search interval, an
+     *             empty {@link Interval} is returned.</li>
+     *         <li>If the body is visible within the search interval, an
+     *             {@link Interval} containing the closest rise and set times
+     *             is returned. The result will be clamped to stay within the
+     *             {@code searchInterval}</li>
+     *         <li>If the body is not found or is out of bounds, a
+     *             {@link Mono#error(Throwable)} is returned.</li>
+     *         </ul>
      */
     public abstract Mono<Interval> getRiseSetTime(String body, Interval searchInterval, double targetAltitude);
 
@@ -190,11 +200,16 @@ public abstract class EphemeridesSolver {
      * @param dec The Declination of the body, in decimal degrees.
      * @param searchInterval The interval to search for the rise and set times.
      * 
-     * @return A {@link Mono} containing the closest rise and set times of the
-     *         body, or if it is already visible, the current time and the
-     *         setting time, or if it doesn't set, it returns {@code searchInterval},
-     *         or a {@link Mono#error(Throwable)} if the body is not found or is
-     *         out of bounds.
+     * @return <ul>
+     *         <li>If the body is not visible within the search interval, an
+     *             empty {@link Interval} is returned.</li>
+     *         <li>If the body is visible within the search interval, an
+     *             {@link Interval} containing the closest rise and set times
+     *             is returned. The result will be clamped to stay within the
+     *             {@code searchInterval}</li>
+     *         <li>If the body is not found or is out of bounds, a
+     *             {@link Mono#error(Throwable)} is returned.</li>
+     *         </ul>
      */
     public Mono<Interval> getRiseSetTime(double ra, double dec, Interval searchInterval) {
         return getRiseSetTime(ra, dec, config.getSiteLatitude(), config.getSiteLongitude(), searchInterval, config.getHorizonLine());
@@ -208,11 +223,16 @@ public abstract class EphemeridesSolver {
      * @param searchInterval The interval to search for the rise and set times.
      * @param targetAltitude The altitude to consider as set or rise, in decimal degrees.
      * 
-     * @return A {@link Mono} containing the closest rise and set times of the
-     *         body, or if it is already visible, the current time and the
-     *         setting time, or if it doesn't set, it returns {@code searchInterval},
-     *         or a {@link Mono#error(Throwable)} if the body is not found or is
-     *         out of bounds.
+     * @return <ul>
+     *         <li>If the body is not visible within the search interval, an
+     *             empty {@link Interval} is returned.</li>
+     *         <li>If the body is visible within the search interval, an
+     *             {@link Interval} containing the closest rise and set times
+     *             is returned. The result will be clamped to stay within the
+     *             {@code searchInterval}</li>
+     *         <li>If the body is not found or is out of bounds, a
+     *             {@link Mono#error(Throwable)} is returned.</li>
+     *         </ul>
      */
     public Mono<Interval> getRiseSetTime(double ra, double dec, Interval searchInterval, double targetAltitude) {
         return getRiseSetTime(ra, dec, config.getSiteLatitude(), config.getSiteLongitude(), searchInterval, targetAltitude);
@@ -228,11 +248,16 @@ public abstract class EphemeridesSolver {
      * @param searchInterval The interval to search for the rise and set times.
      * @param targetAltitude The altitude to consider as set or rise, in decimal degrees.
      * 
-     * @return A {@link Mono} containing the closest rise and set times of the
-     *         body, or if it is already visible, the current time and the
-     *         setting time, or if it doesn't set, it returns {@code searchInterval},
-     *         or a {@link Mono#error(Throwable)} if the body is not found or is
-     *         out of bounds.
+     * @return <ul>
+     *         <li>If the body is not visible within the search interval, an
+     *             empty {@link Interval} is returned.</li>
+     *         <li>If the body is visible within the search interval, an
+     *             {@link Interval} containing the closest rise and set times
+     *             is returned. The result will be clamped to stay within the
+     *             {@code searchInterval}</li>
+     *         <li>If the body is not found or is out of bounds, a
+     *             {@link Mono#error(Throwable)} is returned.</li>
+     *         </ul>
      */
     public abstract Mono<Interval> getRiseSetTime(double ra, double dec, double latitude, double longitude, Interval searchInterval, double targetAltitude);
 

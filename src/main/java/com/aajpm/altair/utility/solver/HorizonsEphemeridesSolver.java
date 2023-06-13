@@ -213,7 +213,8 @@ public class HorizonsEphemeridesSolver extends EphemeridesSolver {
                 if (dataStart >= lines.length) {
                     return Mono.error(new SolverException("Horizons returned an unexpected response for " + body));
                 } else if (lines[++i].contains("No ephemeris")) {
-                    return Mono.error(new SolverException("Horizons returned no ephemeris for " + body + " from " + baseTimeString + " to " + endTimeString));
+                    // No data returned, so no rise or set times
+                    return Mono.just(Interval.empty());
                 }
 
                 while (i < lines.length && !lines[i].contains("$$EOE")) {
@@ -248,8 +249,12 @@ public class HorizonsEphemeridesSolver extends EphemeridesSolver {
                     i++;
                 }
 
-                if (riseTime == null) {
-                    return Mono.error(new SolverException("Horizons returned no ephemeris for " + body + " from " + baseTimeString + " to " + endTimeString));
+                if (riseTime == null) { // Never rose
+                    return Mono.just(Interval.empty());
+                }
+
+                if (setTime == null) {  // Never set
+                    setTime = endTime;
                 }
 
                 return Mono.just(new Interval(riseTime, setTime));
@@ -386,8 +391,8 @@ public class HorizonsEphemeridesSolver extends EphemeridesSolver {
             }
         }
 
-        if (riseTime == null)
-            return Mono.error(new SolverException("No times found for the given parameters"));
+        if (riseTime == null)   // If we didn't find a rise time, return an empty interval
+            return Mono.just(Interval.empty());
 
         if (setTime == null)    // If we didn't find a set time, set it to the end of the search interval
             setTime = searchInterval.getEnd();

@@ -207,43 +207,100 @@ public class AstroObjectService extends BasicEntityCRUDService<AstroObject> {
     }
 
     /**
-     * Checks if the given {@link AstroObject} is visible during the given
-     * interval.
+     * Checks if the given {@link AstroObject} is visible during the whole
+     * given interval.
      * 
      * @param object The object to be queried.
      * @param interval The interval during which to check the visibility.
      * 
      * @return A {@link Mono} containing {@code true} if the object is visible
-     *         during the given interval, {@code false} otherwise, or a
+     *         during the whole interval, {@code false} otherwise, or a
      *         {@link Mono#error(Throwable)} if the body is not found or is out
      *         of bounds.
      */
     public Mono<Boolean> isVisible(AstroObject object, Interval interval) {
         Assert.notNull(object, "The object to be queried cannot be null.");
         
-        Mono<Boolean> isDaylight = solver
+        Mono<Boolean> isDaytime = solver
                                 .getRiseSetTime("Sol", interval, 0.0)
                                 .map(interval::equals);
         
         if (object.isSol())
-            return isDaylight;
+            return isDaytime;
 
         if (object.isEarth()) // Why are you even checking this?
             return Mono.just(true);
         
-        return getRiseSetTime(object, interval).flatMap(times -> {
+        return getRiseSetTime(object, interval).flatMap(observableInterval -> {
             // To be visible in an interval, getRiseSetTime must return the interval itself
-            if (!times.equals(interval)) {
+            if (!observableInterval.equals(interval)) {
                 return Mono.just(false);
             }
 
             // Now check if it is daylight
-            return isDaylight.map(daylight -> !daylight);
+            return isDaytime.map(daylight -> !daylight);
+        });
+    }
+
+    /**
+     * Checks if the given {@link AstroObject} is visible at some point during
+     * the given interval.
+     * 
+     * @param object The object to be queried.
+     * @param interval The interval during which to check the visibility.
+     * 
+     * @return A {@link Interval} containing the timeframe at which the object is
+     *         visible, or {@link Interval#empty()} if it is not visible at all,
+     *         or a {@link Mono#error(Throwable)} if the body is not found or is
+     *         out of bounds.
+     */
+    @SuppressWarnings("java:S3776")
+    public Mono<Interval> isVisibleInterval(AstroObject object, Interval interval) {
+        Assert.notNull(object, "The object to be queried cannot be null.");
+
+        Mono<Interval> daylight = solver.getRiseSetTime("Sol", interval, 0.0);
+        
+        if (object.isSol())
+            return daylight.map(interval::overlap);
+
+        if (object.isEarth()) // Why are you even checking this?
+            return Mono.just(interval);
+
+        return getRiseSetTime(object, interval).flatMap(observableInterval -> {
+            // To be visible in an interval, observableInterval must overlap the interval
+            if (!observableInterval.hasOverlap(interval)) {
+                return Mono.just(Interval.empty());
+            }
+
+            // Now check if at some point it is not daylight
+            return daylight.map(daylightInterval -> {
+                if (daylightInterval.contains(observableInterval))
+                    return Interval.empty();
+
+                // If the observable interval starts before daylight
+                if (observableInterval.getStart().isBefore(daylightInterval.getStart())) {
+                    if (observableInterval.getEnd().isBefore(daylightInterval.getStart())) {
+                        // If the observable interval ends before daylight, it is fully observable
+                        return observableInterval;
+                    } else {
+                        // Otherwise, it is observable until daylight
+                        return new Interval(observableInterval.getStart(), daylightInterval.getStart());
+                    }
+                } else {
+                    if (observableInterval.getStart().isAfter(daylightInterval.getEnd())) {
+                        // If the observable interval starts after daylight, it is fully observable
+                        return observableInterval;
+                    } else {
+                        // Otherwise, it is observable after daylight
+                        return new Interval(observableInterval.getEnd(), daylightInterval.getEnd());
+                    }
+                }
+            });
         });
     }
     
     /**
-     * Returns all {@link AstroObject} that are visible during the given
+     * Returns all {@link AstroObject} that are visible during the whole given
      * interval.
      * 
      * @param interval The interval during which to check the visibility.
@@ -254,6 +311,23 @@ public class AstroObjectService extends BasicEntityCRUDService<AstroObject> {
     public Flux<AstroObject> getVisibleObjects(Interval interval) {
         return Flux.fromIterable(astroObjectRepository.findAll())
                 .filterWhen(object -> isVisible(object, interval));
+    }
+
+    /**
+     * Returns all {@link AstroObject} that are visible at some point during
+     * the given interval.
+     * 
+     * @param interval The interval during which to check the visibility.
+     * 
+     * @return A {@link Flux} containing all {@link AstroObject} that are
+     *         visible at some point during the given interval.
+     */
+    public Flux<AstroObject> getVisibleObjectsInterval(Interval interval) {
+        return Flux.fromIterable(astroObjectRepository.findAll())
+                .filterWhen(object ->
+                    isVisibleInterval(object, interval)
+                    .map(observableInterval -> !observableInterval.isEmpty())
+                );
     }
 
 

@@ -23,5 +23,9 @@ public interface ControlOrderRepository extends JpaRepository<ControlOrder, Long
 
     @Query("SELECT o FROM ControlOrder o WHERE o.requestedTime >= ?1 AND o.requestedTime < ?2 ORDER BY o.requestedTime ASC")
     List<ControlOrder> findStartsInRangeOrder(Instant startTime, Instant endTime);
+
+    Collection<ControlOrder> findByRequestedTimeBefore(Instant endTime);
+
+    List<ControlOrder> findByRequestedTimeBeforeOrderByRequestedTimeAsc(Instant endTime);
     
 }
