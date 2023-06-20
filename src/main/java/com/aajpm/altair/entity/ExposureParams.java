@@ -21,12 +21,12 @@ public class ExposureParams extends BasicEntity implements Serializable {
     //#region Attributes
 
     @NotNull
-    @Column(name = "use_light_frame", nullable = false)
-    private Boolean useLightFrame;
+    @Column(name = "is_light_frame", nullable = false)
+    private Boolean lightFrame;
 
     @Positive
     @NotNull
-    @Column(name = "use_dark_frame", nullable = false)
+    @Column(name = "exposure_time", nullable = false)
     private Double exposureTime;
 
     @NotNull
@@ -34,18 +34,24 @@ public class ExposureParams extends BasicEntity implements Serializable {
     private String filter;
 
     //#region Getters & Setters
-    public Boolean getUseLightFrame() {
-        return useLightFrame;
+    public Boolean isLightFrame() {
+        return lightFrame;
     }
 
-    public void setUseLightFrame(Boolean useLightFrame) {
-        this.useLightFrame = useLightFrame;
+    public void setLightFrame(Boolean useLightFrame) {
+        this.lightFrame = useLightFrame;
     }
 
+    /**
+     * @return the exposureTime in seconds
+     */
     public Double getExposureTime() {
         return exposureTime;
     }
 
+    /**
+     * @param exposureTime the exposureTime to set in seconds
+     */
     public void setExposureTime(Double exposureTime) {
         this.exposureTime = exposureTime;
     }

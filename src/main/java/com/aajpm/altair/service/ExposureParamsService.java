@@ -48,7 +48,7 @@ public class ExposureParamsService extends BasicEntityCRUDService<ExposureParams
     public ExposureParams save(ExposureParams params) {
         Assert.notNull(params, "The entity cannot be null.");
 
-        Assert.notNull(params.getUseLightFrame(), "useLightFrame cannot be null.");
+        Assert.notNull(params.isLightFrame(), "useLightFrame cannot be null.");
         Assert.notNull(params.getExposureTime(), "Exposure time cannot be null.");
         Assert.isTrue(params.getExposureTime() >= 0, "Exposure time cannot be negative");
         Assert.notNull(params.getProgram(), "ExposureParams must be assigned to a program");
@@ -77,7 +77,7 @@ public class ExposureParamsService extends BasicEntityCRUDService<ExposureParams
     public ExposureParams update(ExposureParams params) {
         Assert.notNull(params, "The entity cannot be null.");
 
-        Assert.notNull(params.getUseLightFrame(), "useLightFrame cannot be null.");
+        Assert.notNull(params.isLightFrame(), "useLightFrame cannot be null.");
         Assert.notNull(params.getExposureTime(), "Exposure time cannot be null.");
         Assert.isTrue(params.getExposureTime() >= 0, "Exposure time cannot be negative");
         Assert.notNull(params.getProgram(), "ExposureParams must be assigned to a program");

@@ -51,10 +51,25 @@ public class ControlOrderService extends BasicEntityCRUDService<ControlOrder> {
     public ControlOrder save(ControlOrder order) {
         Assert.notNull(order, "The order cannot be null.");
 
+        // Check if the user is an advanced user
+        Assert.notNull(order.getUser(), "User cannot be null.");
+        Assert.notEmpty(order.getUser().getRoles(), "User must have roles.");
+        boolean isAdvancedUser = order
+                                .getUser()
+                                .getRoles()
+                                .stream()
+                                .anyMatch(role ->
+                                    role.getAuthority()
+                                    .equals("ROLE_ADVANCED_USER")
+                                );
+        Assert.isTrue(isAdvancedUser, "User must be an advanced user to request control.");
+
+        // Check if the requested time is valid
         Assert.notNull(order.getRequestedTime(), "Requested time cannot be null.");
         boolean isStartTimeValid = order.getRequestedTime().isAfter(Instant.now());
         Assert.isTrue(isStartTimeValid, "Requested time must be in the future.");
 
+        // Check if the requested duration is valid
         Assert.notNull(order.getRequestedDuration(), "Requested duration cannot be null.");
         Assert.isTrue(order.getRequestedDuration().toMinutes() > 0, "Requested duration must be greater than 0.");
 
@@ -257,8 +272,6 @@ public class ControlOrderService extends BasicEntityCRUDService<ControlOrder> {
 
         return available;
     }
-
-    // TODO: add available times and find in range for ProgramOrder, then add them to OrderService
 
     //#endregion
 

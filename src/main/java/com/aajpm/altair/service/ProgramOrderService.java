@@ -1,5 +1,6 @@
 package com.aajpm.altair.service;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
@@ -9,11 +10,18 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.Assert;
 
-import com.aajpm.altair.entity.AstroObject;
+import com.aajpm.altair.entity.ExposureOrder;
+import com.aajpm.altair.entity.Program;
 import com.aajpm.altair.entity.ProgramOrder;
 import com.aajpm.altair.repository.ProgramOrderRepository;
 import com.aajpm.altair.security.account.AltairUser;
 import com.aajpm.altair.security.account.AltairUserService;
+import com.aajpm.altair.utility.Interval;
+
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+import reactor.util.function.Tuple2;
+import reactor.util.function.Tuples;
 
 @Service
 @Transactional
@@ -110,20 +118,49 @@ public class ProgramOrderService extends BasicEntityCRUDService<ProgramOrder> {
         return programOrderRepository.findByCompletedFalseOrderByCreationTimeAsc();
     }
 
-    /* TODO
-    public List<ProgramOrder> findInRange(Instant startTime, Instant endTime) {
+    /**
+     * Finds all {@link ProgramOrder} that have not been completed and are
+     * available to be executed in the given time range. That is, orders whose
+     * {@link Program} target is visible in the given time range and at least
+     * one of the {@link ProgramOrder}'s remaining {@link ExposureOrder} durations
+     * fit in the given time range.
+     * 
+     * @param startTime The start time of the time range.
+     * @param endTime  The end time of the time range.
+     * 
+     * @return A {@link Mono} containing a sorted {@link List} of orders and their
+     *         visible intervals that have not been completed and are available
+     *         to be executed in the given time range, ordered by the start time
+     *         of the visible interval.
+     */
+    @SuppressWarnings("null")   // The data is loaded from the database, so it cannot be null based on the constraints.
+    public Mono<List<Tuple2<ProgramOrder, Interval>>> findInRange(Instant startTime, Instant endTime) {
+        Interval range = new Interval(startTime, endTime);
         List<ProgramOrder> pendingOrders = programOrderRepository.findByCompletedFalseOrderByCreationTimeAsc();
 
-        pendingOrders.stream()
-                    .filter(order -> {
-                        AstroObject target = order.getProgram().getTarget();
+        return Flux.fromIterable(pendingOrders)
+                // Make a tuple appending the shortest remaining exposure duration to the order.
+                .flatMap(order -> astroObjectService.isVisibleInterval(order.getProgram().getTarget(), range)
+                        .map(visibleInterval ->  Tuples.of(order, visibleInterval)))
+                // Filter out orders that are not visible in the given time range.
+                .filter(tuple -> {
+                    Collection<ExposureOrder> exposureOrders = tuple.getT1().getExposureOrders();
+                    Interval visibleInterval = tuple.getT2();
 
-                        astroObjectService.isVisible(target, null)
+                    Double shortestRemainingExposure = exposureOrders.stream()
+                                .filter(exposure -> !exposure.isCompleted())
+                                .map(expOrder -> expOrder.getExposureParams().getExposureTime())
+                                .min(Double::compare)
+                                .orElse(null);
+                    Interval startExposureInterval = visibleInterval != null ? new Interval(visibleInterval.getStart(),
+                            visibleInterval.getEnd().minus(Duration.ofSeconds(shortestRemainingExposure.longValue()))) : Interval.empty();
 
-                        
-                    })
-        
-    }*/
+
+                    return (!startExposureInterval.isEmpty()) && range.contains(startExposureInterval);
+                })
+                // Collect all tuples into a list, sorted by the start time of the visible interval.
+                .collectSortedList((t1, t2) -> t1.getT2().getStart().compareTo(t2.getT2().getStart()));
+    }
 
     //#endregion Methods
     
