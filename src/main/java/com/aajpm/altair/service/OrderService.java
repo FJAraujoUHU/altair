@@ -168,7 +168,17 @@ public class OrderService {
     // TODO: Remove this too
     private List<Tuple2<ProgramOrder, Interval>> findInRange(Instant startTime, Instant endTime) {return null;}
 
-
+    
+    /**
+     * Builds a schedule of orders between the specified start and end times.
+     * The schedule is built by fetching the requested {@link ControlOrder}s
+     * and filling the spaces between them with {@link ProgramOrder}s.
+     * 
+     * @param startTime the start time of the schedule.
+     * @param endTime the end time of the schedule.
+     * 
+     * @return a {@link Mono} emitting a list of orders representing the schedule.
+     */
     public Mono<List<Order>> buildSchedule(Instant startTime, Instant endTime) {
         
         List<Order> schedule = new LinkedList<>();

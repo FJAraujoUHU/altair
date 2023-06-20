@@ -8,5 +8,7 @@ import com.aajpm.altair.entity.ImageAttribute;
 public interface ImageAttributeRepository extends JpaRepository<ImageAttribute, Long> {
 
     ImageAttribute findByName(String name);
+
+    ImageAttribute findByFitsKeyword(String keyword);
     
 }

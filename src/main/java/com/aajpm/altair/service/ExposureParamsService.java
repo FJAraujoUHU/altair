@@ -65,6 +65,7 @@ public class ExposureParamsService extends BasicEntityCRUDService<ExposureParams
                                             .equalsIgnoreCase(params.getFilter()))
                                     );
 
+        // TODO: Check if this line breaks reactive flow
         boolean isFound = filterFound.blockOptional(Duration.ofSeconds(3)).orElse(false);
 
         Assert.isTrue(isFound, "Filter not found in the filter wheel");
@@ -94,6 +95,7 @@ public class ExposureParamsService extends BasicEntityCRUDService<ExposureParams
                                             .equalsIgnoreCase(params.getFilter()))
                                     );
 
+        // TODO: Check if this line breaks reactive flow
         boolean isFound = filterFound.blockOptional(Duration.ofSeconds(3)).orElse(false);
 
         Assert.isTrue(isFound, "Filter not found in the filter wheel");
@@ -105,6 +107,7 @@ public class ExposureParamsService extends BasicEntityCRUDService<ExposureParams
     ////////////////////////////////// METHODS /////////////////////////////////
     //#region METHODS
 
+    
 
     //#endregion
     

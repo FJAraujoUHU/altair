@@ -20,7 +20,7 @@ public class ExposureOrder extends BasicEntity implements Serializable {
     //#region Attributes
 
     @Column(name = "completed", nullable = false)
-    private Boolean completed;
+    private Boolean completed = false;
 
 
     //#region Getters & Setters

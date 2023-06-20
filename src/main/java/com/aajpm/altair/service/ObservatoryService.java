@@ -1,5 +1,6 @@
 package com.aajpm.altair.service;
 
+import com.aajpm.altair.config.ObservatoryConfig;
 import com.aajpm.altair.entity.Program;
 import com.aajpm.altair.security.account.AltairUser;
 import com.aajpm.altair.utility.exception.*;
@@ -28,11 +29,17 @@ public abstract class ObservatoryService {
         ERROR       // Telescope has encountered an error, must be reset by an admin
     }
 
+    protected final ObservatoryConfig config;
+
     protected State state;
 
     protected Program currentJob;
 
     protected AltairUser currentUser;
+
+    protected ObservatoryService(ObservatoryConfig config) {
+        this.config = config;
+    }
 
     /**
      * Get the current state of the telescope
@@ -134,6 +141,12 @@ public abstract class ObservatoryService {
      * @throws DeviceException If the user does not have control, or if there was an error releasing control.
      */
     public abstract void releaseControl(AltairUser user) throws DeviceException;
+
+    /**
+     * Gets the current configuration of the observatory.
+     * @return The current configuration of the observatory.
+     */
+    public ObservatoryConfig getConfig() { return config; }
 
     /**
      * Gets the current status of the observatory.

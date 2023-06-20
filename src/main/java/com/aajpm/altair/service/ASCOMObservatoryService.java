@@ -24,6 +24,7 @@ public class ASCOMObservatoryService extends ObservatoryService {
 
     // TODO : remove the hard coded URL for the camera
     public ASCOMObservatoryService(String baseURL, ObservatoryConfig config) {
+        super(config);
         connTimeout = (int) config.getSynchronousTimeout();
         responseTimeout = (int) config.getSynchronousTimeout();
         alpaca = new AlpacaClient(baseURL, connTimeout, responseTimeout);

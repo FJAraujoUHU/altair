@@ -112,12 +112,7 @@ public class AstroObjectService extends BasicEntityCRUDService<AstroObject> {
      * @return The {@link AstroObject} with the given name.
      */
     public AstroObject findByName(String name) {
-        AstroObject object = astroObjectRepository.findByName(name);
-
-        // To check for transaction integrity
-        Assert.notNull(object, "The query for astro object with name " + name + " returned null.");
-
-        return object;
+        return astroObjectRepository.findByName(name);
     }
 
     /**
