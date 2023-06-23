@@ -5,7 +5,10 @@ import static org.junit.jupiter.api.Assertions.*;
 import java.io.FileOutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.concurrent.TimeUnit;
 import java.util.zip.GZIPOutputStream;
+
+import org.awaitility.Awaitility;
 
 import com.aajpm.altair.utility.webutils.AlpacaClient;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -20,6 +23,8 @@ import nom.tam.util.FitsOutputStream;
 import com.aajpm.altair.config.ObservatoryConfig.CameraConfig;
 import com.aajpm.altair.service.observatory.ASCOMCameraService.HeaderData;
 
+@Deprecated
+@SuppressWarnings("java:S2187")
 public class ASCOMCameraServiceTest {
     
     static int deviceNumber = 0;
@@ -49,7 +54,8 @@ public class ASCOMCameraServiceTest {
             null,
             null,
             width,
-            height
+            height,
+            false
         );
 
         ImageHDU hdu = ASCOMCameraService.readImageArray(imageArray, hd);
@@ -82,7 +88,8 @@ public class ASCOMCameraServiceTest {
             null,
             null,
             width,
-            height
+            height,
+            false
         );
 
         ImageHDU hdu = ASCOMCameraService.readImageBytes(imagebytes, hd);
@@ -114,7 +121,8 @@ public class ASCOMCameraServiceTest {
             null,
             null,
             null,
-            null
+            null,
+            false
         );
 
         ImageHDU hdu = ASCOMCameraService.readImageBytes(imagebytes, hd);
@@ -128,19 +136,15 @@ public class ASCOMCameraServiceTest {
 
     //@Test
     void testDumpImage() throws Exception {
-        ASCOMCameraService service = new ASCOMCameraService(client, deviceNumber, config);
+        ASCOMCameraService service = new ASCOMCameraService(client, deviceNumber, config , 2000, 5000);
 
         String filename = "testDumpImage";
         service.dumpImage(filename);
 
         Path fileBin = config.getImageStorePath().resolve(filename + ".bin");
         Path fileJson = config.getImageStorePath().resolve(filename + ".json");
-        for (int i = 0; i < 60; i++) {
-            if (Files.exists(fileBin) || Files.exists(fileJson)) {
-                break;
-            }
-            Thread.sleep(1000);
-        }
+
+        Awaitility.await().atMost(60, TimeUnit.SECONDS).until(() -> Files.exists(fileBin) || Files.exists(fileJson));
 
         assertTrue(Files.exists(fileBin) || Files.exists(fileJson));
     }

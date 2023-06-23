@@ -230,7 +230,7 @@ public abstract class WeatherWatchService {
         String humidity,            // Humidity, either "Dry", "Normal" or "Humid", or a percent (0-100)
         String pressure,            // Pressure, eihter "Low", "Normal" or "High", or in hPa
         String rainRate,            // Rain rate, either "Dry", "Wet" or "Rain", or in mm/h
-        String skyBrightness,       // Sky brightness, either "Dark", "Bright" or "Very bright", or in lux
+        String skyBrightness,       // Sky brightness, either "Dark", "Bright" or "Very bright", or in Lux
         String skyQuality,          // Sky quality, either "Good", "Normal" or "Poor", or in magnitude/arcsec^2
         String temperatureSky,      // Sky temperature (usually mesured using IR), either "Hot", "Cold" or  "Normal", or in °C
         String temperatureAmbient,  // Ambient temperature, either "Hot", "Cold" or "Normal", or in °C

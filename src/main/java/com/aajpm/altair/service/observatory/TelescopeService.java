@@ -90,6 +90,13 @@ public abstract class TelescopeService {
     public abstract Mono<Void> park() throws DeviceException;
 
     /**
+     * Parks the telescope synchronously, and wait for the operation to complete.
+     * @throws DeviceException If there was an error parking the telescope.
+     * @return A Mono that completes when the telescope has been parked.
+     */
+    public abstract Mono<Void> parkAwait() throws DeviceException;
+
+    /**
      * Unparks the telescope asynchronously.
      * @throws DeviceException If there was an error unparking the telescope.
      * @return A Mono that completes when the telescope has been unparked.
@@ -97,11 +104,25 @@ public abstract class TelescopeService {
     public abstract Mono<Void> unpark() throws DeviceException;
 
     /**
+     * Unparks the telescope synchronously, and wait for the operation to complete.
+     * @throws DeviceException If there was an error unparking the telescope.
+     * @return A Mono that completes when the telescope has been unparked.
+     */
+    public abstract Mono<Void> unparkAwait() throws DeviceException;
+
+    /**
      * Sets the telescope to the designated home position asynchronously.
      * @throws DeviceException If there was an error setting the telescope to the designated home position.
      * @return A Mono that completes when the telescope has been set.
      */
     public abstract Mono<Void> findHome() throws DeviceException;
+
+    /**
+     * Sets the telescope to the designated home position synchronously, and wait for the slew to complete.
+     * @throws DeviceException If there was an error setting the telescope to the designated home position.
+     * @return A Mono that completes when the telescope has slewed home.
+     */
+    public abstract Mono<Void> findHomeAwait() throws DeviceException;
 
     /**
      * Slew the telescope to the designated coordinates asynchronously.
@@ -244,7 +265,8 @@ public abstract class TelescopeService {
         boolean canUnpark,
         boolean canSlewAwait,
         boolean canSlew,
-        boolean canTrack
+        boolean canTrack,
+        String name
     ) {}
 
     /**

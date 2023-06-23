@@ -340,7 +340,7 @@ public class ASCOMWeatherWatchService extends WeatherWatchService {
         // Checks cloudcover, rainrate, skybrightness, skyquality, windspeed and
         // windgust.
         Mono<Boolean> cloudSafe = getCloudCover().map(safe -> !"OVERCAST".equalsIgnoreCase(safe)).onErrorReturn(true);
-        Mono<Boolean> rainSafe = getRainRate().map(safe -> "DRY".equalsIgnoreCase(safe)).onErrorReturn(true);
+        Mono<Boolean> rainSafe = getRainRate().map("DRY"::equalsIgnoreCase).onErrorReturn(true);
         Mono<Boolean> brightnessSafe = getSkyBrightness().map(safe -> !"BRIGHT".equalsIgnoreCase(safe)).onErrorReturn(true);
         Mono<Boolean> qualitySafe = getSkyQuality().map(safe -> !"POOR".equalsIgnoreCase(safe)).onErrorReturn(true);
         Mono<Boolean> windSafe = getWindSpeed().map(safe -> !"VERY WINDY".equalsIgnoreCase(safe)).onErrorReturn(true);

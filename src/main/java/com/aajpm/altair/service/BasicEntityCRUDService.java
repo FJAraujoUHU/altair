@@ -118,6 +118,24 @@ public abstract class BasicEntityCRUDService<T extends BasicEntity> {
     }
 
     /**
+     * Saves or updates the entity. If the entity has not been saved yet, it will
+     * save it, otherwise it will update it.
+     * 
+     * @param entity The entity to be saved or updated.
+     * 
+     * @return The saved or updated entity.
+     */
+    public T saveOrUpdate(T entity) {
+        Assert.notNull(entity, "The entity to save or update cannot be null.");
+
+        if (entity.getId() == 0) {
+            return save(entity);
+        } else {
+            return update(entity);
+        }
+    }
+
+    /**
      * Deletes the entity. If the entity has not been saved yet, it will throw an
      * {@link IllegalArgumentException}.
      * 

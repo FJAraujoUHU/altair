@@ -19,9 +19,9 @@ public class ASCOMTelescopeService extends TelescopeService {
 
     final int deviceNumber;
 
-    final int statusUpdateInterval; // how often checks the state of the device for synchronous methods
+    final int statusUpdateInterval; // how often checks the state of the device for synchronous methods, in milliseconds
 
-    final long synchronousTimeout; // how long to wait for synchronous methods to complete
+    final long synchronousTimeout; // how long to wait for synchronous methods to complete, in milliseconds
 
     private TelescopeCapabilities capabilities;
 
@@ -144,6 +144,19 @@ public class ASCOMTelescopeService extends TelescopeService {
     }
 
     @Override
+    public Mono<Void> parkAwait() throws DeviceException {
+        return this.park()
+            .then(Mono.delay(Duration.ofMillis(statusUpdateInterval)))          // wait before checking state
+            .thenMany(Flux.interval(Duration.ofMillis(statusUpdateInterval)))   // check periodically if parked
+            .flatMap(i -> this.isParked()                                       // keep checking until parked
+                .filter(Boolean.TRUE::equals)
+                .flatMap(parked -> Mono.empty())
+            ).next()
+            .timeout(Duration.ofMillis((synchronousTimeout > 0) ? synchronousTimeout : Long.MAX_VALUE))
+            .then();
+    }
+
+    @Override
     public Mono<Void> unpark() throws DeviceException {
         return this.getCapabilities().flatMap(caps -> {
             if (caps.canPark()) {
@@ -155,6 +168,19 @@ public class ASCOMTelescopeService extends TelescopeService {
     }
 
     @Override
+    public Mono<Void> unparkAwait() throws DeviceException {
+        return unpark()
+            .then(Mono.delay(Duration.ofMillis(statusUpdateInterval)))          // wait before checking state
+            .thenMany(Flux.interval(Duration.ofMillis(statusUpdateInterval)))   // check periodically if parked
+            .flatMap(i -> this.isParked()                                       // keep checking until parked is false
+                .filter(Boolean.FALSE::equals)
+                .flatMap(parked -> Mono.empty())
+            ).next()
+            .timeout(Duration.ofMillis((synchronousTimeout > 0) ? synchronousTimeout : Long.MAX_VALUE))
+            .then();
+    }
+
+    @Override
     public Mono<Void> findHome() throws DeviceException {
         return this.getCapabilities().flatMap(caps -> {
             if (caps.canFindHome()) {
@@ -163,6 +189,19 @@ public class ASCOMTelescopeService extends TelescopeService {
                 return Mono.error(new DeviceException("Telescope does not support finding home."));
             }
         });
+    }
+
+    @Override
+    public Mono<Void> findHomeAwait() throws DeviceException {
+        return findHome()
+            .then(Mono.delay(Duration.ofMillis(statusUpdateInterval)))          // wait before checking state
+            .thenMany(Flux.interval(Duration.ofMillis(statusUpdateInterval)))   // check periodically if at home
+            .flatMap(i -> this.isAtHome()                                       // keep checking until atHome is true
+                .filter(Boolean.TRUE::equals)
+                .flatMap(atHome -> Mono.empty())
+            ).next()
+            .timeout(Duration.ofMillis((synchronousTimeout > 0) ? synchronousTimeout : Long.MAX_VALUE)) // timeout if it takes too long
+            .then();
     }
 
     @Override
@@ -282,16 +321,18 @@ public class ASCOMTelescopeService extends TelescopeService {
         Mono<Boolean> canSlew = this.get("canslewasync").map(JsonNode::asBoolean).onErrorReturn(false);
         Mono<Boolean> canSlewAwait = this.get("canslew").map(JsonNode::asBoolean).onErrorReturn(false);
         Mono<Boolean> canTrack = this.get("cansettracking").map(JsonNode::asBoolean).onErrorReturn(false);
+        Mono<String> name = client.get("name").map(JsonNode::asText).onErrorReturn("ASCOM Telescope");
 
         Mono<TelescopeCapabilities> ret = Mono
-            .zip(canFindHome, canPark, canUnpark, canSlewAwait, canSlew, canTrack)
+            .zip(canFindHome, canPark, canUnpark, canSlewAwait, canSlew, canTrack, name)
             .map(tuple -> new TelescopeCapabilities(
                 tuple.getT1(),
                 tuple.getT2(),
                 tuple.getT3(),
                 tuple.getT4(),
                 tuple.getT5(),
-                tuple.getT6()
+                tuple.getT6(),
+                tuple.getT7()
             ));
 
         // Only run if the device is connected.

@@ -141,6 +141,25 @@ public class AstroObject extends BasicEntity implements Serializable {
         return isPlanet && isEarth;
     }
 
+
+    /**
+     * Checks if this {@link AstroObject} should have a right ascension
+     * and a declination.
+     * <p>
+     * If the type of the object is not a small body, a moon, a planet, or Sol,
+     * then it should have a right ascension and a declination.
+     * 
+     * @return {@code true} if it should have a right ascension and a declination.
+     */
+    public boolean shouldHaveRaDec() {
+        boolean isSmallBody = type == AstroType.SMALL_BODY;
+        boolean isMoon = type == AstroType.MOON;
+        boolean isPlanet = type == AstroType.PLANET;
+
+        return isSmallBody || isMoon || isPlanet || isSol();
+    }
+
+
     //#endregion
 
 }

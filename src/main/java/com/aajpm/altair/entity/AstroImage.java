@@ -110,9 +110,7 @@ public class AstroImage extends BasicEntity implements Serializable {
     ///////////////////////////////// METHODS /////////////////////////////////
     //#region Methods
 
-
-    // TODO: Add methods here
-
+    // None
 
     //#endregion
 }

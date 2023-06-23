@@ -135,7 +135,7 @@ public class ASCOMDomeService extends DomeService {
     @Override
     public Mono<Void> closeShutterAwait() throws DeviceException {
         return closeShutter()
-            .then(Mono.delay(Duration.ofMillis(statusUpdateInterval * 2)))      // wait before checking state
+            .then(Mono.delay(Duration.ofMillis(statusUpdateInterval)))          // wait before checking state
             .thenMany(Flux.interval(Duration.ofMillis(statusUpdateInterval)))   // check periodically if still open
             .flatMap(i -> this.isShutterOpen()                                  // keep checking until it closes
                 .filter(Boolean.FALSE::equals)
@@ -159,7 +159,7 @@ public class ASCOMDomeService extends DomeService {
     @Override
     public Mono<Void> findHomeAwait() throws DeviceException {
         return findHome()
-            .then(Mono.delay(Duration.ofMillis(statusUpdateInterval * 2)))      // wait before checking state
+            .then(Mono.delay(Duration.ofMillis(statusUpdateInterval)))          // wait before checking state
             .thenMany(Flux.interval(Duration.ofMillis(statusUpdateInterval)))   // check periodically if at home
             .flatMap(i -> this.isAtHome()                                       // keep checking until atHome is true
                 .filter(Boolean.TRUE::equals)
@@ -188,7 +188,7 @@ public class ASCOMDomeService extends DomeService {
     @Override
     public Mono<Void> openShutterAwait() throws DeviceException {
         return openShutter()
-            .then(Mono.delay(Duration.ofMillis(statusUpdateInterval * 2)))      // wait before checking state
+            .then(Mono.delay(Duration.ofMillis(statusUpdateInterval)))          // wait before checking state
             .thenMany(Flux.interval(Duration.ofMillis(statusUpdateInterval)))   // check periodically if open
             .flatMap(i -> this.isShutterOpen()                                  // keep checking until isShutterOpen() is true
                 .filter(Boolean.TRUE::equals)
@@ -212,7 +212,7 @@ public class ASCOMDomeService extends DomeService {
     @Override
     public Mono<Void> parkAwait() throws DeviceException {
         return park()
-            .then(Mono.delay(Duration.ofMillis(statusUpdateInterval * 2)))      // wait before checking state
+            .then(Mono.delay(Duration.ofMillis(statusUpdateInterval)))          // wait before checking state
             .thenMany(Flux.interval(Duration.ofMillis(statusUpdateInterval)))   // check periodically if parked
             .flatMap(i -> this.isParked()                                       // keep checking until atPark is true
                 .filter(Boolean.TRUE::equals)
@@ -244,7 +244,7 @@ public class ASCOMDomeService extends DomeService {
     @Override
     public Mono<Void> setAltAwait(double degrees) throws DeviceException {
         return setAlt(degrees)
-            .then(Mono.delay(Duration.ofMillis(statusUpdateInterval * 2)))      // wait before checking state
+            .then(Mono.delay(Duration.ofMillis(statusUpdateInterval)))          // wait before checking state
             .thenMany(Flux.interval(Duration.ofMillis(statusUpdateInterval)))   // check periodically if it is slewing
             .flatMap(i -> this.isSlewing()                                      // keep checking until it stops slewing
                 .filter(Boolean.FALSE::equals)
@@ -294,7 +294,7 @@ public class ASCOMDomeService extends DomeService {
     @Override
     public Mono<Void> slewAwait(double az) throws DeviceException {
         return slew(az)
-            .then(Mono.delay(Duration.ofMillis(statusUpdateInterval * 2)))      // wait before checking state
+            .then(Mono.delay(Duration.ofMillis(statusUpdateInterval)))          // wait before checking state
             .thenMany(Flux.interval(Duration.ofMillis(statusUpdateInterval)))   // check periodically if it is slewing
             .flatMap(i -> this.isSlewing()                                      // keep checking until it stops slewing
                 .filter(Boolean.FALSE::equals)
@@ -373,7 +373,7 @@ public class ASCOMDomeService extends DomeService {
     public Mono<DomeStatus> getStatus() {
         Mono<Boolean> connected =       isConnected().onErrorReturn(false);
         Mono<Double> az =               getAz().onErrorReturn(Double.NaN);
-        Mono<Integer> shutter =          getShutter().map(value -> (int) Math.round(value*100)).onErrorReturn(0);
+        Mono<Integer> shutter =         getShutter().map(value -> (int) Math.round(value*100)).onErrorReturn(0);
         Mono<Boolean> atHome =          isAtHome().onErrorReturn(false);
         Mono<Boolean> parked =          isParked().onErrorReturn(false);
         Mono<Boolean> slaved =          isSlaved().onErrorReturn(false);

@@ -4,8 +4,7 @@ import java.io.Serializable;
 import java.util.Collection;
 
 import jakarta.persistence.*;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.*;
 
 @Entity
 @Table(name = "exposure_params")
@@ -33,36 +32,202 @@ public class ExposureParams extends BasicEntity implements Serializable {
     @Column(name = "filter", nullable = false)
     private String filter;
 
+    @NotNull
+    @Min(1)
+    @Column(name = "binX", nullable = false)
+    private Integer binX;
+
+    @NotNull
+    @Min(1)
+    @Column(name = "binY", nullable = false)
+    private Integer binY;
+
+    @PositiveOrZero
+    @Column(name = "subFrameX", nullable = false)
+    private Integer subFrameX;
+
+    @PositiveOrZero
+    @Column(name = "subFrameY", nullable = false)
+    private Integer subFrameY;
+
+    @Min(1)
+    @Column(name = "subFrameWidth", nullable = false)
+    private Integer subFrameWidth;
+
+    @Min(1)
+    @Column(name = "subFrameHeight", nullable = false)
+    private Integer subFrameHeight;
+
+
+
     //#region Getters & Setters
-    public Boolean isLightFrame() {
-        return lightFrame;
-    }
 
-    public void setLightFrame(Boolean useLightFrame) {
-        this.lightFrame = useLightFrame;
-    }
+        /**
+         * Returns whether the image is a light frame.
+         * 
+         * @return true if the image is a light frame, false otherwise.
+         */
+        public Boolean isLightFrame() {
+            return lightFrame;
+        }
 
-    /**
-     * @return the exposureTime in seconds
-     */
-    public Double getExposureTime() {
-        return exposureTime;
-    }
+        /**
+         * Sets whether the image is a light frame.
+         * 
+         * @param useLightFrame true if the image is a light frame, false otherwise.
+         */
+        public void setLightFrame(Boolean useLightFrame) {
+            this.lightFrame = useLightFrame;
+        }
 
-    /**
-     * @param exposureTime the exposureTime to set in seconds
-     */
-    public void setExposureTime(Double exposureTime) {
-        this.exposureTime = exposureTime;
-    }
+        /**
+         * Returns the exposure time in seconds.
+         * 
+         * @return the exposure time in seconds.
+         */
+        public Double getExposureTime() {
+            return exposureTime;
+        }
 
-    public String getFilter(){
-        return filter;
-    }
+        /**
+         * Sets the exposure time in seconds.
+         * 
+         * @param exposureTimeSeconds the exposure time in seconds.
+         */
+        public void setExposureTime(Double exposureTimeSeconds) {
+            this.exposureTime = exposureTimeSeconds;
+        }
 
-    public void setFilter(String filter){
-        this.filter = filter;
-    }
+        /**
+         * Returns the filter used for the image.
+         * 
+         * @return the name of the filter used for the image.
+         */
+        public String getFilter(){
+            return filter;
+        }
+
+        /**
+         * Sets the filter used for the image.
+         * 
+         * @param filter the name of the filter used for the image.
+         */
+        public void setFilter(String filter){
+            this.filter = filter;
+        }
+
+        /**
+         * Returns the binning factor in the X direction.
+         * 
+         * @return the binning factor in the X direction.
+         */
+        public Integer getBinX() {
+            return binX;
+        }
+
+        /**
+         * Sets the binning factor in the X direction.
+         * 
+         * @param binX the binning factor in the X direction.
+         */
+        public void setBinX(Integer binX) {
+            this.binX = binX;
+        }
+
+        /**
+         * Returns the binning factor in the Y direction.
+         * 
+         * @return the binning factor in the Y direction.
+         */
+        public Integer getBinY() {
+            return binY;
+        }
+
+        /**
+         * Sets the binning factor in the Y direction.
+         * 
+         * @param binY the binning factor in the Y direction.
+         */
+        public void setBinY(Integer binY) {
+            this.binY = binY;
+        }
+
+        /**
+         * Returns the X coordinate of the subframe.
+         * 
+         * @return the X coordinate of the subframe, in pixels starting from the left of the image.
+         *         If the subframe is not used, returns {@code null}.
+         */
+        public Integer getSubFrameX() {
+            return subFrameX;
+        }
+
+        /**
+         * Sets the X coordinate of the subframe.
+         * 
+         * @param subFrameX the X coordinate of the subframe, in pixels starting from the left of the image.
+         *                  Set as {@code null} if the subframe is not used.
+         */
+        public void setSubFrameX(Integer subFrameX) {
+            this.subFrameX = subFrameX;
+        }
+
+        /**
+         * Returns the Y coordinate of the subframe.
+         * 
+         * @return the Y coordinate of the subframe, in pixels starting from the top of the image.
+         *         If the subframe is not used, returns {@code null}.
+         */
+        public Integer getSubFrameY() {
+            return subFrameY;
+        }
+
+        /**
+         * Sets the Y coordinate of the subframe.
+         * 
+         * @param subFrameY the Y coordinate of the subframe, in pixels starting
+         *                  from the top of the image. Set as {@code null} if
+         *                  the subframe is not used.
+         */
+        public void setSubFrameY(Integer subFrameY) {
+            this.subFrameY = subFrameY;
+        }
+
+        /**
+         * Returns the width of the subframe.
+         * 
+         * @return the width of the subframe, in pixels.
+         */
+        public Integer getSubFrameWidth() {
+            return subFrameWidth;
+        }
+
+        /**
+         * Sets the width of the subframe.
+         * 
+         * @param subFrameWidth the width of the subframe, in pixels.
+         */
+        public void setSubFrameWidth(Integer subFrameWidth) {
+            this.subFrameWidth = subFrameWidth;
+        }
+
+        /**
+         * Returns the height of the subframe.
+         * 
+         * @return the height of the subframe, in pixels.
+         */
+        public Integer getSubFrameHeight() {
+            return subFrameHeight;
+        }
+
+        /**
+         * Sets the height of the subframe.
+         * 
+         * @param subFrameHeight the height of the subframe, in pixels.
+         */
+        public void setSubFrameHeight(Integer subFrameHeight) {
+            this.subFrameHeight = subFrameHeight;
+        }
     //#endregion
 
     //#endregion

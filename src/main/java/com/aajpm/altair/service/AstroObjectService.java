@@ -56,7 +56,7 @@ public class AstroObjectService extends BasicEntityCRUDService<AstroObject> {
         Assert.hasText(object.getName(), "The name of the entity cannot be null.");
         Assert.notNull(object.getType(), "The type of the entity cannot be null.");
 
-        if (shouldHaveRaDec(object)) {
+        if (object.shouldHaveRaDec()) {
             Assert.notNull(object.getRa(), "The right ascension of the entity cannot be null.");
             Assert.notNull(object.getDec(), "The declination of the entity cannot be null.");
         }
@@ -71,33 +71,12 @@ public class AstroObjectService extends BasicEntityCRUDService<AstroObject> {
         Assert.hasText(object.getName(), "The name of the entity cannot be null.");
         Assert.notNull(object.getType(), "The type of the entity cannot be null.");
 
-        if (shouldHaveRaDec(object)) {
+        if (object.shouldHaveRaDec())  {
             Assert.notNull(object.getRa(), "The right ascension of the entity cannot be null.");
             Assert.notNull(object.getDec(), "The declination of the entity cannot be null.");
         }
 
         return super.update(object);
-    }
-
-    /**
-     * Checks if the given {@link AstroObject} should have a right ascension
-     * and a declination.
-     * <p>
-     * If the type of the object is not a small body, a moon, a planet, or Sol,
-     * then it should have a right ascension and a declination.
-     * 
-     * @param object The {@link AstroObject} to be checked.
-     * 
-     * @return {@code true} if the given {@link AstroObject} should have a
-     *         right ascension and a declination.
-     */
-    private boolean shouldHaveRaDec(AstroObject object) {
-        AstroType type = object.getType();
-        boolean isSmallBody = type == AstroType.SMALL_BODY;
-        boolean isMoon = type == AstroType.MOON;
-        boolean isPlanet = type == AstroType.PLANET;
-
-        return isSmallBody || isMoon || isPlanet || object.isSol();
     }
 
 

@@ -35,7 +35,7 @@ import com.aajpm.altair.utility.TypeTransformer;
 import com.aajpm.altair.utility.TypeTransformer.NumberVarType;
 import com.aajpm.altair.utility.exception.*;
 
-
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.netty.http.client.HttpClient;
 import reactor.util.function.Tuple2;
@@ -49,20 +49,28 @@ public class ASCOMCameraService extends CameraService {
 
     final int deviceNumber;
 
+    final int statusUpdateInterval; // how often checks the state of the device for synchronous methods, in milliseconds
+
+    final long synchronousTimeout; // how long to wait for synchronous methods to complete, in milliseconds
+
     private final Logger logger = LoggerFactory.getLogger(ASCOMCameraService.class.getName());
 
     private WebClient cameraClient; // Uses a separate WebClient to have a larger buffer size
     
     private CameraCapabilities capabilities;
 
-    public ASCOMCameraService(AlpacaClient client, CameraConfig config) {
-        this(client, 0, config);
+    private Boolean isLastExposureDarkFrame;
+
+    public ASCOMCameraService(AlpacaClient client, CameraConfig config, int statusUpdateInterval, long synchronousTimeout) {
+        this(client, 0, config, statusUpdateInterval, synchronousTimeout);
     }
 
-    public ASCOMCameraService(AlpacaClient client, int deviceNumber, CameraConfig config) {
+    public ASCOMCameraService(AlpacaClient client, int deviceNumber, CameraConfig config, int statusUpdateInterval, long synchronousTimeout) {
         super(config);
         this.client = client;
         this.deviceNumber = deviceNumber;
+        this.statusUpdateInterval = statusUpdateInterval;
+        this.synchronousTimeout = synchronousTimeout;
         this.cameraClient = WebClient.builder()
             .baseUrl(client.getBaseURL() + "/api/v1/camera/" + deviceNumber + "/")
             .clientConnector(
@@ -264,6 +272,7 @@ public class ASCOMCameraService extends CameraService {
             });
     }
 
+    @Override
     @SuppressWarnings("java:S3776")
     public void dumpImage(String name) {
         cameraClient.get()
@@ -618,6 +627,16 @@ public class ASCOMCameraService extends CameraService {
                         header.addValue("BAYOFFY", headerData.bayerY, "Bayer offset in Y (for legacy software)");
                     }
                 }
+
+                // Type of image (Lightframe/Darkframe/Tricolor)
+                if (Boolean.TRUE.equals(headerData.isDarkFrame)) {
+                    header.addValue("IMAGETYP", "Dark Frame", "type of image: Light Frame, Bias Frame, Dark Frame, Flat Frame, or Tricolor Image");
+                } else {
+                    if (rank == 3)
+                        header.addValue("IMAGETYP", "Tricolor Image", "type of image: Light Frame, Bias Frame, Dark Frame, Flat Frame, or Tricolor Image");
+                    else
+                        header.addValue("IMAGETYP", "Light Frame", "type of image: Light Frame, Bias Frame, Dark Frame, Flat Frame, or Tricolor Image");
+                }
             }
 
             imageData = unwrap(imageData, rank, type);      
@@ -708,6 +727,34 @@ public class ASCOMCameraService extends CameraService {
                 return Mono.error(new DeviceException("Camera does not support temperature control."));
             }
         });
+    }
+
+    @Override
+    @SuppressWarnings("java:S1612") // Suppress warning about not using lambda, if using lambda it escalates to a senseless NPE when Monos can't even return null.
+    public Mono<Void> warmupAwait() {
+        // Fetches the ambient temperature and sets the target temp to that.
+        return this.getCapabilities().flatMap(caps -> {
+            if (caps.canSetCoolerTemp()) {
+                return this.getTemperatureAmbient()
+                    .onErrorReturn(25.0)
+                    .flatMap(ambient -> this.warmupAwait(ambient));
+            } else {
+                return Mono.error(new DeviceException("Camera does not support temperature control."));
+            }
+        });
+    }
+
+    @Override
+    public Mono<Void> warmupAwait(double target) {
+        return this.setTargetTemp(target)
+                    .then(Mono.delay(Duration.ofMillis(statusUpdateInterval)))          // wait before checking temp
+                    .thenMany(Flux.interval(Duration.ofMillis(statusUpdateInterval)))   // check periodically if reached
+                    .flatMap(i -> this.getTemperature()                                 // keep checking until temp is above target
+                        .filter(temp -> temp >= target)
+                        .flatMap(warmed -> Mono.empty())
+                    ).next()
+                    .timeout(Duration.ofMillis((synchronousTimeout > 0) ? synchronousTimeout : Long.MAX_VALUE))
+                    .then();
     }
 
     //#endregion
@@ -827,7 +874,7 @@ public class ASCOMCameraService extends CameraService {
             if (duration > caps.exposureMax())
                 return Mono.error(new IllegalArgumentException("Exposure duration can't be greater than max exposure: " + duration + " > " + caps.exposureMax()));
 
-            return this.put("startexposure", params).then();
+            return this.put("startexposure", params).then().doOnSuccess(v -> this.isLastExposureDarkFrame = !useLightFrame);
         });
     }
 
@@ -1276,7 +1323,8 @@ public class ASCOMCameraService extends CameraService {
                 tuple.getT7().getT1().equals(Integer.MIN_VALUE) ?   null : tuple.getT7().getT1(),
                 tuple.getT7().getT2().equals(Integer.MIN_VALUE) ?   null : tuple.getT7().getT2(),
                 tuple.getT8().getT1().equals(Integer.MIN_VALUE) ?   null : tuple.getT8().getT1(),
-                tuple.getT8().getT2().equals(Integer.MIN_VALUE) ?   null : tuple.getT8().getT2()
+                tuple.getT8().getT2().equals(Integer.MIN_VALUE) ?   null : tuple.getT8().getT2(),
+                isLastExposureDarkFrame
             )
         );
     }
@@ -1293,7 +1341,8 @@ public class ASCOMCameraService extends CameraService {
         Integer binX,
         Integer binY,
         Integer numX,
-        Integer numY
+        Integer numY,
+        Boolean isDarkFrame
     ) {}
 
 

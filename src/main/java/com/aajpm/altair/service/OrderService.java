@@ -122,52 +122,6 @@ public class OrderService {
     public void buildSchedule(Interval interval) {
         buildSchedule(interval.getStart(), interval.getEnd());
     }
-
-    // TODO: Remove this
-    private List<Order> buildScheduleMock(Instant startTime, Instant endTime) {
-
-        List<Order> schedule = new LinkedList<>();
-        List<ControlOrder> controlOrders = controlOrderService.findInRangeOpen(startTime, endTime);
-        List<Interval> freeSlots = controlOrderService.findAvailableTime(startTime, endTime);
-
-        boolean startsOnFreeSlot = !freeSlots.isEmpty() && !freeSlots.get(0).getStart().isBefore(startTime);
-        int nextControlOrderIndex = 0;
-
-        if (!startsOnFreeSlot) {    // If it starts on a controlOrder, set it as the first scheduled order.
-            schedule.add(controlOrders.get(nextControlOrderIndex++));
-        }
-
-        for (int i = 0; i < freeSlots.size(); i++) {
-            // Fill the free slots with program orders
-            List<Tuple2<ProgramOrder, Interval>> programOrders = findInRange(freeSlots.get(i).getStart(), freeSlots.get(i).getEnd());
-
-            if (programOrders != null && !programOrders.isEmpty()) { 
-                // If there are ProgramOrders that fit in the free slot, add them to the schedule.
-                Instant timeCursor = freeSlots.get(i).getStart();
-                Instant slotEnd = freeSlots.get(i).getEnd();
-
-                // While there are ProgramOrder intervals that fit between timeCursor and slotEnd,
-                // find the first one that fits and add it to the schedule.
-
-                boolean isSlotFilled = false;
-                do {
-                    Tuple2<ProgramOrder, Interval> nextOrder = selectNextOrder(programOrders, schedule, timeCursor, slotEnd);
-                    if (nextOrder == null) break; // If there are no more ProgramOrders, end the loop.
-                    schedule.add(nextOrder.getT1());
-                    timeCursor = nextOrder.getT2().getEnd();
-                    isSlotFilled = !timeCursor.isBefore(slotEnd);
-                } while (!isSlotFilled);
-            }
-
-            if (nextControlOrderIndex >= controlOrders.size()) break; // If there are no more ControlOrders, end the loop.
-            schedule.add(controlOrders.get(nextControlOrderIndex++));     
-        }
-
-        return schedule;
-    }
-    // TODO: Remove this too
-    private List<Tuple2<ProgramOrder, Interval>> findInRange(Instant startTime, Instant endTime) {return null;}
-
     
     /**
      * Builds a schedule of orders between the specified start and end times.

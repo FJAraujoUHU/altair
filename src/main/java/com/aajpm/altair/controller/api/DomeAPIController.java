@@ -11,12 +11,10 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.aajpm.altair.config.ObservatoryConfig;
-import com.aajpm.altair.service.ObservatoryService;
 import com.aajpm.altair.service.observatory.DomeService;
 import com.aajpm.altair.service.observatory.DomeService.DomeCapabilities;
 import com.aajpm.altair.service.observatory.DomeService.DomeStatus;
 
-import jakarta.annotation.PostConstruct;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.Flux;
 
@@ -25,17 +23,11 @@ import reactor.core.publisher.Flux;
 public class DomeAPIController {
 
     @Autowired
-    ObservatoryService observatory;
+    DomeService dome;
 
     @Autowired
     ObservatoryConfig config;
 
-    DomeService dome;
-
-    @PostConstruct
-    public void init() {
-        dome = observatory.getDome();
-    }
 
     @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<DomeStatus> getStatus() {

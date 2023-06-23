@@ -13,6 +13,12 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import com.aajpm.altair.config.ObservatoryConfig;
 import com.aajpm.altair.service.ObservatoryService;
 import com.aajpm.altair.service.ObservatoryService.ObservatoryStatus;
+import com.aajpm.altair.service.observatory.CameraService;
+import com.aajpm.altair.service.observatory.DomeService;
+import com.aajpm.altair.service.observatory.FilterWheelService;
+import com.aajpm.altair.service.observatory.FocuserService;
+import com.aajpm.altair.service.observatory.TelescopeService;
+import com.aajpm.altair.service.observatory.WeatherWatchService;
 
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -23,6 +29,24 @@ public class ObservatoryController {
     
     @Autowired
     ObservatoryService observatory;
+
+    @Autowired
+    TelescopeService telescope;
+
+    @Autowired
+    DomeService dome;
+
+    @Autowired
+    FocuserService focuser;
+
+    @Autowired
+    FilterWheelService filterWheel;
+
+    @Autowired
+    CameraService camera;
+
+    @Autowired
+    WeatherWatchService weatherWatch;
     
     ObservatoryConfig config;
 
@@ -38,7 +62,7 @@ public class ObservatoryController {
 
     @GetMapping("/telescope")
     public Mono<String> telescope(Model model) {
-        return observatory.getTelescope()
+        return telescope
             .getCapabilities()
             .doOnSuccess(capabilities -> model.addAttribute("capabilities", capabilities))
             .onErrorResume(throwable -> {
@@ -50,7 +74,7 @@ public class ObservatoryController {
 
     @GetMapping("/dome")
     public Mono<String> dome(Model model) {
-        return observatory.getDome()
+        return dome
             .getCapabilities()
             .doOnSuccess(capabilities -> model.addAttribute("capabilities", capabilities))
             .onErrorResume(throwable -> {
@@ -62,7 +86,7 @@ public class ObservatoryController {
 
     @GetMapping("/focuser")
     public Mono<String> focuser(Model model) {
-        return observatory.getFocuser()
+        return focuser
             .getCapabilities()
             .doOnSuccess(capabilities -> model.addAttribute("capabilities", capabilities))
             .onErrorResume(throwable -> {
@@ -74,7 +98,7 @@ public class ObservatoryController {
 
     @GetMapping("/camera")
     public Mono<String> camera(Model model) {
-        return observatory.getCamera()
+        return camera
             .getCapabilities()
             .doOnSuccess(capabilities -> model.addAttribute("capabilities", capabilities))
             .onErrorResume(throwable -> {
@@ -86,7 +110,7 @@ public class ObservatoryController {
 
     @GetMapping("/weatherwatch")
     public Mono<String> weatherwatch(Model model) {
-        return observatory.getWeatherWatch()
+        return weatherWatch
             .getCapabilities()
             .doOnSuccess(capabilities -> model.addAttribute("capabilities", capabilities))
             .onErrorResume(throwable -> {

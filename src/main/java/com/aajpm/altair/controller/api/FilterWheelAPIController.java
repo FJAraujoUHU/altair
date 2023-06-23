@@ -11,11 +11,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.aajpm.altair.config.ObservatoryConfig;
-import com.aajpm.altair.service.ObservatoryService;
 import com.aajpm.altair.service.observatory.FilterWheelService;
 import com.aajpm.altair.service.observatory.FilterWheelService.FilterWheelStatus;
 
-import jakarta.annotation.PostConstruct;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -24,17 +22,11 @@ import reactor.core.publisher.Mono;
 public class FilterWheelAPIController {
 
     @Autowired
-    ObservatoryService observatory;
+    FilterWheelService filterWheel;
 
     @Autowired
     ObservatoryConfig config;
-    
-    FilterWheelService filterWheel;
 
-    @PostConstruct
-    public void init() {
-        filterWheel = observatory.getFilterWheel();
-    }
 
     @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<FilterWheelStatus> getStatus() {

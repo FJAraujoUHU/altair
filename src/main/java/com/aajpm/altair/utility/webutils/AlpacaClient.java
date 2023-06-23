@@ -23,6 +23,7 @@ import reactor.netty.http.client.HttpClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+// TODO: Refactor clientID to use getPrincipal()?
 public class AlpacaClient {
 
     WebClient alpaca;

@@ -9,8 +9,20 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import com.aajpm.altair.service.ASCOMObservatoryService;
 import com.aajpm.altair.service.ObservatoryService;
+import com.aajpm.altair.service.observatory.ASCOMCameraService;
+import com.aajpm.altair.service.observatory.ASCOMDomeService;
+import com.aajpm.altair.service.observatory.ASCOMFilterWheelService;
+import com.aajpm.altair.service.observatory.ASCOMFocuserService;
+import com.aajpm.altair.service.observatory.ASCOMTelescopeService;
+import com.aajpm.altair.service.observatory.ASCOMWeatherWatchService;
+import com.aajpm.altair.service.observatory.CameraService;
+import com.aajpm.altair.service.observatory.DomeService;
+import com.aajpm.altair.service.observatory.FilterWheelService;
+import com.aajpm.altair.service.observatory.FocuserService;
+import com.aajpm.altair.service.observatory.TelescopeService;
+import com.aajpm.altair.service.observatory.WeatherWatchService;
+import com.aajpm.altair.utility.webutils.AlpacaClient;
 
 import jakarta.annotation.PostConstruct;
 import jakarta.validation.constraints.NotNull;
@@ -22,15 +34,24 @@ public class ObservatoryConfig {
     ///////////////////////////////// FIELDS //////////////////////////////////
     //#region Fields
 
-    // Interval (in ms) to poll the status and update the UI
+    /**
+     * Interval (in ms) to poll the status and update the UI.
+     * If set too fast, it might hang the server/devices.
+     */
     private int statusUpdateInterval = 2500;
 
-    // Timeout (in ms) for synchronous operations
+    /** 
+     * Timeout for synchronous operations. If set too high, failed operations
+     * might never finish, and if set too low, some successful operations might
+     * get interrupted. Set to 0 to disable timeouts (not recommended).
+     */
     private long synchronousTimeout = 60000;
 
     private CameraConfig camera;
 
     private FilterWheelConfig filterWheel;
+
+    private ObservatorySetupConfig services;
 
 
     //#region Getters/Setters
@@ -65,15 +86,66 @@ public class ObservatoryConfig {
     public void setFilterWheel(FilterWheelConfig filterWheel) {
         this.filterWheel = filterWheel;
     }
+
+    public ObservatorySetupConfig getServices() {
+        return services;
+    }
+
+    public void setServices(ObservatorySetupConfig services) {
+        this.services = services;
+    }
     //#endregion
 
     //#endregion
     ////////////////////////////////// BEANS //////////////////////////////////
     //#region Beans
 
+    // TODO: Make more modular and configurable from application.yaml (use a factory?)
     @Bean
     public ObservatoryService observatoryService() {
-        return new ASCOMObservatoryService("http://localhost:32323/", this);
+        return new ObservatoryService(this);
+    }
+
+    @Bean
+    public TelescopeService telescopeService() {
+        AlpacaClient client = new AlpacaClient("http://localhost:32323/", (int) synchronousTimeout, (int) synchronousTimeout);
+        
+        return new ASCOMTelescopeService(client, 0, statusUpdateInterval, synchronousTimeout);
+    }
+
+    @Bean
+    public DomeService domeService() {
+        AlpacaClient client = new AlpacaClient("http://localhost:32323/", (int) synchronousTimeout, (int) synchronousTimeout);
+        
+        return new ASCOMDomeService(client, 0, statusUpdateInterval, synchronousTimeout);
+    }
+
+    @Bean
+    public FocuserService focuserService() {
+        AlpacaClient client = new AlpacaClient("http://localhost:32323/", (int) synchronousTimeout, (int) synchronousTimeout);
+        
+        return new ASCOMFocuserService(client, 0, statusUpdateInterval, synchronousTimeout);
+    }
+
+    @Bean
+    public CameraService cameraService() {
+        AlpacaClient client = new AlpacaClient("http://localhost:11111/", (int) synchronousTimeout, (int) synchronousTimeout);
+        
+        return new ASCOMCameraService(client, 0, camera, statusUpdateInterval, synchronousTimeout);
+    }
+
+    @Bean
+    public FilterWheelService filterWheelService() {
+        AlpacaClient client = new AlpacaClient("http://localhost:32323/", (int) synchronousTimeout, (int) synchronousTimeout);
+        
+        return new ASCOMFilterWheelService(client, 0, filterWheel, statusUpdateInterval, synchronousTimeout);
+    }
+
+    @Bean
+    public WeatherWatchService weatherService() {
+        AlpacaClient client = new AlpacaClient("http://localhost:32323/", (int) synchronousTimeout, (int) synchronousTimeout);
+        
+        return new ASCOMWeatherWatchService(client, 0);
     }
 
     //#endregion
@@ -81,22 +153,45 @@ public class ObservatoryConfig {
     //#region Inner classes
 
     public static class CameraConfig {
-        // Maximum rate (in °C/min) to cool the camera
+        /**
+         * Maximum cooldown rate for the camera, in °C/min,
+         * if hardware does not support auto ramping.
+         */
         private double maxCooldownRate = 5.0;
 
-        // Minimum rate (in °C/min) to cool the camera. If it cools down too slowly, the cooler will stop cooling further.
+        /**
+         * Minimum cooldown rate for the camera, in °C/min,
+         * if hardware does not support auto ramping.
+         * If it cools down too slowly, the cooler will stop cooling it further.
+         */
         private double minCooldownRate = 0.5;
 
-        // Maximum rate (in °C/min) to warm the camera
+        /**
+         * Maximum warmup rate for the camera, in °C/min,
+         * if hardware does not support auto ramping.
+         */
         private double maxWarmupRate = 3.0;
 
-        // Power level at which the cooler is considered saturated
-        private double coolerSaturationThreshold = 0.9;
+        /**
+         * Target temperature for cooling down the camera when in auto mode, in °C.
+         */
+        private double targetCooling = -10.0;
 
-        // Size of the image processing buffer, in bytes.
+        /**
+         * If the cooler reaches this power percentage, it is considered saturated.
+         * Range: 0-100
+         */
+        private double coolerSaturationThreshold = 90.0;
+
+        /**
+         * Size of the image processing buffer, in bytes.
+         * Use '-1' to disable the limiter and use the maximum available memory.
+         */
         private int imageBufferSize = -1;
 
-        // Path to store the images
+        /**
+         * Path to the image store directory.
+         */
         @NotNull
         private Path imageStorePath = Path.of(System.getProperty("user.home"), "Altair", "images");
 
@@ -115,7 +210,7 @@ public class ObservatoryConfig {
             }
         }
 
-        // Getters/setters
+        //#region Getters/Setters
         public double getMaxCooldownRate() {
             return maxCooldownRate;
         }
@@ -163,18 +258,33 @@ public class ObservatoryConfig {
         public void setImageStorePath(String imageStorePath) {
             this.imageStorePath = Path.of(imageStorePath);
         }
+
+        public double getTargetCooling() {
+            return targetCooling;
+        }
+
+        public void setTargetCooling(double targetCooling) {
+            this.targetCooling = targetCooling;
+        }
+        //#endregion
     }
 
     public static class FilterWheelConfig {
 
-        // A custom list of names for the filters in the filter wheel. Leave blank to use Service provided ones.
+        /**
+         * A custom list of names for the filters in the filter wheel.
+         * Leave blank to use Service provided ones.
+         */
         private List<String> filterNames;
 
-        // A custom list of focus offsets for the filters in the filter wheel. Leave blank to use Service provided ones.
+        /**
+         * A custom list of focus offsets for the filters in the filter wheel.
+         * Leave blank to use Service provided ones.
+         */
         private List<Integer> focusOffsets;
 
 
-        // Getters/setters
+        //#region Getters/Setters
         public List<String> getFilterNames() {
             return filterNames;
         }
@@ -198,8 +308,11 @@ public class ObservatoryConfig {
         public boolean hasCustomFocusOffsets() {
             return focusOffsets != null && !focusOffsets.isEmpty();
         }
-
+        //#endregion
     }
 
+    public static class ObservatorySetupConfig {
+
+    }
     //#endregion
 }

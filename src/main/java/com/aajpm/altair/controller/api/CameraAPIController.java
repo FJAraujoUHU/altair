@@ -17,7 +17,6 @@ import com.aajpm.altair.service.observatory.CameraService;
 import com.aajpm.altair.service.observatory.CameraService.CameraStatus;
 import com.aajpm.altair.service.observatory.CameraService.CameraCapabilities;
 
-import jakarta.annotation.PostConstruct;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -31,12 +30,9 @@ public class CameraAPIController {
     @Autowired
     ObservatoryConfig config;
 
+    @Autowired
     CameraService camera;
 
-    @PostConstruct
-    public void init() {
-        camera = observatory.getCamera();
-    }
 
     @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<CameraStatus> getStatus() {

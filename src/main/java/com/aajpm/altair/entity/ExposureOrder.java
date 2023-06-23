@@ -16,20 +16,36 @@ public class ExposureOrder extends BasicEntity implements Serializable {
     }
 
     //#endregion
+    ///////////////////////////////// VALUES //////////////////////////////////
+    //#region Values
+
+    public enum States {
+        PENDING,
+        IN_PROGRESS,
+        COMPLETED,
+        FAILED
+    }
+
+    //#endregion
     /////////////////////////////// ATTRIBUTES ////////////////////////////////
     //#region Attributes
 
-    @Column(name = "completed", nullable = false)
-    private Boolean completed = false;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "state", nullable = false)
+    private States state = States.PENDING;
 
 
     //#region Getters & Setters
     public Boolean isCompleted() {
-        return completed;
+        return state == States.COMPLETED;
     }
 
-    public void setCompleted(Boolean completed) {
-        this.completed = completed;
+    public States getState() {
+        return state;
+    }
+
+    public void setState(States status) {
+        this.state = status;
     }
     //#endregion
 

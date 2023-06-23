@@ -9,6 +9,7 @@ import org.springframework.util.Assert;
 
 import com.aajpm.altair.entity.ExposureParams;
 import com.aajpm.altair.repository.ExposureParamsRepository;
+import com.aajpm.altair.service.observatory.FilterWheelService;
 
 import reactor.core.publisher.Mono;
 
@@ -29,7 +30,7 @@ public class ExposureParamsService extends BasicEntityCRUDService<ExposureParams
     /////////////////////////// SUPPORTING SERVICES ///////////////////////////
 
     @Autowired
-    private ObservatoryService observatoryService;
+    private FilterWheelService filterWheel;
 
     /////////////////////////////// CONSTRUCTORS //////////////////////////////
 
@@ -56,8 +57,7 @@ public class ExposureParamsService extends BasicEntityCRUDService<ExposureParams
         // Check if params.getFilter() is present in observatory.getFilterWheel().getFilters()
         Assert.notNull(params.getFilter(), "ExposureParams must be assigned to a filter");
         
-        Mono<Boolean> filterFound = observatoryService
-                                    .getFilterWheel()
+        Mono<Boolean> filterFound = filterWheel
                                     .getFilterNames()
                                     .map(filters ->  filters
                                         .stream()
@@ -86,8 +86,7 @@ public class ExposureParamsService extends BasicEntityCRUDService<ExposureParams
         // Check if params.getFilter() is present in observatory.getFilterWheel().getFilters()
         Assert.notNull(params.getFilter(), "ExposureParams must be assigned to a filter");
         
-        Mono<Boolean> filterFound = observatoryService
-                                    .getFilterWheel()
+        Mono<Boolean> filterFound = filterWheel
                                     .getFilterNames()
                                     .map(filters ->  filters
                                         .stream()

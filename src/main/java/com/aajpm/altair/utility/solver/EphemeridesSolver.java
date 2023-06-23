@@ -36,6 +36,15 @@ public abstract class EphemeridesSolver {
     }
 
     /**
+     * Gets the AstrometricsConfig used for calculations.
+     * 
+     * @return The AstrometricsConfig used for calculations.
+     */
+    public AstrometricsConfig getConfig() {
+        return config;
+    }
+
+    /**
      * Calculates the current Altitude and Azimuth of a body in the Solar system.
      * 
      * @param body The name of the body to calculate the Altitude and Azimuth for.

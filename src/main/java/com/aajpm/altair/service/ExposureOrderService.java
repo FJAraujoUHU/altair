@@ -79,7 +79,7 @@ public class ExposureOrderService extends BasicEntityCRUDService<ExposureOrder> 
     }
 
     public Collection<ExposureOrder> findNotCompleted() {
-        return exposureOrderRepository.findByCompletedFalse();
+        return exposureOrderRepository.findNotCompleted();
     }
 
     //#endregion

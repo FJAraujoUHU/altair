@@ -10,12 +10,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.aajpm.altair.config.ObservatoryConfig;
-import com.aajpm.altair.service.ObservatoryService;
 import com.aajpm.altair.service.observatory.WeatherWatchService;
 import com.aajpm.altair.service.observatory.WeatherWatchService.WeatherWatchCapabilities;
 import com.aajpm.altair.service.observatory.WeatherWatchService.WeatherWatchStatus;
 
-import jakarta.annotation.PostConstruct;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -24,17 +22,11 @@ import reactor.core.publisher.Mono;
 public class WeatherWatchAPIController {
 
     @Autowired
-    ObservatoryService observatory;
+    WeatherWatchService weatherWatch;
 
     @Autowired
     ObservatoryConfig config;
 
-    WeatherWatchService weatherWatch;
-
-    @PostConstruct
-    public void init() {
-        weatherWatch = observatory.getWeatherWatch();
-    }
 
     @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<WeatherWatchStatus> getStatus() {

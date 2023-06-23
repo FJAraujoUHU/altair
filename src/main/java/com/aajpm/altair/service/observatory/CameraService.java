@@ -79,7 +79,7 @@ public abstract class CameraService {
 
     /**
      * Returns the current power level of the cooler
-     * @return the current cooler power level percentage in the range [0.0-1.0]
+     * @return the current cooler power level percentage in the range [0.0-100.0]
      * @throws DeviceException if there was an error polling the data or the camera does not have this feature.
      */
     public abstract Mono<Double> getCoolerPower() throws DeviceException;
@@ -191,12 +191,14 @@ public abstract class CameraService {
      */
     public abstract Mono<ImageHDU> getImage() throws DeviceException;
 
-    // TODO: Probably should move this to Observatory class to add extra metadata
     /**
      * Saves the captured image to a FITS file in the image store directory
+     * 
+     * @deprecated Use {@link ObservatoryService#saveImage()} instead
      * @param name the name of the file to save the image to
      * @param compression whether to output a GZIP'd file or just a plain FITS file
      */
+    @Deprecated
     public void saveImage(String name, boolean compression) throws DeviceException {
         this.getImage().subscribe(image -> {
             String filename = name;
@@ -303,6 +305,31 @@ public abstract class CameraService {
      * @throws DeviceException if there was an error warming up the sensor.
      */
     public abstract Mono<Void> warmup(double target) throws DeviceException;
+
+    /**
+     * Warms up the sensor to ambient temperature and waits for the sensor
+     * to reach the target temperature before returning.
+     * 
+     * @throws DeviceException if there was an error warming up the sensor.
+     */
+    public abstract Mono<Void> warmupAwait() throws DeviceException;
+
+    /**
+     * Warms up the sensor to the specified temperature and waits for the sensor
+     * to reach the target temperature before returning.
+     * @param target the target temperature in degrees Celsius
+     * @throws DeviceException if there was an error warming up the sensor.
+     */
+    public abstract Mono<Void> warmupAwait(double target) throws DeviceException;
+
+    /**
+     * Cools down the sensor to the target temperature set in the configuration.
+     * 
+     * @throws DeviceException if there was an error cooling down the sensor.
+     */
+    public Mono<Void> cooldown() throws DeviceException {
+        return this.cooldown(config.getTargetCooling());
+    }
 
     /**
      * Cools down the sensor to the specified temperature
@@ -536,7 +563,7 @@ public abstract class CameraService {
         boolean connected,              // Is the camera connected?
         double temperature,             // The current temperature of the sensor
         String coolerStatus,            // The current status of the cooler
-        double coolerPower,             // The current power of the cooler
+        double coolerPower,             // The current power of the cooler (0-100)
         String status,                  // The current status of the camera
         String binning,                 // The current binning of the camera
         double statusCompletion,        // The completion of the current status, as a percentage (0-100)
