@@ -14,17 +14,20 @@ public class AstrometricsConfig {
     ///////////////////////////////// FIELDS //////////////////////////////////
     //#region Fields
 
-    // Latitude of the observatory, in degrees, North positive
+    /** Latitude of the observatory, in degrees, North positive */
     private double siteLatitude = 0.0;
 
-    // Longitude of the observatory, in degrees, East positive
+    /** Longitude of the observatory, in degrees, East positive */
     private double siteLongitude = 0.0;
 
-    // Elevation of the observatory, in meters
+    /** Elevation of the observatory, in meters */
     private double siteElevation = 0.0;
 
-    // Horizon line, in degrees, below which the object is considered to be below the horizon
+    /** Horizon line, in degrees, below which the object is considered to be below the horizon */
     private double horizonLine = 0.0;
+
+    /** Dawn line, in degrees, that marks the point at which the Sun is considered to completely set/rise */
+    private double dawnLine = -18.0;
 
 
     //#region Getters/Setters
@@ -58,6 +61,14 @@ public class AstrometricsConfig {
 
     public void setHorizonLine(double horizonLine) {
         this.horizonLine = horizonLine;
+    }
+
+    public double getDawnLine() {
+        return dawnLine;
+    }
+
+    public void setDawnLine(double dawnLine) {
+        this.dawnLine = dawnLine;
     }
     //#endregion
 

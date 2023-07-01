@@ -270,7 +270,39 @@ public abstract class EphemeridesSolver {
      */
     public abstract Mono<Interval> getRiseSetTime(double ra, double dec, double latitude, double longitude, Interval searchInterval, double targetAltitude);
 
-    
+    /**
+     * Calculates the closest night period to the current time.
+     * If it is currently night, the returned {@link Interval} will start
+     * at the current time and end at the next sunrise.
+     * 
+     * It is considered night time at the time between the end of astronomical
+     * twilight and the start of astronomical dawn.
+     * 
+     * For implementations that do not support night time calculations, this method
+     * might return just call {@link EphemeridesSolver#getRiseSetTime(String, Interval, double)}
+     * with a {@code targetAltitude} of {@link AstrometricsConfig#dawnLine}.
+     * 
+     * @return A {@link Mono} containing the closest night period.
+     */
+    public Mono<Interval> getNightTime() {
+        return getNightTime(Instant.now());
+    }
+
+    /**
+     * Calculates the closest night period to the specified time.
+     * If it is currently night, the returned {@link Interval} will start
+     * at the specified time and end at the next sunrise.
+     * 
+     * It is considered night time at the time between the end of astronomical
+     * twilight and the start of astronomical dawn.
+     * 
+     * For implementations that do not support night time calculations, this method
+     * might return just call {@link EphemeridesSolver#getRiseSetTime(String, Interval, double)}
+     * with a {@code targetAltitude} of {@link AstrometricsConfig#dawnLine}.
+     * 
+     * @return A {@link Mono} containing the closest night period.
+     */
+    public abstract Mono<Interval> getNightTime(Instant start);
 
     /**
      * Calculates the time since the J2000 epoch.
@@ -334,6 +366,34 @@ public abstract class EphemeridesSolver {
      * @return The LST for the current time, clamped to a day's duration.
      */
     public abstract Mono<Double> getLST(Instant time, double longitude, boolean useHoursInstead);
+
+    /**
+     * Basic conversion from Right Ascension and Declination to Altitude and
+     * Azimuth. Might be inaccurate for some objects.
+     * 
+     * @param ra The Right Ascension of the object.
+     * @param dec The Declination of the object.
+     * 
+     * @return An array containing the Altitude and Azimuth of the object.
+     */
+    public Mono<double[]> raDecToAltAz(double ra, double dec) {
+        return raDecToAltAz(ra, dec, config.getSiteLatitude(), config.getSiteLongitude());
+    }
+
+    /**
+     * Basic conversion from Right Ascension and Declination to Altitude and
+     * Azimuth. Might be inaccurate for some objects.
+     * 
+     * @param ra The Right Ascension of the object.
+     * @param dec The Declination of the object.
+     * @param latitude The latitude of the location.
+     * @param longitude The longitude of the location.
+     * 
+     * @return An array containing the Altitude and Azimuth of the object.
+     */
+    public Mono<double[]> raDecToAltAz(double ra, double dec, double latitude, double longitude) {
+        return raDecToAltAz(ra, dec, latitude, longitude, Instant.now());
+    }
 
     /**
      * Basic conversion from Right Ascension and Declination to Altitude and

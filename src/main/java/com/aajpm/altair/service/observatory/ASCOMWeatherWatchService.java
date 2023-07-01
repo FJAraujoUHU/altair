@@ -339,6 +339,7 @@ public class ASCOMWeatherWatchService extends WeatherWatchService {
     public Mono<Boolean> isSafe() throws DeviceException {
         // Checks cloudcover, rainrate, skybrightness, skyquality, windspeed and
         // windgust.
+        Mono<Boolean> connected = isConnected().onErrorReturn(false);
         Mono<Boolean> cloudSafe = getCloudCover().map(safe -> !"OVERCAST".equalsIgnoreCase(safe)).onErrorReturn(true);
         Mono<Boolean> rainSafe = getRainRate().map("DRY"::equalsIgnoreCase).onErrorReturn(true);
         Mono<Boolean> brightnessSafe = getSkyBrightness().map(safe -> !"BRIGHT".equalsIgnoreCase(safe)).onErrorReturn(true);
@@ -346,10 +347,16 @@ public class ASCOMWeatherWatchService extends WeatherWatchService {
         Mono<Boolean> windSafe = getWindSpeed().map(safe -> !"VERY WINDY".equalsIgnoreCase(safe)).onErrorReturn(true);
         Mono<Boolean> gustSafe = getWindGustSpeed().map(safe -> safe < 10.0).onErrorReturn(true);
 
-        // Return true if all conditions are safe.
-        return Mono.zip(cloudSafe, rainSafe, brightnessSafe, qualitySafe, windSafe, gustSafe)
-                .map(tuple -> tuple.getT1() && tuple.getT2() && tuple.getT3() && tuple.getT4() && tuple.getT5()
-                        && tuple.getT6());
+        // If it's connected and all the conditions are safe, return true.
+        return connected.flatMap(conn -> {
+            if (Boolean.TRUE.equals(conn)) {
+                // Return true if all conditions are safe.
+                return Mono.zip(cloudSafe, rainSafe, brightnessSafe, qualitySafe, windSafe, gustSafe)
+                    .map(tuple -> tuple.getT1() && tuple.getT2() && tuple.getT3() && tuple.getT4() && tuple.getT5()
+                            && tuple.getT6());
+
+            } else return Mono.just(false);
+        });
     }
 
     // #endregion

@@ -39,6 +39,7 @@ altair:
         site-longitude: -6.9325                 # Longitude of the observatory, in decimal degrees, east is positive
         site-elevation: 130.0                   # Elevation of the observatory, in meters
         horizon-line: 3.0                       # Horizon line, in degrees, above which the telescope can see
+        dawn-line: 18.0                         # Dawn line, in degrees, that marks the point where the sun is considered to completely set/rise
 
 
 

@@ -82,6 +82,24 @@ public class AstroImageService extends BasicEntityCRUDService<AstroImage> {
     }
 
     /**
+     * Creates an {@link AstroImage} from the existing FITS file at the given path.
+     * 
+     * @param path The path to the FITS file.
+     * 
+     * @return A new {@link AstroImage}, populated with the FITS header values.
+     * @throws IOException
+     */
+    public AstroImage create(Path path) throws FitsException, IOException {
+        Assert.notNull(path, "The path cannot be null.");
+        Assert.isTrue(Files.exists(path), "The path must exist.");
+        Assert.isTrue(Files.isRegularFile(path), "The path must be a regular file.");
+
+        try (Fits fits = new Fits(path.toFile())) {
+            return create(path.getFileName().toString(), fits);
+        }
+    }
+
+    /**
      * Creates an {@link AstroImage} from the given FITS file.
      * 
      * @param fits The FITS file to create the image from.

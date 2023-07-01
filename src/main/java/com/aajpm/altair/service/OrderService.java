@@ -119,8 +119,8 @@ public class OrderService {
         return orderRepository.findByCompletedFalseOrderByCreationTimeAsc();
     }
 
-    public void buildSchedule(Interval interval) {
-        buildSchedule(interval.getStart(), interval.getEnd());
+    public Mono<List<Order>> buildSchedule(Interval interval) {
+        return buildSchedule(interval.getStart(), interval.getEnd());
     }
     
     /**

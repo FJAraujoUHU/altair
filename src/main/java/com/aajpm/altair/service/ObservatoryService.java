@@ -3,17 +3,20 @@ package com.aajpm.altair.service;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.time.Instant;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.zip.GZIPOutputStream;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import com.aajpm.altair.config.AstrometricsConfig;
 import com.aajpm.altair.config.ObservatoryConfig;
 import com.aajpm.altair.entity.AstroObject;
-import com.aajpm.altair.entity.Program;
-import com.aajpm.altair.security.account.AltairUser;
+import com.aajpm.altair.entity.ExposureParams;
 import com.aajpm.altair.utility.exception.*;
 import com.aajpm.altair.utility.solver.EphemeridesSolver;
 
@@ -21,6 +24,7 @@ import nom.tam.fits.Fits;
 import nom.tam.fits.HeaderCardException;
 import nom.tam.fits.ImageHDU;
 import nom.tam.util.FitsOutputStream;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import com.aajpm.altair.service.observatory.*;
@@ -44,9 +48,11 @@ public class ObservatoryService {
 
     protected final ObservatoryConfig config;
 
-    protected Program currentJob;
+    protected final AtomicBoolean useAltairSlaving = new AtomicBoolean(false);
 
-    protected AltairUser currentUser;
+    protected final AtomicBoolean altairSlaved = new AtomicBoolean(false);
+
+    protected final AtomicBoolean isExecutingSlew = new AtomicBoolean(false);
 
     //#endregion
     /////////////////////////// SUPPORTING SERVICES ////////////////////////////
@@ -78,6 +84,7 @@ public class ObservatoryService {
     //#region Constructor
 
     public ObservatoryService(ObservatoryConfig config) {
+        super();
         this.config = config;
     }
 
@@ -90,6 +97,63 @@ public class ObservatoryService {
      * @return The current configuration of the observatory.
      */
     public ObservatoryConfig getConfig() { return config; }
+
+
+    /**
+     * Checks if the weather and daylight conditions are safe for observing.
+     * 
+     * @return A {@link Mono} that will complete with a {@link Boolean} indicating
+     *        if the weather and daylight conditions are safe for observing.
+     */
+    public Mono<Boolean> isSafe() {
+        return isSafe(true);
+    }
+
+    /**
+     * Checks if the weather and daylight conditions are safe for observing.
+     * 
+     * @param checkDaylight If true, it will check if it is night time. Else
+     *                      it will only check the weather conditions.
+     * 
+     * @return A {@link Mono} that will complete with a {@link Boolean} indicating
+     *        if the weather and daylight conditions are safe for observing.
+     */
+    public Mono<Boolean> isSafe(boolean checkDaylight) {
+        Mono<Boolean> weatherSafe = weatherWatch.connect()
+                                        .then(weatherWatch.isSafe())
+                                        .onErrorReturn(false);
+        Mono<Boolean> daylightSafe = Mono.just(checkDaylight)
+                                        .filter(check -> check)
+                                        .flatMap(check -> ephemeridesSolver.getNightTime())
+                                        .map(nightTime -> nightTime.contains(Instant.now()))
+                                        .onErrorReturn(false);
+
+        if (!checkDaylight) return weatherSafe;
+        else return Mono.zip(weatherSafe, daylightSafe)
+                        .map(tuple -> tuple.getT1() && tuple.getT2());
+    }
+
+    /**
+     * Checks if the dome is currently slaved to the telescope.
+     * @return A {@link Mono} that will complete with a {@link Boolean} indicating
+     *         if the dome is currently slaved to the telescope.
+     */
+    public Mono<Boolean> isSlaved() {
+        if (useAltairSlaving.get())
+            return Mono.just(altairSlaved.get());
+        else
+            return dome.isSlaved();
+    }
+
+    /**
+     * Checks who is currentl by slaving the dome.
+     * @return A {@link Mono} that will complete with a {@link Boolean} that will
+     *         be true if Altair is manually slaving the dome, or false if it's
+     *         using the dome's native slaving.
+     */
+    public Mono<Boolean> isAltairSlaving() {
+        return Mono.just(useAltairSlaving.get());
+    }
 
     //#endregion
     ///////////////////////////// SETTERS/ACTIONS /////////////////////////////
@@ -130,11 +194,132 @@ public class ObservatoryService {
     }
     
     /**
+     * Enables/disables dome slaving.
+     * 
+     * @param slaving If true, the dome will be slaved to the telescope.
+     *                If false, the dome will be free to move independently.
+     * 
+     * @return A {@link Mono} that will complete as soon as the changes apply.
+     */
+    public Mono<Void> setSlaving(boolean slaving) {
+        if (useAltairSlaving.get()) {
+            this.altairSlaved.set(slaving);
+            return Mono.empty();
+        } else {
+            return Mono.zip(dome.getCapabilities(), dome.getStatus())
+                    .flatMap(tuple -> {
+                        DomeCapabilities caps = tuple.getT1();
+                        DomeStatus status = tuple.getT2();
+
+                        if(status.connected() && caps.canSlave()) {
+                            return dome.setSlaved(slaving);
+                        }
+                        return Mono.empty();
+                    });
+        }
+    }
+
+    /**
+     * Enables/disables dome slaving.
+     * 
+     * @param slaving If true, the dome will be slaved to the telescope.
+     *                If false, the dome will be free to move independently.
+     * 
+     * @return A {@link Mono} that will complete after the dome has synced to
+     *         the telescope.
+     */
+    public Mono<Void> setSlavingAwait(boolean slaving) {
+        int statusUpdateInterval = config.getStatusUpdateInterval();
+        if (slaving) {  // If slaving, wait for the dome to sync
+            if (useAltairSlaving.get()) {
+                this.altairSlaved.set(slaving);
+                return Mono.delay(Duration.ofMillis(statusUpdateInterval))
+                            .thenMany(Flux.interval(Duration.ofMillis(statusUpdateInterval)))
+                            .flatMap(i -> this.areTelescopeAndDomeInSync()
+                                .filter(Boolean.TRUE::equals)
+                                .flatMap(parked -> Mono.empty())
+                            ).next()
+                            .timeout(Duration.ofMinutes(5))
+                            .then();
+            } else {
+                return Mono.zip(dome.getCapabilities(), dome.getStatus())
+                        .flatMap(tuple -> {
+                            DomeCapabilities caps = tuple.getT1();
+                            DomeStatus status = tuple.getT2();
+
+                            if(status.connected() && caps.canSlave()) {
+                                return dome.setSlaved(slaving)
+                                    .then(Mono.delay(Duration.ofMillis(statusUpdateInterval)))
+                                    .thenMany(Flux.interval(Duration.ofMillis(statusUpdateInterval)))
+                                    .flatMap(i -> this.areTelescopeAndDomeInSync()
+                                        .filter(Boolean.TRUE::equals)
+                                        .flatMap(parked -> Mono.empty())
+                                    ).next()
+                                    .timeout(Duration.ofMinutes(5))
+                                    .then();
+                            }
+                            return Mono.empty();
+                        });
+            }
+        } else { // If unslaving, just unslave
+            return dome.setSlaved(slaving);
+        }
+    }
+
+    /** Check if the dome is pointing at the same azimuth as the telescope */
+    private Mono<Boolean> areTelescopeAndDomeInSync() {
+        return Mono.zip(dome.getCapabilities(), dome.getStatus(), telescope.getStatus())
+                    .map(tuple -> {
+                        DomeCapabilities caps = tuple.getT1();
+                        DomeStatus dmStatus = tuple.getT2();
+                        TelescopeStatus tsStatus = tuple.getT3();
+
+                        if (!(dmStatus.connected() && tsStatus.connected())) {
+                            return false;
+                        }
+
+                        if (!caps.canSetAzimuth()) {
+                            return true; // If the dome can't set azimuth, suppose is in sync
+                        }
+                        
+                        double tsAz = tsStatus.azimuth();
+                        double dmAz = dmStatus.azimuth();
+
+                        return Math.abs(tsAz - dmAz) < 5; // 5 degrees of tolerance
+                    });
+    } 
+
+    /**
+     * Sets the slaving mode of the dome.
+     * 
+     * @param useAltairSlaving If true, Altair will periodically sync the dome's
+     *                          position to the telescope. Otherwise, it will use
+     *                          the dome's native slaving.
+     * @return A {@link Mono} that will complete as soon as the changes apply.
+     */
+    public Mono<Void> useAltairSlaving(boolean useAltairSlaving) {
+        Mono<DomeCapabilities> domeCapabilities = dome.getCapabilities();
+        Mono<DomeStatus> domeStatus = dome.getStatus();
+
+        return Mono.zip(domeCapabilities, domeStatus)
+                    .flatMap(tuple -> {
+                        DomeCapabilities caps = tuple.getT1();
+                        DomeStatus status = tuple.getT2();
+
+                        if(status.connected() && caps.canSlave()) {
+                            return dome.setSlaved(!useAltairSlaving);
+                        }
+                        return Mono.empty();
+                    }).doOnTerminate(() -> this.useAltairSlaving.set(useAltairSlaving));
+    }
+
+
+    /**
      * Starts the observatory and sets it up ready for use asynchronously.
      * It should unpark the telescope and dome, set them at their home positions,
      * and start chilling the camera.
      * 
-     * Note: This method will not open the dome.
+     * Note: This method will not open the dome nor slave it to the telescope.
      * 
      * @return A {@link Mono} that will complete inmidiately.
      * 
@@ -155,7 +340,8 @@ public class ObservatoryService {
                             startCamera(tuple.getT3()))
                         .then()
                     )
-                );
+                ).doOnSubscribe(s -> this.isExecutingSlew.set(true))
+                .doOnTerminate(() -> this.isExecutingSlew.set(false));
     }
 
 
@@ -175,19 +361,21 @@ public class ObservatoryService {
     }
 
     private Mono<Void> startDome(DomeCapabilities capabilities) {
-        Mono<Void> ret = Mono.empty();
+        Mono<Void> ret = Mono.empty()
+                            .then()
+                            .doOnSubscribe(s -> altairSlaved.set(false));
+
 
         if (capabilities.canUnpark())
-            ret = dome.unpark();
+            ret = dome.unpark()
+                        .then()
+                        .doOnSubscribe(s -> altairSlaved.set(false));
 
         if (capabilities.canSlave())
             ret = ret.then(dome.setSlaved(false));
 
         if (capabilities.canFindHome())
             ret = ret.then(dome.findHome());
-
-        if (capabilities.canSlave())
-            ret = ret.then(dome.setSlaved(true));
         
         return ret;
     }
@@ -202,13 +390,22 @@ public class ObservatoryService {
     }
 
     /**
+     * Starts the camera and sets it up ready for use.
+     * @return A {@link Mono} that will complete when the camera has received the command.
+     */
+    public Mono<Void> startCamera() {
+        return camera.connect()
+                .then(camera.getCapabilities().flatMap(this::startCamera));
+    }
+
+    /**
      * Starts the observatory and sets it up ready for use.
      * It should unpark the telescope and dome, set them at their home positions,
      * open the shutter and start chilling the camera.
      * 
      * This {@link Mono} will not complete until the observatory is ready for use.
      * 
-     * Note: This method will not open the dome. 
+     * Note: This method will not open the dome nor slave it to the telescope.
      * 
      * @return A {@link Mono} that will complete when the observatory is ready for use.
      * 
@@ -230,7 +427,8 @@ public class ObservatoryService {
                             startCamera(tuple.getT3()))
                         .then()
                     )
-                );
+                ).doOnSubscribe(s -> this.isExecutingSlew.set(true))
+                .doOnTerminate(() -> this.isExecutingSlew.set(false));
     }
 
 
@@ -251,19 +449,20 @@ public class ObservatoryService {
     }
 
     private Mono<Void> startDomeAwait(DomeCapabilities capabilities) {
-        Mono<Void> ret = Mono.empty();
+        Mono<Void> ret = Mono.empty()
+                            .then()
+                            .doOnSubscribe(s -> altairSlaved.set(false));
 
         if (capabilities.canUnpark())
-            ret = dome.unparkAwait();
+            ret = dome.unparkAwait()
+                        .then()
+                        .doOnSubscribe(s -> altairSlaved.set(false));
 
         if (capabilities.canSlave())
             ret = ret.then(dome.setSlaved(false));
 
         if (capabilities.canFindHome())
             ret = ret.then(dome.findHomeAwait());
-
-        if (capabilities.canSlave())
-            ret = ret.then(dome.setSlaved(true));
 
         return ret;
     }
@@ -294,7 +493,8 @@ public class ObservatoryService {
                             stopCamera(tuple.getT3()))
                         .then()
                     )
-                );
+                ).doOnSubscribe(s -> this.isExecutingSlew.set(true))
+                .doOnTerminate(() -> this.isExecutingSlew.set(false));
     }
 
 
@@ -314,10 +514,14 @@ public class ObservatoryService {
     }
 
     private Mono<Void> stopDome(DomeCapabilities capabilities) {
-        Mono<Void> ret = Mono.empty();
+        Mono<Void> ret = Mono.empty()
+                            .then()
+                            .doOnSubscribe(s -> altairSlaved.set(false));
 
         if (capabilities.canSlave())
-            ret = dome.setSlaved(false);
+            ret = dome.setSlaved(false)
+                        .then()
+                        .doOnSubscribe(s -> altairSlaved.set(false));
         
         ret = ret.then(dome.halt());
 
@@ -341,11 +545,9 @@ public class ObservatoryService {
      * 
      * Note: This method will not disconnect the devices.
      * 
-     * @return A {@link Mono} that will complete when the observatory is in a safe state.
-     * 
-     * @throws DeviceUnavailableException If a device is unaccessible. 
+     * @return A {@link Mono} that will complete when the observatory is in a safe state. 
      */
-    public Mono<Void> stopAwait() throws DeviceUnavailableException {
+    public Mono<Void> stopAwait() {
         Mono<TelescopeCapabilities> telescopeCapabilities = telescope.getCapabilities();
         Mono<DomeCapabilities> domeCapabilities = dome.getCapabilities();
         Mono<CameraCapabilities> cameraCapabilities = camera.getCapabilities();
@@ -360,7 +562,8 @@ public class ObservatoryService {
                             stopCameraAwait(tuple.getT3()))
                         .then()
                     )
-                );
+                ).doOnSubscribe(s -> this.isExecutingSlew.set(true))
+                .doOnTerminate(() -> this.isExecutingSlew.set(false));
     }
 
 
@@ -380,10 +583,14 @@ public class ObservatoryService {
     }
 
     private Mono<Void> stopDomeAwait(DomeCapabilities capabilities) {
-        Mono<Void> ret = Mono.empty();
+        Mono<Void> ret = Mono.empty()
+                            .then()
+                            .doOnSubscribe(s -> altairSlaved.set(false));
 
         if (capabilities.canSlave())
-            ret = dome.setSlaved(false);
+            ret = dome.setSlaved(false)
+                        .then()
+                        .doOnSubscribe(s -> altairSlaved.set(false));
 
         ret = ret.then(dome.halt());
 
@@ -408,8 +615,407 @@ public class ObservatoryService {
     }
 
 
+    /**
+     * Aborts all operations in progress and puts the observatory into an idle.
+     * 
+     * Note: This method will not disconnect the devices nor will close the shutter.
+     * 
+     * @return A {@link Mono} that will complete inmidiately.
+     */
+    public Mono<Void> abort() {
+        Mono<TelescopeCapabilities> telescopeCapabilities = telescope.getCapabilities();
+        Mono<DomeCapabilities> domeCapabilities = dome.getCapabilities();
+
+        return connectAll()
+                .then(Mono
+                    .zip(telescopeCapabilities, domeCapabilities)
+                    .flatMap(tuple ->
+                        Mono.zip(
+                            abortTelescope(tuple.getT1()),
+                            abortDome(tuple.getT2()))
+                        .then()
+                    )
+                ).doOnSubscribe(s -> this.isExecutingSlew.set(true))
+                .doOnTerminate(() -> this.isExecutingSlew.set(false));
+    }
+
+    private Mono<Void> abortTelescope(TelescopeCapabilities capabilities) {
+        Mono<Void> ret = Mono.empty()
+                            .then()
+                            .doOnSubscribe(s -> altairSlaved.set(false));
+
+        if (capabilities.canTrack())
+            ret = telescope.setTracking(false);
+
+        if (capabilities.canSlew())
+            ret = ret.then(telescope.abortSlew());  
+
+        return ret;
+    }
+
+    private Mono<Void> abortDome(DomeCapabilities capabilities) {
+        Mono<Void> ret = Mono.empty()
+                        .then()
+                        .doOnSubscribe(s -> altairSlaved.set(false));
+
+        if (capabilities.canSlave())
+            ret = dome.setSlaved(false)
+                        .then()
+                        .doOnSubscribe(s -> altairSlaved.set(false));
+        
+        ret = ret.then(dome.halt());
+
+        return ret;
+    }
+
+
+    /**
+     * Slew the telescope and dome asynchronously to the given coordinates.
+     * 
+     * @param ra The right ascension in hours.
+     * @param dec The declination in degrees.
+     * 
+     * @return A {@link Mono} that will complete when the devices receive the
+     *         signal.
+     */
+    public Mono<Void> slewTogetherRaDec(double ra, double dec) {
+        Mono<TelescopeCapabilities> telescopeCapabilities = telescope.getCapabilities();
+        Mono<TelescopeStatus> telescopeStatus = telescope.getStatus();
+        Mono<DomeCapabilities> domeCapabilities = dome.getCapabilities();
+        Mono<DomeStatus> domeStatus = dome.getStatus();
+        Mono<double[]> asAltAz = ephemeridesSolver.raDecToAltAz(ra, dec);
+
+        return connectAll()
+                .then(Mono
+                    .zip(telescopeCapabilities, telescopeStatus, domeCapabilities, domeStatus, asAltAz)
+                    .flatMap(tuple ->
+                        Mono.zip(
+                            slewTelescopeRaDec(ra, dec, tuple.getT1(),tuple.getT2()),
+                            slewDome(tuple.getT5()[0], tuple.getT5()[1], tuple.getT3(),tuple.getT4())
+                        ).then()
+                    )
+                ).doOnSubscribe(s -> this.isExecutingSlew.set(true))
+                .doOnTerminate(() -> this.isExecutingSlew.set(false));   
+    }
+
+    /**
+     * Slew the telescope and dome asynchronously to the given coordinates.
+     * 
+     * @param alt The altitude in hours.
+     * @param az The azimuth in degrees.
+     * 
+     * @return A {@link Mono} that will complete when the devices receive the
+     *         signal.
+     */
+    public Mono<Void> slewTogetherAltAz(double alt, double az) {
+        Mono<TelescopeCapabilities> telescopeCapabilities = telescope.getCapabilities();
+        Mono<TelescopeStatus> telescopeStatus = telescope.getStatus();
+        Mono<DomeCapabilities> domeCapabilities = dome.getCapabilities();
+        Mono<DomeStatus> domeStatus = dome.getStatus();
+
+        return connectAll()
+                .then(Mono
+                    .zip(telescopeCapabilities, telescopeStatus, domeCapabilities, domeStatus)
+                    .flatMap(tuple ->
+                        Mono.zip(
+                            slewTelescopeAltAz(alt, az, tuple.getT1(),tuple.getT2()),
+                            slewDome(alt, az, tuple.getT3(),tuple.getT4())
+                        ).then()
+                    )
+                ).doOnSubscribe(s -> this.isExecutingSlew.set(true))
+                .doOnTerminate(() -> this.isExecutingSlew.set(false));
+    }
+
+
+    private Mono<Void> slewTelescopeRaDec(double ra, double dec, TelescopeCapabilities caps, TelescopeStatus status) {
+        Mono<Void> ret = Mono.empty();
+
+        // Start the telescope if it is not started
+        if (caps.canUnpark() && status.parked())
+            ret = telescope.unpark();
+
+        if (caps.canTrack())
+            ret = ret.then(telescope.setTracking(false));
+
+        if (caps.canFindHome() && !status.atHome())
+            ret = ret.then(telescope.findHome());
+
+        if (caps.canTrack())
+            ret = ret.then(telescope.setTracking(true));
+
+        if (caps.canSlew())
+            ret = ret.then(telescope.slewToCoords(ra, dec));
+
+        return ret;        
+    }
+
+    private Mono<Void> slewTelescopeAltAz(double alt, double az, TelescopeCapabilities caps, TelescopeStatus status) {
+        Mono<Void> ret = Mono.empty();
+
+        // Start the telescope if it is not started
+        if (caps.canUnpark() && status.parked())
+            ret = telescope.unpark();
+
+        if (caps.canTrack())
+            ret = ret.then(telescope.setTracking(false));
+
+        if (caps.canFindHome() && !status.atHome())
+            ret = ret.then(telescope.findHome());
+
+        if (caps.canTrack())
+            ret = ret.then(telescope.setTracking(true));
+
+        if (caps.canSlew())
+            ret = ret.then(telescope.slewToAltAz(alt, az));
+
+        return ret;        
+    }
+
+    @SuppressWarnings("java:S3776")
+    private Mono<Void> slewDome(double alt, double az, DomeCapabilities caps, DomeStatus status) {
+        Mono<Void> base = Mono.empty();
+
+        if (caps.canUnpark() && status.parked())
+            base = dome.unpark();
+
+        if (caps.canSlave())
+            base = base.then(dome.setSlaved(false));
+
+        if (caps.canFindHome() && !status.atHome())
+            base = base.then(dome.findHome());
+
+        Mono<Void> thread1 = Mono.empty();
+        Mono<Void> thread2 = Mono.empty();
+
+        if (caps.canShutter()) {
+            thread1 = dome.openShutter();
+            if (caps.canSetAltitude()) {
+                thread1 = thread1.then(dome.setAlt(alt));
+            }
+        }
+
+        if (caps.canSetAzimuth()) {
+            thread2 = dome.slew(az);
+        }
+
+        return base.then(Mono.zip(thread1, thread2).then());
+    }
+
+    /**
+     * Slew the telescope and dome synchronously to the given coordinates.
+     * 
+     * @param ra The right ascension in hours.
+     * @param dec The declination in degrees.
+     * 
+     * @return A {@link Mono} that will complete when the devices end the slew.
+     */
+    public Mono<Void> slewTogetherRaDecAwait(double ra, double dec) {
+        Mono<TelescopeCapabilities> telescopeCapabilities = telescope.getCapabilities();
+        Mono<TelescopeStatus> telescopeStatus = telescope.getStatus();
+        Mono<DomeCapabilities> domeCapabilities = dome.getCapabilities();
+        Mono<DomeStatus> domeStatus = dome.getStatus();
+        Mono<double[]> asAltAz = ephemeridesSolver.raDecToAltAz(ra, dec);
+
+        return connectAll()
+                .then(Mono
+                    .zip(telescopeCapabilities, telescopeStatus, domeCapabilities, domeStatus, asAltAz)
+                    .flatMap(tuple ->
+                        Mono.zip(
+                            slewTelescopeRaDecAwait(ra, dec, tuple.getT1(),tuple.getT2()),
+                            slewDomeAwait(tuple.getT5()[0], tuple.getT5()[1], tuple.getT3(),tuple.getT4())
+                        ).then()
+                    )
+                ).doOnSubscribe(s -> this.isExecutingSlew.set(true))
+                .doOnTerminate(() -> this.isExecutingSlew.set(false));
+    }
+
+    /**
+     * Slew the telescope and dome synchronously to the given coordinates.
+     * 
+     * @param alt The altitude in hours.
+     * @param az The azimuth in degrees.
+     * 
+     * @return A {@link Mono} that will complete when the devices end the slew.
+     */
+    public Mono<Void> slewTogetherAltAzAwait(double alt, double az) {
+        Mono<TelescopeCapabilities> telescopeCapabilities = telescope.getCapabilities();
+        Mono<TelescopeStatus> telescopeStatus = telescope.getStatus();
+        Mono<DomeCapabilities> domeCapabilities = dome.getCapabilities();
+        Mono<DomeStatus> domeStatus = dome.getStatus();
+
+        return connectAll()
+                .then(Mono
+                    .zip(telescopeCapabilities, telescopeStatus, domeCapabilities, domeStatus)
+                    .flatMap(tuple ->
+                        Mono.zip(
+                            slewTelescopeAltAzAwait(alt, az, tuple.getT1(),tuple.getT2()),
+                            slewDomeAwait(alt, az, tuple.getT3(),tuple.getT4())
+                        ).then()
+                    )
+                ).doOnSubscribe(s -> this.isExecutingSlew.set(true))
+                .doOnTerminate(() -> this.isExecutingSlew.set(false));
+    }
+
+    private Mono<Void> slewTelescopeRaDecAwait(double ra, double dec, TelescopeCapabilities caps, TelescopeStatus status) {
+        Mono<Void> ret = Mono.empty();
+
+        // Start the telescope if it is not started
+        if (caps.canUnpark() && status.parked())
+            ret = telescope.unparkAwait();
+
+        if (caps.canTrack())
+            ret = ret.then(telescope.setTracking(false));
+
+        if (caps.canFindHome() && !status.atHome())
+            ret = ret.then(telescope.findHomeAwait());
+
+        if (caps.canTrack())
+            ret = ret.then(telescope.setTracking(true));
+
+        if (caps.canSlew())
+            ret = ret.then(telescope.slewToCoordsAwait(ra, dec));
+
+        return ret;        
+    }
+
+    private Mono<Void> slewTelescopeAltAzAwait(double alt, double az, TelescopeCapabilities caps, TelescopeStatus status) {
+        Mono<Void> ret = Mono.empty();
+
+        // Start the telescope if it is not started
+        if (caps.canUnpark() && status.parked())
+            ret = telescope.unparkAwait();
+
+        if (caps.canTrack())
+            ret = ret.then(telescope.setTracking(false));
+
+        if (caps.canFindHome() && !status.atHome())
+            ret = ret.then(telescope.findHomeAwait());
+
+        if (caps.canTrack())
+            ret = ret.then(telescope.setTracking(true));
+
+        if (caps.canSlew())
+            ret = ret.then(telescope.slewToAltAzAwait(alt, az));
+
+        return ret;        
+    }
+
+    @SuppressWarnings("java:S3776")
+    private Mono<Void> slewDomeAwait(double alt, double az, DomeCapabilities caps, DomeStatus status) {
+        Mono<Void> base = Mono.empty();
+
+        if (caps.canUnpark() && status.parked())
+            base = dome.unparkAwait();
+
+        if (caps.canSlave())
+            base = base.then(dome.setSlaved(false));
+
+        if (caps.canFindHome() && !status.atHome())
+            base = base.then(dome.findHomeAwait());
+
+        Mono<Void> thread1 = Mono.empty();
+        Mono<Void> thread2 = Mono.empty();
+
+        if (caps.canShutter()) {
+            thread1 = dome.openShutterAwait();
+            if (caps.canSetAltitude()) {
+                thread1 = thread1.then(dome.setAltAwait(alt));
+            }
+        }
+
+        if (caps.canSetAzimuth()) {
+            thread2 = dome.slewAwait(az);
+        }
+
+        return base.then(Mono.zip(thread1, thread2).then());
+    }
+
 
     //#region Image processing
+
+    /**
+     * Starts an exposure with the given parameters.
+     * 
+     * @param params The exposure parameters.
+     * @return A {@link Mono} that will complete when the exposure has started. 
+     */
+    public Mono<Void> startExposure(ExposureParams params) {
+        double duration = params.getExposureTime(); 
+        boolean lightFrame = params.isLightFrame();
+        int binX = params.getBinX();
+        int binY = params.getBinY();
+        
+        boolean useSubFrame = !isNull(params.getSubFrameX(),
+                                        params.getSubFrameY(),
+                                        params.getSubFrameWidth(),
+                                        params.getSubFrameHeight());
+
+        if (useSubFrame) {
+            int[] subFrame = new int[] {
+                    params.getSubFrameX(),
+                    params.getSubFrameY(),
+                    params.getSubFrameWidth(),
+                    params.getSubFrameHeight()
+                };
+
+            return camera
+                    .startExposure(
+                        duration,
+                        lightFrame,
+                        subFrame,
+                        binX,
+                        binY
+                    );
+        } else {
+            return camera.getCapabilities().flatMap(caps -> {
+                int[] subFrame = new int[] {
+                        0,
+                        0,
+                        caps.sensorX(),
+                        caps.sensorY()
+                    };
+                return camera
+                        .startExposure(
+                            duration,
+                            lightFrame,
+                            subFrame,
+                            binX,
+                            binY
+                        );
+            });
+        }
+    }
+
+    /**
+     * Returns if any of the given objects is null.
+     * @param objects The objects to check.
+     * @return True if any of the objects is null, false otherwise.
+     */
+    private boolean isNull (Object ...objects) {
+        if (objects == null) return true;
+
+        for (Object object : objects) {
+            if (object == null) return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Waits for the exposure to complete.
+     * 
+     * @param timeout The timeout for the wait.
+     * @return A {@link Mono} that will complete when there is an image ready.
+     */
+    public Mono<Void> waitForExposure(Duration timeout) {
+        return Flux.interval(Duration.ofMillis(config.getStatusUpdateInterval()))
+                .flatMap(i -> camera.isImageReady()
+                    .filter(Boolean.TRUE::equals)
+                    .flatMap(ready -> Mono.empty())
+                ).next()
+                .timeout(timeout)
+                .then();
+    }
 
     /**
      * Gets the latest image from the camera, adding all available metadata
@@ -762,6 +1368,60 @@ public class ObservatoryService {
     //#endregion
 
     //#endregion
+    /////////////////////////////// WORKERS ///////////////////////////////////
+    //#region Workers
+
+    /**
+     * Altair manual slaving worker, every 30 seconds tries to update the
+     * position of the dome to match the telescope's position.
+     */
+    @Scheduled(fixedDelay = 30, timeUnit = TimeUnit.SECONDS)
+    public void updateSlaving() {
+        // If it's not using Altair slaving, or it's currently slewing, do nothing
+        if (!useAltairSlaving.get() || !altairSlaved.get() || isExecutingSlew.get())
+            return;
+
+        Mono<TelescopeCapabilities> telescopeCapsMono = telescope.getCapabilities();
+        Mono<DomeCapabilities> domeCapsMono = dome.getCapabilities();
+        Mono<TelescopeStatus> telescopeStatusMono = telescope.getStatus();
+        Mono<DomeStatus> domeStatusMono = dome.getStatus();
+
+        Mono<Double[]> whereTo = Mono
+            .zip(telescopeCapsMono, domeCapsMono, telescopeStatusMono, domeStatusMono)
+            .flatMap(tuples -> {
+                TelescopeCapabilities telescopeCaps = tuples.getT1();
+                DomeCapabilities domeCaps = tuples.getT2();
+                TelescopeStatus telescopeStatus = tuples.getT3();
+                DomeStatus domeStatus = tuples.getT4();
+
+                boolean tsOn = telescopeStatus.connected();
+                boolean dmOn = domeStatus.connected();
+                boolean dmIsParked = domeStatus.parked();
+                boolean syncAlt = telescopeCaps.canSlew() && domeCaps.canSetAltitude();
+                boolean syncAz = telescopeCaps.canSlew() && domeCaps.canSetAzimuth();
+
+                if (!tsOn || !dmOn || dmIsParked)
+                    return Mono.just(new Double[] { Double.NaN, Double.NaN });
+
+                double alt = syncAlt ? telescopeStatus.altitude() : Double.NaN;
+                double az = syncAz ? telescopeStatus.azimuth() : Double.NaN;
+                return Mono.just(new Double[] { alt, az });
+            });
+        
+        Double[] altAz = whereTo.block(Duration.ofSeconds(5));
+
+        
+        Mono<Void> slewAlt = Mono.empty();
+        Mono<Void> slewAz = Mono.empty();
+        if (altAz != null && altAz[0] != null && Double.isNaN(altAz[0]))
+            slewAlt = dome.setAltAwait(altAz[0]);
+        if (altAz != null && altAz[1] != null && Double.isNaN(altAz[1]))
+            slewAz = dome.slewAwait(altAz[1]);
+
+        Mono.zip(slewAlt, slewAz).block(Duration.ofMinutes(5));
+    }
+
+    //#endregion
     //////////////////////////// STATUS REPORTING /////////////////////////////
     //#region Status Reporting
 
@@ -778,39 +1438,15 @@ public class ObservatoryService {
             camera.getStatus(),
             filterWheel.getStatus(),
             weatherWatch.getStatus()
-        ).map(tuple -> new ObservatoryStatus(tuple.getT1(), tuple.getT2(), tuple.getT3(), tuple.getT4(), tuple.getT5(), tuple.getT6())); 
+        ).map(tuple -> new ObservatoryStatus(this.altairSlaved.get(), tuple.getT1(), tuple.getT2(), tuple.getT3(), tuple.getT4(), tuple.getT5(), tuple.getT6())); 
     }
 
     //#endregion
     //////////////////////////////// RECORDS //////////////////////////////////
     //#region Records
 
-    // TODO: Move to Governor
-    /**
-     * Represents the status of the observatory.
-     */
-    // public enum State {
-    //     /** An admin has disabled Altair. Same as OFF, but the scheduler should not start. */
-    //     DISABLED,
-    //     /** Telescope is off and device services are disconnected (should allow other apps to connect). */
-    //     OFF,
-    //     /** Telescope is parked and ready to be used. */
-    //     PARKED,
-    //     /** Telescope is managed by Altair, but not in use. */
-    //     IDLE,
-    //     /** Telescope is performing a {@link ProgramOrder}. */
-    //     RUNNING_PROGRAM,
-    //     /** Telescope is being used manually by an advanced user. */
-    //     MANUAL,
-    //     /** Telescope is being used manually by an admin. */
-    //     ADMIN,
-    //     /** Telescope is slewing or performing a job that shouldn't be interrupted. */
-    //     BUSY,
-    //     /** Telescope is in an error state and must be reset by an admin or physically fixed. */
-    //     ERROR
-    // }
-
     public record ObservatoryStatus(
+        boolean slaved,
         TelescopeStatus telescope,
         DomeStatus dome,
         FocuserStatus focuser,

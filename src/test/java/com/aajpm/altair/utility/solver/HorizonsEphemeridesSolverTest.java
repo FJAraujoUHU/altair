@@ -60,6 +60,33 @@ public class HorizonsEphemeridesSolverTest {
     }
 
     @Test
+    void testGetNightTime() {
+        EphemeridesSolver solver = new HorizonsEphemeridesSolver(config);
+
+        Interval expectedNightTime = new Interval(Instant.parse("2012-12-31T18:53:00Z"),Instant.parse("2013-01-01T06:08:00Z"));
+        Interval nightTime = solver.getNightTime(Instant.parse("2012-12-31T17:23:00Z")).block();
+
+        assertEquals(expectedNightTime, nightTime);
+    }
+
+    @Test
+    void tesGetNightTimeMidnightSun() {
+        AstrometricsConfig northPole = new AstrometricsConfig();
+        northPole.setSiteLatitude(87.5);
+        northPole.setSiteLongitude(0.0);
+        northPole.setSiteElevation(0.0);
+        northPole.setHorizonLine(0.0);
+        northPole.setDawnLine(-18.0);
+
+        EphemeridesSolver solver = new HorizonsEphemeridesSolver(northPole);
+
+        Interval expectedNightTime = new Interval(Instant.parse("2023-11-07T21:45:00Z"),Instant.parse("2023-11-08T01:45:00Z"));
+        Interval nightTime = solver.getNightTime(Instant.parse("2023-06-25T18:00:00Z")).block();
+
+        assertEquals(expectedNightTime, nightTime);
+    }
+
+    @Test
     void testLST() {
         EphemeridesSolver solver = new HorizonsEphemeridesSolver(config);
 

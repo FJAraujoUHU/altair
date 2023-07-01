@@ -1,16 +1,20 @@
 package com.aajpm.altair.utility.solver;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.util.UriBuilder;
@@ -47,6 +51,8 @@ public class HorizonsEphemeridesSolver extends EphemeridesSolver {
         super(config);
         client = WebClient.builder()
                 .baseUrl("https://ssd.jpl.nasa.gov/api/")
+                // Increase the maximum in-memory size to 16MB to allow for large responses
+                .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(16*1024*1024))
                 .build();
 
         // Set the base parameters for the calls
@@ -162,6 +168,82 @@ public class HorizonsEphemeridesSolver extends EphemeridesSolver {
             });
         });
     }
+
+    /**
+     * {@inheritDoc}
+     * 
+     * <p>This method can be slow as it has to make a call to the Horizons API
+     * which may contain a lot of data.
+     */
+    @Override
+    public Mono<Interval> getNightTime(Instant start)    {
+        // Check if the site is above the arctic/antartic circle
+        boolean mayMidnightSun = Math.abs(this.getConfig().getSiteLatitude()) > 65;
+        int searchIntervalDays = mayMidnightSun ? 200 : 1;
+
+        Interval searchInterval = new Interval( start,
+                                                start.plus(
+                                                    Duration.ofDays(searchIntervalDays)
+                                                ));
+
+        Map<String, String> params = new HashMap<>(baseParams);
+        baseParams.put("EXTRA_PREC", "NO");
+        params.put("COMMAND", "10");
+        params.put("QUANTITIES", "4");
+        params.put("ANG_FORMAT", "DEG");
+        params.put("SKIP_DAYLT", "YES");
+        params.put("START_TIME", searchInterval.getStart().toString().replace("T", " ").replace("Z", ""));
+        params.put("STOP_TIME", searchInterval.getEnd().toString().replace("T", " ").replace("Z", ""));
+        params.put("STEP_SIZE", mayMidnightSun ? "15m" : "5m");
+        params.put("ELEV_CUT", Double.toString(config.getDawnLine()));
+
+        // Get the date of last line before the cutoff
+        return getReq(params).flatMap(response -> {
+            List<String> ephemerides = Arrays.stream(response.split("\n"))
+                                        .dropWhile(line -> !line.contains("$$SOE"))
+                                        .skip(1)
+                                        .takeWhile(line -> !line.contains("$$EOE"))
+                                        .filter(line -> !line.isBlank())
+                                        .map(String::trim)
+                                        .collect(Collectors.toList());
+
+            
+            if (ephemerides.isEmpty() || ephemerides.get(0).contains("No ephemeris")) {
+                return Mono.error(new SolverException("Horizons returned no ephemeris for Sol"));
+            }
+
+            boolean isNight = ephemerides.get(0).contains("Elevation Cut-off");
+
+            Instant retStart = isNight ? searchInterval.getStart() : null;
+            Instant retEnd = null;
+
+            if (isNight) {
+                retStart = searchInterval.getStart();
+                retEnd = parseHorizonsDate(ephemerides.get(1).split(",")[0].trim());
+
+                return Mono.just(new Interval(retStart, retEnd));
+            }
+
+            // find the first "Elevation Cut-off"
+            int elevCut = IntStream.range(0, ephemerides.size())
+                                    .filter(i -> ephemerides.get(i).contains("Elevation Cut-off"))
+                                    .findFirst()
+                                    .orElse(-1);
+                
+            if (elevCut == -1 || elevCut >= ephemerides.size() - 2) {
+                return Mono.error(new SolverException("Horizons could not find astronomical dawn"));
+            }
+
+            retStart = parseHorizonsDate(ephemerides.get(elevCut - 1).split(",")[0].trim());
+            retEnd = parseHorizonsDate(ephemerides.get(elevCut + 1).split(",")[0].trim());
+            return Mono.just(new Interval(retStart, retEnd));
+        });   
+    }
+
+
+
+
+
 
     /**
      * {@inheritDoc}
@@ -288,6 +370,8 @@ public class HorizonsEphemeridesSolver extends EphemeridesSolver {
         
         return useHoursInstead ? lst / 15.0 : lst;
     }
+    
+
     
     /**
      * {@inheritDoc}

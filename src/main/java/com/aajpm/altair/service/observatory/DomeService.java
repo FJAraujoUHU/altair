@@ -38,6 +38,9 @@ public abstract class DomeService {
 
     /**
      * Returns true if the dome is currently slaved to the telescope.
+     * 
+     * A slaved dome will automatically move to keep the telescope in view in
+     * both altitude and azimuth.
      * @return True if the dome is currently slaved to the telescope, false otherwise.
      * @throws DeviceException If there was an error polling the data.
      */
@@ -315,6 +318,9 @@ public abstract class DomeService {
 
     /**
      * Sets if the dome is slaved to the telescope.
+     * 
+     * A slaved dome will automatically move to keep the telescope in view in
+     * both altitude and azimuth.
      * @throws DeviceException If there was an error slaving the dome.
      */
     public abstract Mono<Void> setSlaved(boolean slaved) throws DeviceException;
