@@ -183,13 +183,15 @@ public class CameraAPIController {
                 }).map(path -> 
                     ResponseEntity.ok()
                         .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + path.getFileName().toString() + "\"")
-                        .body(new FileSystemResource(path.toFile()))
-                );
+                        .body(new FileSystemResource(path.toFile())));
     }
 
     @PostMapping(value = "/dumpimage", produces = MediaType.APPLICATION_OCTET_STREAM_VALUE)
-    public @ResponseBody Mono<Resource> dumpImage() {
-        return camera.dumpImage().map(FileSystemResource::new);
+    public @ResponseBody Mono<ResponseEntity<Resource>> dumpImage() {
+        return camera.dumpImage().map(path -> 
+                    ResponseEntity.ok()
+                        .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + path.getFileName().toString() + "\"")
+                        .body(new FileSystemResource(path.toFile())));
     }
 
 }
