@@ -367,6 +367,27 @@ $(document).ready(function () {
             xhrFields: {
                 responseType: 'blob'
             },
+            success: function (response, status, xhr) {
+                let filename = '';
+                let disposition = xhr.getResponseHeader('Content-Disposition');
+
+                if (disposition && disposition.indexOf('attachment') !== -1) {
+                    let filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
+                    let matches = filenameRegex.exec(disposition);
+                    if (matches?.[1]) {
+                        filename = matches[1].replace(/['"]/g, '');
+                    }
+                }
+
+                // Create a temporary anchor element to download the file
+                let url = URL.createObjectURL(response);
+                let link = document.createElement('a');
+                link.href = url;
+                link.download = filename || 'dump.dat';
+                link.style.display = 'none';
+                link.click();
+                URL.revokeObjectURL(url);
+            },
             error: function (xhr, status, error) {
                 console.log("Error: " + error);
             }

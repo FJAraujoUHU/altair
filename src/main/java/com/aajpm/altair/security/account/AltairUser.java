@@ -205,6 +205,18 @@ public class AltairUser extends BasicEntity implements UserDetails {
     /////////////////////////////// METHODS ////////////////////////////////
     //#region Methods
 
+    /**
+     * Checks if the user is an admin
+     * @return true if the user is an admin, false otherwise
+     */
+    public boolean isAdmin() {
+        return roles.stream()
+                .anyMatch(r -> 
+                    r.getName().equals("ROLE_ADMIN") ||
+                    r.getName().equals("ADMIN")
+                );
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o)

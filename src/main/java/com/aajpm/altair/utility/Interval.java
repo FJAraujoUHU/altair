@@ -206,7 +206,7 @@ public class Interval implements Serializable {
     }
 
     /**
-     * Returns whether the given interval is before this interval.
+     * Returns whether this interval is before the given interval.
      * 
      * @param interval The interval to check.
      * 
@@ -222,7 +222,7 @@ public class Interval implements Serializable {
     }
 
     /**
-     * Returns whether the given instant is before this interval.
+     * Returns whether this interval is before the given instant.
      * 
      * @param instant The instant to check.
      * 
@@ -237,7 +237,7 @@ public class Interval implements Serializable {
     }
 
     /**
-     * Returns whether the given interval is after this interval.
+     * Returns whether this interval is after the given interval.
      * 
      * @param interval The interval to check.
      * 
@@ -252,7 +252,7 @@ public class Interval implements Serializable {
     }
 
     /**
-     * Returns whether the given instant is after this interval.
+     * Returns whether this interval is after the given instant.
      * 
      * @param instant The instant to check.
      * 
@@ -264,6 +264,15 @@ public class Interval implements Serializable {
         if (this.isEmpty())
             throw new IllegalStateException("Trying to operate on an empty interval");
         return instant.isBefore(start);
+    }
+
+    /**
+     * Returns whether this interval's end is before the actual time.
+     * @return {@code True} if this interval's end is before the actual time,
+     *         {@code False} otherwise
+     */    
+    public boolean hasElapsed() {
+        return getEnd().isBefore(Instant.now());
     }
 
     /**
@@ -321,6 +330,41 @@ public class Interval implements Serializable {
     @Override
     public String toString() {
         return "[" + start + " -> " + this.getEnd() + "]";
+    }
+
+    /**
+     * Returns a string representation of the duration of this interval.
+     * <p> The string is formatted as {@code Xd Yh Zm As}, where X, Y, Z and A
+     * are the number of days, hours, minutes and seconds respectively.
+     * If the duration is less than 1 hour, the seconds are shown with
+     * millisecond precision.
+     * 
+     * @return A string representation of the duration of this interval.
+     */
+    public String toDurationString() {
+        StringBuilder sb = new StringBuilder();
+
+        long days = getDuration().toDaysPart();
+        long hours = getDuration().toHoursPart();
+        long minutes = getDuration().toMinutesPart();
+        long seconds = getDuration().toSecondsPart();
+        long millis = getDuration().toMillisPart();
+
+        if (days > 0)
+            sb.append(days).append("d ");
+        if (hours > 0)
+            sb.append(hours).append("h ");
+        if (minutes > 0)
+            sb.append(minutes).append("m ");
+        if (seconds > 0) {
+            if (millis > 0 && days == 0 && hours == 0)
+                // Only show millis if duration is less than 1 hour
+                sb.append(seconds).append(".").append(millis).append("s");
+            else
+                sb.append(seconds).append("s");
+        }
+
+        return sb.toString();
     }
     
     

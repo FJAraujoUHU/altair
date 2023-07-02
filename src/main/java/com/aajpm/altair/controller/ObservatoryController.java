@@ -24,6 +24,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 // TODO: Add Governor panel and controller
+// TODO: Add Admin panel with CRUD for all services
 @Controller
 @RequestMapping("/altair/observatory")
 public class ObservatoryController {

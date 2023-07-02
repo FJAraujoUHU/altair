@@ -150,7 +150,7 @@ public class ObservatoryService {
     }
 
     /**
-     * Checks who is currentl by slaving the dome.
+     * Checks who is currently slaving the dome.
      * @return A {@link Mono} that will complete with a {@link Boolean} that will
      *         be true if Altair is manually slaving the dome, or false if it's
      *         using the dome's native slaving.
@@ -1520,7 +1520,7 @@ public class ObservatoryService {
             camera.getStatus(),
             filterWheel.getStatus(),
             weatherWatch.getStatus()
-        ).map(tuple -> new ObservatoryStatus(this.altairSlaved.get(), tuple.getT1(), tuple.getT2(), tuple.getT3(), tuple.getT4(), tuple.getT5(), tuple.getT6())); 
+        ).map(tuple -> new ObservatoryStatus(useAltairSlaving.get(), altairSlaved.get(), tuple.getT1(), tuple.getT2(), tuple.getT3(), tuple.getT4(), tuple.getT5(), tuple.getT6())); 
     }
 
     //#endregion
@@ -1528,6 +1528,7 @@ public class ObservatoryService {
     //#region Records
 
     public record ObservatoryStatus(
+        boolean useAltairSlaving,
         boolean slaved,
         TelescopeStatus telescope,
         DomeStatus dome,

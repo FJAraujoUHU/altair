@@ -18,6 +18,7 @@ import com.aajpm.altair.entity.*;
 import com.aajpm.altair.security.account.AltairUser;
 import com.aajpm.altair.service.observatory.DomeService;
 import com.aajpm.altair.utility.Interval;
+import com.aajpm.altair.utility.exception.UnauthorisedException;
 import com.aajpm.altair.utility.solver.EphemeridesSolver;
 
 import nom.tam.fits.FitsException;
@@ -37,6 +38,8 @@ public class GovernorService {
     private Interval currentOrderInterval = null;
 
     private Interval nextNight = null;
+
+    private AltairUser currentUser = null;
 
 
     //#region Flags    
@@ -130,13 +133,60 @@ public class GovernorService {
     }
 
     /**
+     * Gets the current status of the governor.
+     * @return the current status of the governor.
+     */
+    public Mono<GovernorStatus> getStatus() {
+        Mono<String> stateMono = getState().map(State::toString).onErrorReturn("ERROR");
+        Mono<Boolean> isSafeMono = observatoryService.isSafe().onErrorReturn(false);
+        Mono<Boolean> isSafeOverrideMono = Mono.just(safeFlag.get());
+        String currentOrderStr;
+        if (currentOrder instanceof ProgramOrder) {
+            ProgramOrder programOrder = (ProgramOrder) currentOrder;
+            currentOrderStr = String.format("%s [ID: %d]", programOrder.getProgram().getName(), programOrder.getId());
+        } else if (currentOrder != null) {
+            currentOrderStr = String.format("[ID: %d]", currentOrder.getId());
+        } else {
+            currentOrderStr = "None";
+        }
+        Mono<String> currentOrderMono = Mono.just(currentOrderStr);
+        Mono<String> currentOrderRemainingTimeMono = Mono.just((currentOrderInterval == null || currentOrderInterval.hasElapsed())
+                                                        ? "N/A"
+                                                        : (new Interval(Instant.now(), currentOrderInterval.getEnd()).toDurationString()));
+        Mono<String> currentUserMono = Mono.just(getCurrentUser() == null ? "None" : getCurrentUser().getUsername());
+        Mono<String> nextNightMono = Mono.just(nextNight == null ? "None" : nextNight.toString());
+
+        Mono<String> useAltairSlaving = observatoryService.isAltairSlaving()
+                                        .map(use -> Boolean.TRUE.equals(use) ? "Altair":"Native").onErrorReturn("Unknown");
+        Mono<String> isSlaved = observatoryService.isSlaved().onErrorReturn(false)
+                                        .map(slaved -> Boolean.TRUE.equals(slaved) ? "Slaved":"Not slaved").onErrorReturn("Unknown");
+        Mono<String> slavingMono = useAltairSlaving.zipWith(isSlaved, (use, slaved) -> String.format("%s (%s)", slaved, use));
+
+        return Mono.zip(stateMono, isSafeMono, isSafeOverrideMono, currentOrderMono, currentOrderRemainingTimeMono, currentUserMono, nextNightMono, slavingMono)
+                    .map(tuple -> new GovernorStatus(
+                        tuple.getT1(),
+                        tuple.getT2(),
+                        tuple.getT3(),
+                        tuple.getT4(),
+                        tuple.getT5(),
+                        tuple.getT6(),
+                        tuple.getT7(),
+                        tuple.getT8()
+                    ));
+    }
+
+    /**
      * Get the user whose order is currently being executed.
      * 
      * @return the user whose order is currently being executed,
      *         or null if no order is being executed.
      */
     public AltairUser getCurrentUser() {
-        return currentOrder == null ? null : currentOrder.getUser();   
+        if (currentOrder == null) {
+            return currentUser;
+        } else {
+            return currentOrder.getUser();
+        }
     }
 
     /**
@@ -146,12 +196,121 @@ public class GovernorService {
         return currentOrder;
     }
 
+    /**
+     * @return If the governor is enabled
+     */
+    public boolean isEnabled() {
+        return enabledFlag.get();
+    }
+
     //#endregion
     ///////////////////////////// SETTERS/ACTIONS /////////////////////////////
     //#region Setters/Actions
 
+    /**
+     * Enables the governor.
+     */
+    public void enable() {
+        enabledFlag.set(true);
+    }
 
-    //#region Job stuff
+    /**
+     * Disables the governor.
+     */
+    public void disable() {
+        enabledFlag.set(false);
+    }
+
+    /**
+     * Connects all the devices of the observatory.
+     * 
+     * @return A {@link Mono} that will complete inmidiately.
+     *         If an error occurs, it will complete with an error.
+     */
+    public Mono<Void> connectAll() {
+        return observatoryService.connectAll();
+    }
+
+    /**
+     * Disconnects all the devices of the observatory.
+     * 
+     * @return A {@link Mono} that will complete inmidiately.
+     *         If an error occurs, it will complete with an error.
+     */
+    public Mono<Void> disconnectAll() {
+        return observatoryService.disconnectAll();
+    }
+
+    /**
+     * Sets the governor to admin mode.
+     * 
+     * @param admin the admin user.
+     * @throws UnauthorisedException if the user is not an admin.
+     */
+    public void enterAdminMode(AltairUser admin) throws UnauthorisedException {
+        if (admin == null)
+            throw new UnauthorisedException("Must provide an admin user");
+        if (!admin.isAdmin())
+            throw new UnauthorisedException(admin);
+
+        this.abortOrder();
+        currentUser = admin;
+        adminMode.set(true);
+    }
+
+    /**
+     * Exits admin mode.
+     * 
+     * @param admin the admin user.
+     * @throws IllegalStateException if not already in admin mode.
+     * @throws UnauthorisedException if the user is not an admin.
+     */
+    public void exitAdminMode(AltairUser admin) throws IllegalStateException, UnauthorisedException {
+        if (!adminMode.get())
+            throw new IllegalStateException("Not in admin mode");
+        if (admin == null)
+            throw new UnauthorisedException("Must provide an admin user");
+        if (!admin.isAdmin())
+            throw new UnauthorisedException(admin);
+        
+        currentUser = null;
+        adminMode.set(false);
+    }
+
+    /**
+     * Sets whether the governor should ignore the safety checks.
+     * 
+     * NOTE: This might be dangerous, so use with caution.
+     * @param ignoreIsSafe whether the governor should ignore the safety checks.
+     */
+    public void setSafeOverride(boolean ignoreIsSafe) {
+        safeFlag.set(ignoreIsSafe);
+    }
+
+    /**
+     * Enables/disables dome slaving.
+     * 
+     * @param slaving If true, the dome will be slaved to the telescope.
+     *                If false, the dome will be free to move independently.
+     * 
+     * @return A {@link Mono} that will complete as soon as the changes apply.
+     */
+    public Mono<Void> setSlaving(boolean slaved) {
+        return observatoryService.setSlaving(slaved);
+    }
+
+    /**
+     * Sets the slaving mode of the dome.
+     * 
+     * @param useAltairSlaving If true, Altair will periodically sync the dome's
+     *                          position to the telescope. Otherwise, it will use
+     *                          the dome's native slaving.
+     * @return A {@link Mono} that will complete as soon as the changes apply.
+     */
+    public Mono<Void> useAltairSlaving(boolean useAltairSlaving) {
+        return observatoryService.useAltairSlaving(useAltairSlaving);
+    }
+
 
     /**
      * Starts the current order.
@@ -185,7 +344,7 @@ public class GovernorService {
         }
     }
 
-    //#region startOrder() helpers
+    //#region startOrder helpers
     private void startControlOrder(ControlOrder order) {
         currentOrder = order;
         currentOrderInterval = order.getRequestedInterval();
@@ -240,6 +399,9 @@ public class GovernorService {
     }
     //#endregion
 
+    /**
+     * Aborts the current order, manages the order's status and goes to IDLE.
+     */
     public void abortOrder() {
         try {
             busyFlag.set(true);
@@ -260,6 +422,10 @@ public class GovernorService {
         }
     }
 
+    /**
+     * Aborts the current order, manages the order's status and goes to IDLE.
+     * @return a Mono that executes the abort order and completes when the order is aborted.
+     */
     public Mono<Void> abortOrderMono() {
         return observatoryService.abort()
                 .doOnSubscribe(s -> busyFlag.set(true))
@@ -271,6 +437,9 @@ public class GovernorService {
                 });
     }
 
+    /**
+     * Ends the current order, manages the order's completion status and goes to IDLE.
+     */
     public void endOrder() {
         try {
             busyFlag.set(true);
@@ -356,9 +525,6 @@ public class GovernorService {
             }
         }
     }
-
-
-    //#endregion
 
     //#endregion
     /////////////////////////////// WORKERS ///////////////////////////////////
@@ -627,6 +793,24 @@ public class GovernorService {
         /** Telescope is in an error state and must be reset by an admin or physically fixed. */
         ERROR
     }
+
+    public record GovernorStatus(
+        /** Current state of the governor, as a String */
+        String state,
+        /** ObservatoryService.isSafe() */
+        boolean isSafe,
+        /** If isSafe should be ignored */
+        boolean isSafeOverride,
+        /** Current order, as "Name (ID: XX)" */
+        String currentOrder,
+        /** Remaining time in current order, as {@code Xd Yh Zm As} */
+        String currentOrderRemainingTime,
+        String currentUser,
+        /** Value of nextNight, as DateStart -> DateEnd */
+        String nextNight,
+        /** Slaving status, as "useAltairSlaving (slaving)" */
+        String slaving
+    ) {}
 
     //#endregion
 

@@ -11,6 +11,7 @@ import org.springframework.web.reactive.function.client.WebClientException;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 import com.aajpm.altair.security.account.AltairUser;
+import com.aajpm.altair.security.account.AltairUserService;
 import com.aajpm.altair.utility.exception.ASCOMException;
 import com.aajpm.altair.utility.exception.DeviceUnavailableException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -23,7 +24,12 @@ import reactor.netty.http.client.HttpClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-// TODO: Refactor clientID to use getPrincipal()?
+/**
+ * A client for the Alpaca API.
+ * 
+ * It can be used to send requests to the Alpaca API, and will automatically handle
+ * the response and throw exceptions if necessary.
+ */
 public class AlpacaClient {
 
     WebClient alpaca;
@@ -177,7 +183,7 @@ public class AlpacaClient {
      * @throws WebClientException If the command could not be processed by the server
      */
     public Mono<JsonNode> get(String shortEndpoint) throws WebClientException {
-        String url = "/api/v1/" + shortEndpoint + "?clientid=" + clientID + "&clienttransactionid=" + transactionCounter++;
+        String url = "/api/v1/" + shortEndpoint + "?clientid=" + getClientID() + "&clienttransactionid=" + transactionCounter++;
 
         return makeManualGetReq(url).flatMap(json -> {
             if (json == null)
@@ -256,7 +262,7 @@ public class AlpacaClient {
         else
             body = new LinkedMultiValueMap<>(args);
         
-        body.add("ClientID", Integer.toString(clientID));
+        body.add("ClientID", Long.toString(getClientID()));
         body.add("ClientTransactionID", Integer.toString(transactionCounter++));
 
         return makeManualPutReq(url, body).flatMap(json -> {
@@ -306,7 +312,7 @@ public class AlpacaClient {
         else
             body = new LinkedMultiValueMap<>(args);
         
-        body.add("ClientID", Integer.toString(clientID));
+        body.add("ClientID", Long.toString(getClientID()));
         body.add("ClientTransactionID", Integer.toString(transactionCounter++));
 
         JsonNode response = makeManualPutReqAwait(url, body);
@@ -334,4 +340,26 @@ public class AlpacaClient {
         putAwait(deviceType + "/" + deviceNumber + "/" + action, args);
     }
 
+
+
+    /**
+     * Gets the current client ID.
+     * 
+     * If there is one manually set, it will use that, otherwise it will
+     * attempt to get the current user's ID from {@link AltairUserService#getCurrentUser()}
+     * @return The current client ID, or {@code 0} if there is none.
+     */
+    private long getClientID() {
+        if (clientID > 0)
+            return clientID;
+
+        try {
+            AltairUser user = AltairUserService.getCurrentUser();
+            if (user == null)
+                return 0;
+            return user.getId();
+        } catch (Exception e) {
+            return 0;
+        }
+    }
 }
