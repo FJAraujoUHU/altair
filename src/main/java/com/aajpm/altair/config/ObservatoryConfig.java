@@ -9,7 +9,6 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import com.aajpm.altair.service.ObservatoryService;
 import com.aajpm.altair.service.observatory.ASCOMCameraService;
 import com.aajpm.altair.service.observatory.ASCOMDomeService;
 import com.aajpm.altair.service.observatory.ASCOMFilterWheelService;
@@ -51,8 +50,6 @@ public class ObservatoryConfig {
 
     private FilterWheelConfig filterWheel;
 
-    private ObservatorySetupConfig services;
-
 
     //#region Getters/Setters
     public int getStatusUpdateInterval() {
@@ -87,13 +84,6 @@ public class ObservatoryConfig {
         this.filterWheel = filterWheel;
     }
 
-    public ObservatorySetupConfig getServices() {
-        return services;
-    }
-
-    public void setServices(ObservatorySetupConfig services) {
-        this.services = services;
-    }
     //#endregion
 
     //#endregion
@@ -101,10 +91,6 @@ public class ObservatoryConfig {
     //#region Beans
 
     // TODO: Make more modular and configurable from application.yaml (use a factory?)
-    @Bean
-    public ObservatoryService observatoryService() {
-        return new ObservatoryService(this);
-    }
 
     @Bean
     public TelescopeService telescopeService() {
@@ -311,8 +297,5 @@ public class ObservatoryConfig {
         //#endregion
     }
 
-    public static class ObservatorySetupConfig {
-
-    }
     //#endregion
 }

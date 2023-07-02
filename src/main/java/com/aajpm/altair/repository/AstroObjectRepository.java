@@ -11,6 +11,10 @@ public interface AstroObjectRepository extends JpaRepository<AstroObject, Long> 
     
     AstroObject findByName(String name);
 
+    AstroObject findByNameIgnoreCase(String name);
+
     Collection<AstroObject> findByType(String type);
+
+    Collection<AstroObject> findByBaseFocus(int baseFocus);
 
 }

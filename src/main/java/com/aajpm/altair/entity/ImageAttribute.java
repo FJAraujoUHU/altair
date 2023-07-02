@@ -30,7 +30,15 @@ public class ImageAttribute extends BasicEntity implements Serializable {
     // If this attribute is used as a FITS keyword, this is the keyword name.
     // Set to null if not used as a FITS keyword. Used when creating an AstroImage.
     @Column(name = "fits_keyword", unique = true, nullable = true)
-    private String fitsKeyword;
+    private String fitsKeyword = null;
+
+    // The unit of this attribute, if any.
+    @Column(name = "unit", nullable = true)
+    private String unit = null;
+
+    // If true, this attribute will be displayed in the image details page.
+    @Column(name = "display", nullable = false)
+    private boolean display = true;
 
 
     //#region Getters & Setters
@@ -49,6 +57,23 @@ public class ImageAttribute extends BasicEntity implements Serializable {
     public void setFitsKeyword(String fitsKeyword) {
         this.fitsKeyword = fitsKeyword;
     }
+
+    public String getUnit() {
+        return unit;
+    }
+
+    public void setUnit(String unit) {
+        this.unit = unit;
+    }
+
+    public boolean getDisplay() {
+        return display;
+    }
+
+    public void setDisplay(boolean display) {
+        this.display = display;
+    }
+
     //#endregion
 
     //#endregion

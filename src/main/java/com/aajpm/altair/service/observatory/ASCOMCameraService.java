@@ -9,6 +9,9 @@ import java.math.BigInteger;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.stream.IntStream;
 
 import org.slf4j.Logger;
@@ -274,8 +277,8 @@ public class ASCOMCameraService extends CameraService {
 
     @Override
     @SuppressWarnings("java:S3776")
-    public void dumpImage(String name) {
-        cameraClient.get()
+    public Mono<Path> dumpImage(String name) {
+        return cameraClient.get()
         .uri("/imagearray")
         .accept(MediaType.parseMediaType("application/imagebytes"))
         .exchangeToMono(response -> {
@@ -307,7 +310,7 @@ public class ASCOMCameraService extends CameraService {
                 .error(new DeviceException(
                     "Error when retrieving image from camera: Unsupported content type returned: " + typeStr));
 
-        }).subscribe(response -> {
+        }).flatMap(response -> {
             String filename = name;
 
             try {
@@ -332,6 +335,7 @@ public class ASCOMCameraService extends CameraService {
                     Files.write(path, data);
 
                     logger.info("Image saved to {}", path);
+                    return Mono.just(path);
                 }
                 else if (response instanceof JsonNode) {
                     JsonNode data = (JsonNode) response;
@@ -350,10 +354,12 @@ public class ASCOMCameraService extends CameraService {
                     out.close(); 
     
                     logger.info("Image saved to {}", path); 
+                    return Mono.just(path);
                 } else throw new IOException("Unknown response type");
             } catch (IOException e) {
                 logger.error("Error when saving image to file: {}", e.getMessage());
-            } 
+                return Mono.error(e);
+            }
         });
     }
 
@@ -468,8 +474,20 @@ public class ASCOMCameraService extends CameraService {
                 header.setNaxis(3, dim3);
 
             if (headerData != null) {
-                if (headerData.dateObs != null)
+                if (headerData.dateObs != null) {
+                    header.addValue("DATE", headerData.dateObs, "UTC start of exposure");
                     header.addValue("DATE-OBS", headerData.dateObs, "UTC start of exposure");
+                } else {
+                    String dateObs;
+                    if (headerData.expTime != null) {
+                        Instant dateObsInstant = Instant.now().minus(Duration.ofSeconds(headerData.expTime));
+                        dateObs = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss").format(dateObsInstant.atZone(ZoneId.of("UTC")));
+                    } else {
+                        dateObs = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss").format(Instant.now().atZone(ZoneId.of("UTC")));
+                    }
+                    header.addValue("DATE", dateObs, "UTC start of exposure");
+                    header.addValue("DATE-OBS", dateObs, "UTC start of exposure");
+                }
                 if (headerData.expTime != null)
                     header.addValue("EXPTIME", headerData.expTime, "Exposure time (s)");
                 if (headerData.gain != null)
@@ -494,6 +512,15 @@ public class ASCOMCameraService extends CameraService {
                     }
                 }
 
+                // Type of image (Lightframe/Darkframe/Tricolor)
+                if (Boolean.TRUE.equals(headerData.isDarkFrame)) {
+                    header.addValue("IMAGETYP", "Dark Frame", "type of image: Light Frame, Bias Frame, Dark Frame, Flat Frame, or Tricolor Image");
+                } else {
+                    if (rank == 3)
+                        header.addValue("IMAGETYP", "Tricolor Image", "type of image: Light Frame, Bias Frame, Dark Frame, Flat Frame, or Tricolor Image");
+                    else
+                        header.addValue("IMAGETYP", "Light Frame", "type of image: Light Frame, Bias Frame, Dark Frame, Flat Frame, or Tricolor Image");
+                }
             }
 
             imageData = unwrap(imageData, rank, imageElementType);        
@@ -602,8 +629,10 @@ public class ASCOMCameraService extends CameraService {
                 header.setNaxis(3, dim3);
 
             if (headerData != null) {
-                if (headerData.dateObs != null)
+                if (headerData.dateObs != null) {
+                    header.addValue("DATE", headerData.dateObs, "UTC start of exposure");
                     header.addValue("DATE-OBS", headerData.dateObs, "UTC start of exposure");
+                }
                 if (headerData.expTime != null)
                     header.addValue("EXPTIME", headerData.expTime, "Exposure time (s)");
                 if (headerData.gain != null)

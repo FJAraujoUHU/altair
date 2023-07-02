@@ -42,20 +42,24 @@ public class ExposureParams extends BasicEntity implements Serializable {
     @Column(name = "binY", nullable = false)
     private Integer binY;
 
+    /** Placeholder for possible future upgrade, it does nothing for now */
+    @Column(name = "gain", nullable = true)
+    private String gain;
+
     @PositiveOrZero
-    @Column(name = "subFrameX", nullable = false)
+    @Column(name = "subFrameX", nullable = true)
     private Integer subFrameX;
 
     @PositiveOrZero
-    @Column(name = "subFrameY", nullable = false)
+    @Column(name = "subFrameY", nullable = true)
     private Integer subFrameY;
 
     @Min(1)
-    @Column(name = "subFrameWidth", nullable = false)
+    @Column(name = "subFrameWidth", nullable = true)
     private Integer subFrameWidth;
 
     @Min(1)
-    @Column(name = "subFrameHeight", nullable = false)
+    @Column(name = "subFrameHeight", nullable = true)
     private Integer subFrameHeight;
 
 
@@ -141,6 +145,26 @@ public class ExposureParams extends BasicEntity implements Serializable {
          */
         public Integer getBinY() {
             return binY;
+        }
+
+        /**
+         * Returns the gain.
+         * 
+         * @return the gain.
+         * @apiNote Placeholder for possible future upgrade, it does nothing for now
+         */
+        public String getGain() {
+            return gain;
+        }
+
+        /**
+         * Sets the gain.
+         * 
+         * @param gain the gain.
+         * @apiNote Placeholder for possible future upgrade, it does nothing for now
+         */
+        public void setGain(String gain) {
+            this.gain = gain;
         }
 
         /**
@@ -271,7 +295,9 @@ public class ExposureParams extends BasicEntity implements Serializable {
     /////////////////////////////// METHODS ////////////////////////////////////
     //#region Methods
 
-
+    public boolean usesSubFrame() {
+        return subFrameX != null || subFrameY != null || subFrameWidth != null || subFrameHeight != null;
+    }
 
     //#endregion
 }

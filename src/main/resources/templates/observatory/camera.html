@@ -144,7 +144,7 @@
             </div>
 
             <!-- Cooler control -->
-            <div class="col mx-auto" sec:authorize="hasRole('ADVANCED_USER')" th:if="${(capacities != null) && capacities.canSetCoolerTemp}">
+            <div class="col mx-auto" sec:authorize="hasRole('ADVANCED_USER')" th:if="${((capabilities != null) && capabilities.canSetCoolerTemp())}">
 
                 <div class="card text-bg-primary" style="max-width: 32rem; min-width: 15rem" id="coolerCard">
                     <div class="card-header"><h5 class="card-title">Cooler</h5></div>

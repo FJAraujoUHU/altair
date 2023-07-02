@@ -4,6 +4,7 @@ import java.io.Serializable;
 
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.PositiveOrZero;
 
 @Entity
 @Table(name = "objects")
@@ -40,7 +41,7 @@ public class AstroObject extends BasicEntity implements Serializable {
     @Column(unique = true, nullable = false)
     private String name;
 
-    @Column(name = "description")
+    @Column(name = "description", length = 4096)
     private String description;
 
     @Column(name = "rightAscension", nullable = true)
@@ -51,6 +52,10 @@ public class AstroObject extends BasicEntity implements Serializable {
 
     @Column(name = "magnitude", nullable = true)
     private Double magnitude;
+
+    @PositiveOrZero
+    @Column(name = "baseFocus", nullable = true)
+    private Integer baseFocus;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "type", nullable = false)
@@ -95,6 +100,14 @@ public class AstroObject extends BasicEntity implements Serializable {
 
     public void setMagnitude(Double magnitude) {
         this.magnitude = magnitude;
+    }
+
+    public int getBaseFocus() {
+        return baseFocus;
+    }
+
+    public void setBaseFocus(int baseFocus) {
+        this.baseFocus = baseFocus;
     }
 
     public AstroType getType() {
@@ -156,7 +169,7 @@ public class AstroObject extends BasicEntity implements Serializable {
         boolean isMoon = type == AstroType.MOON;
         boolean isPlanet = type == AstroType.PLANET;
 
-        return isSmallBody || isMoon || isPlanet || isSol();
+        return !(isSmallBody || isMoon || isPlanet || isSol());
     }
 
 

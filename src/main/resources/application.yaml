@@ -34,6 +34,25 @@ altair:
             target-cooling: -10.0               # Target temperature for the camera when in auto mode, in °C
             cooler-saturation-threshold: 95.0   # If the cooler reaches this power level, it is considered saturated
             image-buffer-size: 268435456        # Size of the image processing buffer, in bytes. Use '-1' to disable the limiter and use the maximum available memory.
+        filter-wheel:
+            filter-names:                       # Names of the filters in the filter wheel, in the order they are installed. If empty, Altair will use the service provided ones.
+                - Luminance
+                - Luminance
+                - Blue
+                - Green
+                - OIII
+                - Red
+                - SII
+                - Ha
+            focus-offsets:                      # Focus offsets for each filter, in steps. If empty, Altair will use the service provided ones.
+                - 0
+                - 0
+                - 0
+                - 0
+                - 0
+                - 0
+                - 0
+                - 0
     astrometrics:
         site-latitude: 37.2597                  # Latitude of the observatory, in decimal degrees, north is positive
         site-longitude: -6.9325                 # Longitude of the observatory, in decimal degrees, east is positive

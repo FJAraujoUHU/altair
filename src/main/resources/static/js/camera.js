@@ -279,11 +279,11 @@ $(document).ready(function () {
     
     $("#caExposureStart").click(function () {
         let hours = parseInt($("#caExposureHrs").val());
-        if (hours === undefined || hours === null || hours < 0) hours = 0;
+        if (hours === undefined || hours === null || hours < 0 || isNaN(hours)) hours = 0;
         let minutes = parseInt($("#caExposureMins").val());
-        if (minutes === undefined || minutes === null || minutes < 0) minutes = 0;
+        if (minutes === undefined || minutes === null || minutes < 0 || isNaN(minutes)) minutes = 0;
         let seconds = parseInt($("#caExposureSecs").val());
-        if (seconds === undefined || seconds === null || seconds < 0) seconds = 0;
+        if (seconds === undefined || seconds === null || seconds < 0 || isNaN(seconds)) seconds = 0;
         let duration = (hours * 3600) + (minutes * 60) + seconds;
         let lightframe = $("#caExposureLight").is(":checked");
 
@@ -327,13 +327,32 @@ $(document).ready(function () {
 
     // TODO : Prompt for filename and check if there are available first
     $("#caImgSave").click(function () {
-        let filename = new Date().toISOString();
-
         $.ajax({
             url: "/altair/api/camera/saveimage",
-            type: "POST",
-            data: {
-                filename: filename
+            type: "GET",
+            xhrFields: {
+                responseType: 'blob'
+            },
+            success: function (response, status, xhr) {
+                let filename = '';
+                let disposition = xhr.getResponseHeader('Content-Disposition');
+
+                if (disposition && disposition.indexOf('attachment') !== -1) {
+                    let filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
+                    let matches = filenameRegex.exec(disposition);
+                    if (matches?.[1]) {
+                        filename = matches[1].replace(/['"]/g, '');
+                    }
+                }
+
+                // Create a temporary anchor element to download the file
+                let url = URL.createObjectURL(response);
+                let link = document.createElement('a');
+                link.href = url;
+                link.download = filename || 'image.fits';
+                link.style.display = 'none';
+                link.click();
+                URL.revokeObjectURL(url);
             },
             error: function (xhr, status, error) {
                 console.log("Error: " + error);
@@ -342,13 +361,11 @@ $(document).ready(function () {
     });
 
     $("#caImgDump").click(function () {
-        let filename = new Date().toISOString();
-
         $.ajax({
             url: "/altair/api/camera/dumpimage",
-            type: "POST",
-            data: {
-                filename: filename
+            type: "GET",
+            xhrFields: {
+                responseType: 'blob'
             },
             error: function (xhr, status, error) {
                 console.log("Error: " + error);

@@ -53,6 +53,17 @@ public class ExposureParamsService extends BasicEntityCRUDService<ExposureParams
         Assert.notNull(params.getExposureTime(), "Exposure time cannot be null.");
         Assert.isTrue(params.getExposureTime() >= 0, "Exposure time cannot be negative");
         Assert.notNull(params.getProgram(), "ExposureParams must be assigned to a program");
+
+        if (params.usesSubFrame()) {
+            Assert.notNull(params.getSubFrameX(), "Subframe X cannot be null.");
+            Assert.isTrue(params.getSubFrameX() >= 0, "Subframe X cannot be negative");
+            Assert.notNull(params.getSubFrameY(), "Subframe Y cannot be null.");
+            Assert.isTrue(params.getSubFrameY() >= 0, "Subframe Y cannot be negative");
+            Assert.notNull(params.getSubFrameWidth(), "Subframe width cannot be null.");
+            Assert.isTrue(params.getSubFrameWidth() >= 0, "Subframe width cannot be negative");
+            Assert.notNull(params.getSubFrameHeight(), "Subframe height cannot be null.");
+            Assert.isTrue(params.getSubFrameHeight() >= 0, "Subframe height cannot be negative");
+        }
         
         // Check if params.getFilter() is present in observatory.getFilterWheel().getFilters()
         Assert.notNull(params.getFilter(), "ExposureParams must be assigned to a filter");
@@ -65,7 +76,6 @@ public class ExposureParamsService extends BasicEntityCRUDService<ExposureParams
                                             .equalsIgnoreCase(params.getFilter()))
                                     );
 
-        // TODO: Check if this line breaks reactive flow
         boolean isFound = filterFound.blockOptional(Duration.ofSeconds(3)).orElse(false);
 
         Assert.isTrue(isFound, "Filter not found in the filter wheel");
@@ -82,6 +92,17 @@ public class ExposureParamsService extends BasicEntityCRUDService<ExposureParams
         Assert.notNull(params.getExposureTime(), "Exposure time cannot be null.");
         Assert.isTrue(params.getExposureTime() >= 0, "Exposure time cannot be negative");
         Assert.notNull(params.getProgram(), "ExposureParams must be assigned to a program");
+
+        if (params.usesSubFrame()) {
+            Assert.notNull(params.getSubFrameX(), "Subframe X cannot be null.");
+            Assert.isTrue(params.getSubFrameX() >= 0, "Subframe X cannot be negative");
+            Assert.notNull(params.getSubFrameY(), "Subframe Y cannot be null.");
+            Assert.isTrue(params.getSubFrameY() >= 0, "Subframe Y cannot be negative");
+            Assert.notNull(params.getSubFrameWidth(), "Subframe width cannot be null.");
+            Assert.isTrue(params.getSubFrameWidth() > 0, "Subframe width must be greater than 0");
+            Assert.notNull(params.getSubFrameHeight(), "Subframe height cannot be null.");
+            Assert.isTrue(params.getSubFrameHeight() > 0, "Subframe height must be greater than 0");
+        }
         
         // Check if params.getFilter() is present in observatory.getFilterWheel().getFilters()
         Assert.notNull(params.getFilter(), "ExposureParams must be assigned to a filter");
@@ -94,7 +115,6 @@ public class ExposureParamsService extends BasicEntityCRUDService<ExposureParams
                                             .equalsIgnoreCase(params.getFilter()))
                                     );
 
-        // TODO: Check if this line breaks reactive flow
         boolean isFound = filterFound.blockOptional(Duration.ofSeconds(3)).orElse(false);
 
         Assert.isTrue(isFound, "Filter not found in the filter wheel");

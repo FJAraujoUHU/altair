@@ -86,12 +86,12 @@ public class AstroObjectService extends BasicEntityCRUDService<AstroObject> {
     /**
      * Finds the {@link AstroObject} with the given name.
      * 
-     * @param name The name of the object to be queried.
+     * @param name The name of the object to be queried, case insensitive.
      * 
      * @return The {@link AstroObject} with the given name.
      */
     public AstroObject findByName(String name) {
-        return astroObjectRepository.findByName(name);
+        return astroObjectRepository.findByNameIgnoreCase(name);
     }
 
     /**
@@ -107,6 +107,62 @@ public class AstroObjectService extends BasicEntityCRUDService<AstroObject> {
         Assert.notNull(objects, "The query for astro objects with type " + type + " returned null.");
 
         return objects;
+    }
+
+    /**
+     * Updates the {@code baseFocus} of the {@link AstroObject} with the given name.
+     * @param name The name of the object to be updated.
+     * @param newFocus The new base focus of the object, in steps.
+     */
+    public void updateBaseFocus(String name, int newFocus) {
+        Assert.isTrue(newFocus >= 0, "The new focus cannot be negative.");
+
+        AstroObject object = findByName(name);
+
+        Assert.notNull(object, "The object with name " + name + " was not found.");
+
+        object.setBaseFocus(newFocus);
+
+        update(object);
+    }
+
+    /**
+     * Updates the {@code baseFocus} of all {@link AstroObject} of the given {@link AstroType}.
+     * 
+     * @param type The {@link AstroType} of the objects to be updated.
+     * @param newFocus The new base focus of the objects, in steps.
+     */
+    public void updateBaseFocus(AstroType type, int newFocus) {
+        Assert.notNull(type, "The type of the objects to be updated cannot be null.");
+
+        Collection<AstroObject> objects = findByType(type);
+
+        Assert.notNull(objects, "The query for astro objects with type " + type + " returned null.");
+
+        objects.forEach(object -> {
+            object.setBaseFocus(newFocus);
+            update(object);
+        });
+    }
+
+    /**
+     * Updates the {@code baseFocus} of all {@link AstroObject} with the given {@code oldFocus}.
+     * 
+     * @param oldFocus The old base focus of the objects, in steps.
+     * @param newFocus The new base focus of the objects, in steps.
+     */
+    public void updateBaseFocus(int oldFocus, int newFocus) {
+        Assert.isTrue(oldFocus >= 0, "The old focus cannot be negative.");
+        Assert.isTrue(newFocus >= 0, "The new focus cannot be negative.");
+
+        Collection<AstroObject> objects = astroObjectRepository.findByBaseFocus(oldFocus);
+
+        Assert.notEmpty(objects, "No objects with focus " + oldFocus + " were found.");
+
+        objects.forEach(object -> {
+            object.setBaseFocus(newFocus);
+            update(object);
+        });
     }
 
     /**

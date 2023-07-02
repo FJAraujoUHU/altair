@@ -27,7 +27,7 @@ public class Program extends BasicEntity implements Serializable {
     @NotBlank
     private String name;
 
-    @Column(name = "description")
+    @Column(name = "description", length = 4096)
     private String description;
 
     @Column(name = "enabled", nullable = false)
@@ -80,12 +80,16 @@ public class Program extends BasicEntity implements Serializable {
         this.exposures = exposures;
     }
 
-    public void addExposure(ExposureParams exposure) {
+    public ExposureParams addExposure(ExposureParams exposure) {
+        exposure.setProgram(this);
         exposures.add(exposure);
+        return exposure;
     }
 
-    public void removeExposure(ExposureParams exposure) {
+    public ExposureParams removeExposure(ExposureParams exposure) {
+        exposure.setProgram(null);
         exposures.remove(exposure);
+        return exposure;
     }
 
     public AstroObject getTarget() {

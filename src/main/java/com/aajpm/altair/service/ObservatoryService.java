@@ -7,6 +7,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.IntStream;
 import java.util.zip.GZIPOutputStream;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,6 +18,7 @@ import com.aajpm.altair.config.AstrometricsConfig;
 import com.aajpm.altair.config.ObservatoryConfig;
 import com.aajpm.altair.entity.AstroObject;
 import com.aajpm.altair.entity.ExposureParams;
+import com.aajpm.altair.security.account.AltairUser;
 import com.aajpm.altair.utility.exception.*;
 import com.aajpm.altair.utility.solver.EphemeridesSolver;
 
@@ -26,6 +28,8 @@ import nom.tam.fits.ImageHDU;
 import nom.tam.util.FitsOutputStream;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.util.function.Tuple2;
+import reactor.util.function.Tuples;
 
 import com.aajpm.altair.service.observatory.*;
 import com.aajpm.altair.service.observatory.CameraService.CameraCapabilities;
@@ -940,17 +944,37 @@ public class ObservatoryService {
      * @return A {@link Mono} that will complete when the exposure has started. 
      */
     public Mono<Void> startExposure(ExposureParams params) {
+        // Focuser starts moving to the base focus, if any
+        Integer baseFocus = params.getProgram().getTarget().getBaseFocus();
+
+        Mono<Void> focuserActionStart = baseFocus == null
+                                    ? Mono.empty()
+                                    : focuser.moveAwait(baseFocus);
+        
+        // Get the filter data
+        String filterName = params.getFilter();
+        Mono<Tuple2<Integer, Integer>> filterData = filterName == null
+                                    ? Mono.just(Tuples.of(-1, 0))
+                                    : filterWheel.getFilterNames()
+                                        .flatMap(names -> {
+                                            int index = IntStream.range(0, names.size())
+                                                                .filter(i -> names.get(i).equalsIgnoreCase(filterName))
+                                                                .findFirst()
+                                                                .orElse(-1);
+                                            if (index < 0)
+                                                return Mono.just(Tuples.of(-1, 0));
+                                            return filterWheel.getFocusOffsets().map(offsets -> Tuples.of(index, offsets.get(index)));
+                                        });
+
+        // Sets up the camera
         double duration = params.getExposureTime(); 
         boolean lightFrame = params.isLightFrame();
         int binX = params.getBinX();
         int binY = params.getBinY();
         
-        boolean useSubFrame = !isNull(params.getSubFrameX(),
-                                        params.getSubFrameY(),
-                                        params.getSubFrameWidth(),
-                                        params.getSubFrameHeight());
+        Mono<Void> cameraAction = Mono.empty();
 
-        if (useSubFrame) {
+        if (params.usesSubFrame()) {
             int[] subFrame = new int[] {
                     params.getSubFrameX(),
                     params.getSubFrameY(),
@@ -958,16 +982,14 @@ public class ObservatoryService {
                     params.getSubFrameHeight()
                 };
 
-            return camera
-                    .startExposure(
-                        duration,
-                        lightFrame,
-                        subFrame,
-                        binX,
-                        binY
-                    );
+            cameraAction = camera.startExposure(
+                            duration,
+                            lightFrame,
+                            subFrame,
+                            binX,
+                            binY);
         } else {
-            return camera.getCapabilities().flatMap(caps -> {
+            cameraAction = camera.getCapabilities().flatMap(caps -> {
                 int[] subFrame = new int[] {
                         0,
                         0,
@@ -984,21 +1006,27 @@ public class ObservatoryService {
                         );
             });
         }
-    }
 
-    /**
-     * Returns if any of the given objects is null.
-     * @param objects The objects to check.
-     * @return True if any of the objects is null, false otherwise.
-     */
-    private boolean isNull (Object ...objects) {
-        if (objects == null) return true;
+        // Redeclaration of cameraAction bc it must be effectively final
+        Mono<Void> cameraActionFinal = cameraAction;
 
-        for (Object object : objects) {
-            if (object == null) return true;
-        }
+        return filterData.flatMap(data -> {
+            int filterIndex = data.getT1();
+            int focusOffset = data.getT2();
 
-        return false;
+            if (filterIndex < 0) {
+                // If the filter wasn't found, throw an error
+                return Mono.error(new IllegalArgumentException("Filter"+ filterName +"not found"));
+            }
+
+            // After moving to base focus, move to the offset
+            Mono<Void> focuserAction = focuserActionStart.then(focuser.moveRelativeAwait(focusOffset));
+
+            // Also select the filter. If filter wasn't found, throw an error
+            Mono<Void> filterAction = filterWheel.setPositionAwait(filterIndex);
+
+            return Mono.zip(focuserAction, filterAction).then(cameraActionFinal);
+        });
     }
 
     /**
@@ -1022,12 +1050,15 @@ public class ObservatoryService {
      * from the other devices from the observatory to its header.
      * 
      * @param target If the image is of a target, the target object to add to
-     *               the header.
+     *               the header. If {@code null}, no target information will be
+     *               added.
+     * @param author The user that created the image. If {@code null}, no
+     *                creator information will be added.
      * 
      * @return A {@link Mono} that will emit the image as a {@link ImageHDU}
      *         when it is available.
      */
-    public Mono<ImageHDU> getImage(AstroObject target) {
+    public Mono<ImageHDU> getImage(AstroObject target, AltairUser author) {
         Mono<ImageHDU> image = camera.getImage();
         Mono<ObservatoryStatus> statuses = getStatus();
         Mono<WeatherWatchCapabilities> weatherWatchCapabilities = weatherWatch.getCapabilities();
@@ -1058,6 +1089,10 @@ public class ObservatoryService {
                 }
             }
 
+            if (author != null) {
+                addValueIfValid(img, "AUTHOR", author.getUsername(), "Name of the user that created the image");
+            }
+
             addValueIfValid(img, "TELESCOP", telescopeNameStr, "Name of the telescope");
             addValueIfValid(img, "LATITUDE", siteLatitude, "Latitude of the observatory, in decimal degrees");
             addValueIfValid(img, "LONGITUD", siteLongitude, "Longitude of the observatory, in decimal degrees");
@@ -1081,7 +1116,7 @@ public class ObservatoryService {
      *         image.
      */
     public Mono<Path> saveImage() {
-        return getImage(null).flatMap(image -> {
+        return getImage(null, null).flatMap(image -> {
             try {
                 return Mono.just(saveImage(image));
             } catch (IOException e) {
@@ -1101,9 +1136,79 @@ public class ObservatoryService {
      *         image.
      */
     public Mono<Path> saveImage(AstroObject target) {
-        return getImage(target).flatMap(image -> {
+        return getImage(target, null).flatMap(image -> {
             try {
                 return Mono.just(saveImage(image));
+            } catch (IOException e) {
+                return Mono.error(e);
+            }
+        });
+    }
+
+    /**
+     * Saves the latest exposure made by the camera to the image store.
+     *
+     * @param target The target object to add to the image's metadata. If
+     *               {@code null}, no target information will be added. 
+     * @param author The user that created the image. If {@code null}, no
+     *                creator information will be added.
+     * 
+     * @return A {@link Mono} that will emit the path to the saved image when
+     *         it is available, or an error if there was a problem saving the
+     *         image.
+     */
+    public Mono<Path> saveImage(AstroObject target, AltairUser author) {
+        return getImage(target, author).flatMap(image -> {
+            try {
+                return Mono.just(saveImage(image));
+            } catch (IOException e) {
+                return Mono.error(e);
+            }
+        });
+    }
+
+    /**
+     * Saves the latest exposure made by the camera to the image store, using
+     * the given filename.
+     * 
+     * @param target The target object to add to the image's metadata. If null,
+     *               no target information will be added.
+     * @param filename The filename to save the image as. If null, the filename
+     *                 will be generated from the image's metadata.
+     * 
+     * @return A {@link Mono} that will emit the path to the saved image when
+     *         it is available, or an error if there was a problem saving the
+     *         image.
+     */
+    public Mono<Path> saveImage(AstroObject target, String filename) {
+        return getImage(target, null).flatMap(image -> {
+            try {
+                return Mono.just(saveImage(image, filename, false));
+            } catch (IOException e) {
+                return Mono.error(e);
+            }
+        });
+    }
+
+    /**
+     * Saves the latest exposure made by the camera to the image store, using
+     * the given filename.
+     * 
+     * @param target The target object to add to the image's metadata. If null,
+     *               no target information will be added.
+     * @param author The user that created the image. If null, no creator
+     *               information will be added.
+     * @param filename The filename to save the image as. If null, the filename
+     *                 will be generated from the image's metadata.
+     * 
+     * @return A {@link Mono} that will emit the path to the saved image when
+     *         it is available, or an error if there was a problem saving the
+     *         image.
+     */
+    public Mono<Path> saveImage(AstroObject target, AltairUser author, String filename) {
+        return getImage(target, author).flatMap(image -> {
+            try {
+                return Mono.just(saveImage(image, filename, false));
             } catch (IOException e) {
                 return Mono.error(e);
             }
@@ -1121,29 +1226,6 @@ public class ObservatoryService {
      */
     public Path saveImage(ImageHDU image) throws IOException {
         return saveImage(image, null, false);
-    }
-
-    /**
-     * Saves the latest exposure made by the camera to the image store, using
-     * the given filename.
-     * 
-     * @param target The target object to add to the image's metadata. If null,
-     *               no target information will be added.
-     * @param filename The filename to save the image as. If null, the filename
-     *                 will be generated from the image's metadata.
-     * 
-     * @return A {@link Mono} that will emit the path to the saved image when
-     *         it is available, or an error if there was a problem saving the
-     *         image.
-     */
-    public Mono<Path> saveImage(AstroObject target, String filename) {
-        return getImage(target).flatMap(image -> {
-            try {
-                return Mono.just(saveImage(image, filename, false));
-            } catch (IOException e) {
-                return Mono.error(e);
-            }
-        });
     }
 
     /**
@@ -1177,7 +1259,7 @@ public class ObservatoryService {
 
             String objName = image.getTrimmedString("OBJECT");
             if (objName == null) {
-                objName = "Unknown";
+                objName = "";
             }
 
             String filter = image.getTrimmedString("FILTER");
@@ -1191,7 +1273,7 @@ public class ObservatoryService {
             } else {
                 switch (imgType) {
                     case "Light Frame":
-                        imgType = "Light";
+                        imgType = "";
                         break;
                     case "Dark Frame":
                         imgType = "Dark";
@@ -1335,13 +1417,13 @@ public class ObservatoryService {
             addValueIfValid(img, "WWAMBT", status.temperatureAmbient(), "Ambient temperature, either \"Hot\", \"Cold\" or \"Normal\"");          
         } else if (capabilities.canTemperature() == asValue) {
             addValueIfValid(img, "AOCSKYT", status.temperatureSky(), "ASCOM Observatory Conditions - Sky temperature in degrees C");
-            addValueIfValid(img, "AOCTAMBT", status.temperatureAmbient(), "ASCOM Observatory Conditions - Ambient temperature in degrees C");
+            addValueIfValid(img, "AOCAMBT", status.temperatureAmbient(), "ASCOM Observatory Conditions - Ambient temperature in degrees C");
         }
 
         if (capabilities.canRain() == asString)
             addValueIfValid(img, "WWRAIN", status.rainRate(), "Rain, either \"Dry\", \"Wet\" or \"Rain\"");
         else if (capabilities.canRain() == asValue)
-            addValueIfValid(img, "AOCRRAIN", status.rainRate(), "ASCOM Observatory Conditions - Rain rate in mm/hour");
+            addValueIfValid(img, "AOCRAIN", status.rainRate(), "ASCOM Observatory Conditions - Rain rate in mm/hour");
 
         if (capabilities.canWind() == asString) {
             addValueIfValid(img, "WWWIND", status.windSpeed(), "Wind speed, either \"Calm\", \"Windy\" or \"Very windy\"");

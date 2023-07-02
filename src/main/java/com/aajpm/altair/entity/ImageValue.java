@@ -17,7 +17,7 @@ public class ImageValue extends BasicEntity implements Serializable {
     /////////////////////////////// ATTRIBUTES ////////////////////////////////
     //#region Attributes
 
-    @Column(name = "value")
+    @Column(name = "value", length = 512)
     private String value;
 
 

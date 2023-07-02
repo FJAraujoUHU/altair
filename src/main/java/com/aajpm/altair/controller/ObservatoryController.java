@@ -23,10 +23,14 @@ import com.aajpm.altair.service.observatory.WeatherWatchService;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+// TODO: Add Governor panel and controller
 @Controller
 @RequestMapping("/altair/observatory")
 public class ObservatoryController {
     
+    /////////////////////////// SUPPORTING SERVICES ///////////////////////////
+    //#region SUPPORTING SERVICES
+
     @Autowired
     ObservatoryService observatory;
 
@@ -47,13 +51,19 @@ public class ObservatoryController {
 
     @Autowired
     WeatherWatchService weatherWatch;
+
+    //#endregion
+    //////////////////////////////// ATTRIBUTES ///////////////////////////////
     
     ObservatoryConfig config;
-
-    //@Autowired
+    
+    /////////////////////////////// CONSTRUCTORS //////////////////////////////
+    
     public ObservatoryController(ObservatoryConfig config) {
         this.config = config;
     }
+
+    //////////////////////////////// ENDPOINTS ////////////////////////////////
 
     @GetMapping("/dashboard")
     public String dashboard(Model model) {

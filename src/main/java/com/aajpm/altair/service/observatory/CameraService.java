@@ -4,6 +4,9 @@ import com.aajpm.altair.utility.exception.DeviceException;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.zip.GZIPOutputStream;
 
 import com.aajpm.altair.config.ObservatoryConfig.CameraConfig;
@@ -15,9 +18,7 @@ import reactor.core.publisher.Mono;
 import reactor.util.function.Tuple2;
 import reactor.util.function.Tuple4;
 
-/*
- * TODO: Might add Gain control in future release
- */
+// TODO: Might add Gain control in future release. For now, it is only supported in the DB.
 public abstract class CameraService {
     /////////////////////////////// ATTRIBUTES /////////////////////////////////
     //#region Attributes
@@ -252,10 +253,23 @@ public abstract class CameraService {
     }
 
     /**
+     * Dumps the unprocessed image as the camera's native format to a file in the image store directory.
+     * 
+     * The filename will be the current date and time in the format {@code yyyy-MM-dd_HH-mm-ss_dump.dat}
+     * @return the {@link Path} to the saved file
+     * @throws DeviceException if there was an error polling the data.
+     */
+    public Mono<Path> dumpImage() throws DeviceException {
+        String filename = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss'_dump.dat'")
+                                            .format(Instant.now().atZone(ZoneId.of("UTC")));
+        return dumpImage(filename);
+    }
+
+    /**
      * Dumps the unprocessed image as the camera's native format to a file in the image store directory
      * @param name the name of the file to save the image to
      */
-    public abstract void dumpImage(String name) throws DeviceException;
+    public abstract Mono<Path> dumpImage(String name) throws DeviceException;
 
     //#endregion
 

@@ -25,7 +25,7 @@ import reactor.core.publisher.Mono;
 import reactor.util.function.Tuple2;
 import reactor.util.function.Tuples;
 
-// TODO: finish the worker, manual program and such
+
 @Service
 public class GovernorService {
 
@@ -137,6 +137,13 @@ public class GovernorService {
      */
     public AltairUser getCurrentUser() {
         return currentOrder == null ? null : currentOrder.getUser();   
+    }
+
+    /**
+     * @return the current order being executed, or null if no order is being executed.
+     */
+    public Order getCurrentOrder() {
+        return currentOrder;
     }
 
     //#endregion
@@ -313,7 +320,7 @@ public class GovernorService {
                 }
 
                 // Store image
-                observatoryService.saveImage(programOrder.getProgram().getTarget())
+                observatoryService.saveImage(programOrder.getProgram().getTarget(), programOrder.getUser())
                     .subscribe(path -> {
                         try {
                             AstroImage dbImage = astroImageService.create(path);

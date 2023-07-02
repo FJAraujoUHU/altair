@@ -11,8 +11,12 @@ public interface ProgramRepository extends JpaRepository<Program, Long> {
 
     Program findByName(String name);
 
+    Program findByNameIgnoreCase(String name);
+
     Collection<Program> findByEnabled(boolean enabled);
 
     Collection<Program> findByTargetId(long targetID);
+
+    Collection<Program> findByTargetIdAndEnabledTrue(long targetID);
     
 }
