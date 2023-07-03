@@ -82,23 +82,23 @@ public class ASCOMFocuserService extends FocuserService {
     //#region Setters/Actions
 
     @Override
-    public Mono<Void> connect() throws DeviceException {
+    public Mono<Boolean> connect() throws DeviceException {
         MultiValueMap<String, String> args = new LinkedMultiValueMap<>(1);
         args.add("Connected", String.valueOf(true));
         return this.put("connected", args)
             .doOnSuccess(v -> this.getCapabilities().subscribe())   // attempt to get the device's capabilities
-            .then();
+            .thenReturn(true);
     }
 
     @Override
-    public Mono<Void> disconnect() throws DeviceException {
+    public Mono<Boolean> disconnect() throws DeviceException {
         MultiValueMap<String, String> params = new LinkedMultiValueMap<>(1);
         params.add("Connected", String.valueOf(false));
-        return this.put("connected", params).then();
+        return this.put("connected", params).thenReturn(true);
     }
 
     @Override
-    public Mono<Void> move(int position) throws DeviceException {
+    public Mono<Boolean> move(int position) throws DeviceException {
         return this.getCapabilities().zipWith(this.getPosition()).flatMap(tuple -> {
             int maxIncrement = tuple.getT1().maxIncrement();
             int maxStep = tuple.getT1().maxStep();
@@ -116,15 +116,15 @@ public class ASCOMFocuserService extends FocuserService {
                 return moveCmd(absolute ? targetPos : delta);
             }
 
-            Mono<Void> firstMove = moveCmd(absolute ? startPos + maxIncrement : maxIncrement)
+            Mono<Boolean> firstMove = moveCmd(absolute ? startPos + maxIncrement : maxIncrement)
                 .then(getPosition())
                 .repeatWhen(repeat -> repeat.delayElements(Duration.ofMillis(statusUpdateInterval)))
                 .takeUntil(actualPos -> Objects.equals(actualPos, startPos + maxIncrement))
                 .last()
-                .then();
+                .thenReturn(true);
 
             // Create a stream of moves to execute
-            Mono<Void> remainingMoves = Flux
+            Mono<Boolean> remainingMoves = Flux
                 .range(2, moves-1)
                 .concatMap(i -> {
                     int increment = (i >= moves) ? delta % maxIncrement : maxIncrement; // Last move may be smaller than maxIncrement
@@ -136,7 +136,7 @@ public class ASCOMFocuserService extends FocuserService {
                         .repeatWhen(repeat -> repeat.delayElements(Duration.ofMillis(statusUpdateInterval)))
                         .takeUntil(actualPos -> Objects.equals(actualPos, currTarget))
                         .last();
-                }).then();
+                }).then().thenReturn(true);
 
             // return firstMove and make remainingMoves wait for firstMove to complete, only returning firstMove's signal as firstMove finishes
             return firstMove.doOnSuccess(v -> remainingMoves.subscribe());
@@ -144,7 +144,7 @@ public class ASCOMFocuserService extends FocuserService {
     }
 
     @Override
-    public Mono<Void> moveAwait(int position) throws DeviceException {
+    public Mono<Boolean> moveAwait(int position) throws DeviceException {
         return this.getCapabilities().zipWith(this.getPosition()).flatMap(tuple -> {
             int maxIncrement = tuple.getT1().maxIncrement();
             int maxStep = tuple.getT1().maxStep();
@@ -164,7 +164,7 @@ public class ASCOMFocuserService extends FocuserService {
                     .repeatWhen(repeat -> repeat.delayElements(Duration.ofMillis(statusUpdateInterval)))
                     .takeUntil(actualPos -> Objects.equals(actualPos, targetPos))
                     .last()
-                    .then();
+                    .thenReturn(true);
             }
 
             // Create a stream of moves and use concatMap to execute the moves sequentially
@@ -178,32 +178,32 @@ public class ASCOMFocuserService extends FocuserService {
                     .repeatWhen(repeat -> repeat.delayElements(Duration.ofMillis(statusUpdateInterval)))
                     .takeUntil(actualPos -> Objects.equals(actualPos, currTarget))
                     .last();
-            }).then();
+            }).then().thenReturn(true);
         });
     }
 
     @Override
-    public Mono<Void> moveRelative(int position) {
+    public Mono<Boolean> moveRelative(int position) {
         return getPosition().flatMap(currPos -> move(currPos + position));
     }
 
     @Override
-    public Mono<Void> moveRelativeAwait(int position) {
+    public Mono<Boolean> moveRelativeAwait(int position) {
         return getPosition().flatMap(currPos -> moveAwait(currPos + position));
     }
 
     @Override
-    public Mono<Void> halt() throws DeviceException {
-        return this.put("halt", null).then();
+    public Mono<Boolean> halt() throws DeviceException {
+        return this.put("halt", null).thenReturn(true);
     }
 
     @Override
-    public Mono<Void> setTempComp(boolean enable) throws DeviceException {
+    public Mono<Boolean> setTempComp(boolean enable) throws DeviceException {
         return getCapabilities().flatMap(caps -> {
             if (caps.canTempComp()) {
                 MultiValueMap<String, String> params = new LinkedMultiValueMap<>(1);
                 params.add("TempComp", String.valueOf(enable));
-                return this.put("tempcomp", params).then();
+                return this.put("tempcomp", params).thenReturn(true);
             } else {
                 return Mono.error(new DeviceException("Device does not support temperature compensation"));
             }
@@ -274,10 +274,10 @@ public class ASCOMFocuserService extends FocuserService {
         return client.put("focuser", deviceNumber, action, params);
     }
 
-    private Mono<Void> moveCmd(int position) {
+    private Mono<Boolean> moveCmd(int position) {
         MultiValueMap<String, String> params = new LinkedMultiValueMap<>(1);
         params.add("Position", String.valueOf(position));
-        return this.put("move", params).then();
+        return this.put("move", params).thenReturn(true);
     }
 
     //#endregion

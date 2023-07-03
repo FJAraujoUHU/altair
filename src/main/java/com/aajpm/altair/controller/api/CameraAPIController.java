@@ -72,27 +72,27 @@ public class CameraAPIController {
 
 
     @PostMapping(value = "/connect")
-    public Mono<Void> connect() {
+    public Mono<Boolean> connect() {
         return camera.connect();
     }
 
     @PostMapping(value = "/disconnect")
-    public Mono<Void> disconnect() {
+    public Mono<Boolean> disconnect() {
         return camera.disconnect();
     }
 
     @PostMapping(value = "/cooleron")
-    public Mono<Void> coolerOn(@RequestParam("enable") boolean enable) {
+    public Mono<Boolean> coolerOn(@RequestParam("enable") boolean enable) {
         return camera.setCooler(enable);
     }
 
     @PostMapping(value = "/settargettemp")
-    public Mono<Void> setTargetTemp(@RequestParam("target") double temp) {
+    public Mono<Boolean> setTargetTemp(@RequestParam("target") double temp) {
         return camera.setTargetTemp(temp);
     }
 
     @PostMapping(value = "/warmup")
-    public Mono<Void> warmup(@RequestParam("target") Optional<Double> temp) {
+    public Mono<Boolean> warmup(@RequestParam("target") Optional<Double> temp) {
         if (temp.isPresent()) {
             return camera.warmup(temp.get());
         } else {
@@ -101,12 +101,12 @@ public class CameraAPIController {
     }
 
     @PostMapping(value = "/cooldown")
-    public Mono<Void> cooldown(@RequestParam("target") double temp) {
+    public Mono<Boolean> cooldown(@RequestParam("target") double temp) {
         return camera.cooldown(temp);
     }
 
     @PostMapping(value = "/setsubframe")
-    public Mono<Void> setSubframe(@RequestParam("startx") int x, @RequestParam("starty") int y, @RequestParam("width") int width, @RequestParam("height") int height) {
+    public Mono<Boolean> setSubframe(@RequestParam("startx") int x, @RequestParam("starty") int y, @RequestParam("width") int width, @RequestParam("height") int height) {
         if (x < 0 || y < 0 || width < 0 || height < 0) {
             return Mono.error(new IllegalArgumentException("Subframe parameters must be positive"));
         }
@@ -114,7 +114,7 @@ public class CameraAPIController {
     }
 
     @PostMapping(value = "/setbinning", params = {"binx","biny"})
-    public Mono<Void> setBinning(@RequestParam("binx") int binx, @RequestParam("biny") int biny) {
+    public Mono<Boolean> setBinning(@RequestParam("binx") int binx, @RequestParam("biny") int biny) {
         if (binx < 1 || biny < 1) {
             return Mono.error(new IllegalArgumentException("Binning must be at least 1"));
         }
@@ -122,7 +122,7 @@ public class CameraAPIController {
     }
 
     @PostMapping(value = "/setbinning", params = "binning")
-    public Mono<Void> setBinning(@RequestParam("binning") int binning) {
+    public Mono<Boolean> setBinning(@RequestParam("binning") int binning) {
         if (binning < 1) {
             return Mono.error(new IllegalArgumentException("Binning must be at least 1"));
         }
@@ -130,17 +130,17 @@ public class CameraAPIController {
     }
 
     @PostMapping(value = "/startexposure")
-    public Mono<Void> startExposure(@RequestParam("duration") double duration, @RequestParam("lightframe") boolean lightFrame) {
+    public Mono<Boolean> startExposure(@RequestParam("duration") double duration, @RequestParam("lightframe") boolean lightFrame) {
         return camera.startExposure(duration, lightFrame);
     }
 
     @PostMapping(value = "/stopexposure")
-    public Mono<Void> stopExposure() {
+    public Mono<Boolean> stopExposure() {
         return camera.stopExposure();
     }
 
     @PostMapping(value = "/abortexposure")
-    public Mono<Void> abortExposure() {
+    public Mono<Boolean> abortExposure() {
         return camera.abortExposure();
     }
 

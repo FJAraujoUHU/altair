@@ -52,54 +52,54 @@ public abstract class FocuserService {
      * Connects the focuser
      * @throws DeviceException If there was an error connecting the focuser.
      */
-     public abstract Mono<Void> connect() throws DeviceException;
+     public abstract Mono<Boolean> connect() throws DeviceException;
 
     /**
      * Disconnects the focuser
      * @throws DeviceException If there was an error disconnecting the focuser.
      */
-    public abstract Mono<Void> disconnect() throws DeviceException;
+    public abstract Mono<Boolean> disconnect() throws DeviceException;
 
     /**
      * Moves the focuser to the specified absolute position asynchronously
      * @param position The position to move to, in steps
      * @throws DeviceException If there was an error moving the focuser.
      */
-    public abstract Mono<Void> move(int position) throws DeviceException;
+    public abstract Mono<Boolean> move(int position) throws DeviceException;
 
     /**
      * Moves the focuser to the specified absolute position synchronously
      * @param position The position to move to, in steps
      * @throws DeviceException If there was an error moving the focuser.
      */
-    public abstract Mono<Void> moveAwait(int position) throws DeviceException;
+    public abstract Mono<Boolean> moveAwait(int position) throws DeviceException;
 
     /**
      * Moves the focuser relative to the current position asynchronously
      * @param position The position to move to, in steps
      * @throws DeviceException If there was an error moving the focuser.
      */
-    public abstract Mono<Void> moveRelative(int position) throws DeviceException;
+    public abstract Mono<Boolean> moveRelative(int position) throws DeviceException;
 
     /**
      * Moves the focuser relative to the current position synchronously
      * @param position The position to move to, in steps
      * @throws DeviceException If there was an error moving the focuser.
      */
-    public abstract Mono<Void> moveRelativeAwait(int position) throws DeviceException;
+    public abstract Mono<Boolean> moveRelativeAwait(int position) throws DeviceException;
 
     /**
      * Inmediately stops the focuser
      * @throws DeviceException If there was an error halting the focuser.
      */
-    public abstract Mono<Void> halt() throws DeviceException;
+    public abstract Mono<Boolean> halt() throws DeviceException;
 
     /**
      * Sets the temperature-compensation state of the focuser
      * @param tempComp TRUE to enable temperature-compensation, FALSE to disable
      * @throws DeviceException If there was an error setting the temperature-compensation state or the device does not support temperature-compensation.
      */
-    public abstract Mono<Void> setTempComp(boolean enable) throws DeviceException;
+    public abstract Mono<Boolean> setTempComp(boolean enable) throws DeviceException;
 
     //#endregion Setters
     //////////////////////////// STATUS REPORTING /////////////////////////////

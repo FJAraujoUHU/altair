@@ -282,13 +282,13 @@ public abstract class CameraService {
      * Connects to the camera
      * @throws DeviceException if there was an error connecting to the camera.
      */
-    public abstract Mono<Void> connect() throws DeviceException;
+    public abstract Mono<Boolean> connect() throws DeviceException;
 
     /**
      * Disconnects from the camera
      * @throws DeviceException if there was an error disconnecting from the camera.
      */
-    public abstract Mono<Void> disconnect() throws DeviceException;
+    public abstract Mono<Boolean> disconnect() throws DeviceException;
 
 
     //#region Cooler
@@ -298,27 +298,27 @@ public abstract class CameraService {
      * @param enable true to turn the cooler on, false to turn it off
      * @throws DeviceException if there was an error setting the cooler.
      */
-    public abstract Mono<Void> setCooler(boolean enable) throws DeviceException;
+    public abstract Mono<Boolean> setCooler(boolean enable) throws DeviceException;
 
     /**
      * Sets the target temperature of the sensor
      * @param temp the target temperature of the sensor in degrees Celsius
      * @throws DeviceException if there was an error setting the cooler.
      */
-    public abstract Mono<Void> setTargetTemp(double temp) throws DeviceException;
+    public abstract Mono<Boolean> setTargetTemp(double temp) throws DeviceException;
 
     /**
      * Warms up the sensor to ambient temperature
      * @throws DeviceException if there was an error warming up the sensor.
      */
-    public abstract Mono<Void> warmup() throws DeviceException;
+    public abstract Mono<Boolean> warmup() throws DeviceException;
 
     /**
      * Warms up the sensor to the specified temperature
      * @param target the target temperature in degrees Celsius
      * @throws DeviceException if there was an error warming up the sensor.
      */
-    public abstract Mono<Void> warmup(double target) throws DeviceException;
+    public abstract Mono<Boolean> warmup(double target) throws DeviceException;
 
     /**
      * Warms up the sensor to ambient temperature and waits for the sensor
@@ -326,7 +326,7 @@ public abstract class CameraService {
      * 
      * @throws DeviceException if there was an error warming up the sensor.
      */
-    public abstract Mono<Void> warmupAwait() throws DeviceException;
+    public abstract Mono<Boolean> warmupAwait() throws DeviceException;
 
     /**
      * Warms up the sensor to the specified temperature and waits for the sensor
@@ -334,14 +334,14 @@ public abstract class CameraService {
      * @param target the target temperature in degrees Celsius
      * @throws DeviceException if there was an error warming up the sensor.
      */
-    public abstract Mono<Void> warmupAwait(double target) throws DeviceException;
+    public abstract Mono<Boolean> warmupAwait(double target) throws DeviceException;
 
     /**
      * Cools down the sensor to the target temperature set in the configuration.
      * 
      * @throws DeviceException if there was an error cooling down the sensor.
      */
-    public Mono<Void> cooldown() throws DeviceException {
+    public Mono<Boolean> cooldown() throws DeviceException {
         return this.cooldown(config.getTargetCooling());
     }
 
@@ -350,7 +350,7 @@ public abstract class CameraService {
      * @param target the target temperature in degrees Celsius
      * @throws DeviceException if there was an error cooling down the sensor.
      */
-    public abstract Mono<Void> cooldown(double target) throws DeviceException;
+    public abstract Mono<Boolean> cooldown(double target) throws DeviceException;
 
     //#endregion
 
@@ -365,13 +365,13 @@ public abstract class CameraService {
      * @param height the height of the subframe
      * @throws DeviceException if there was an error setting the subframe.
      */
-    public Mono<Void> setSubframe(int startX, int startY, int width, int height) throws DeviceException {
+    public Mono<Boolean> setSubframe(int startX, int startY, int width, int height) throws DeviceException {
         return Mono.whenDelayError(
             setSubframeStartX(startX),
             setSubframeStartY(startY),
             setSubframeWidth(width),
             setSubframeHeight(height)
-        );
+        ).thenReturn(true);
     }
 
     /**
@@ -379,28 +379,28 @@ public abstract class CameraService {
      * @param startX the X coordinate of the top left corner of the subframe
      * @throws DeviceException if there was an error setting the subframe.
      */
-    public abstract Mono<Void> setSubframeStartX(int startX) throws DeviceException;
+    public abstract Mono<Boolean> setSubframeStartX(int startX) throws DeviceException;
 
     /**
      * Sets the subframe of the camera. The subframe is defined by the top left corner and the width and height of the subframe.
      * @param startY the Y coordinate of the top left corner of the subframe
      * @throws DeviceException if there was an error setting the subframe.
      */
-    public abstract Mono<Void> setSubframeStartY(int startY) throws DeviceException;
+    public abstract Mono<Boolean> setSubframeStartY(int startY) throws DeviceException;
 
     /**
      * Sets the subframe of the camera. The subframe is defined by the top left corner and the width and height of the subframe.
      * @param width the width of the subframe
      * @throws DeviceException if there was an error setting the subframe.
      */
-    public abstract Mono<Void> setSubframeWidth(int width) throws DeviceException;
+    public abstract Mono<Boolean> setSubframeWidth(int width) throws DeviceException;
 
     /**
      * Sets the subframe of the camera. The subframe is defined by the top left corner and the width and height of the subframe.
      * @param height the height of the subframe
      * @throws DeviceException if there was an error setting the subframe.
      */
-    public abstract Mono<Void> setSubframeHeight(int height) throws DeviceException;
+    public abstract Mono<Boolean> setSubframeHeight(int height) throws DeviceException;
 
     /**
      * Sets the binning of the camera. If the camera does not support asymetric binning, binX will be applied to both axes.
@@ -408,14 +408,14 @@ public abstract class CameraService {
      * @param binY the binning in the Y direction
      * @throws DeviceException if there was an error setting the binning or the sensor does not support the requested binning.
      */
-    public abstract Mono<Void> setBinning(int binX, int binY) throws DeviceException;
+    public abstract Mono<Boolean> setBinning(int binX, int binY) throws DeviceException;
 
     /**
      * Sets symetrical binning of the camera.
      * @param bin the binning in both directions
      * @throws DeviceException if there was an error setting the binning or the sensor does not support the requested binning.
      */
-    public abstract Mono<Void> setBinning(int bin) throws DeviceException;
+    public abstract Mono<Boolean> setBinning(int bin) throws DeviceException;
 
     /**
      * Starts an exposure.
@@ -423,7 +423,7 @@ public abstract class CameraService {
      * @param useLightFrame true to use a light frame, false to use a dark frame
      * @throws DeviceException if there was an error starting the exposure.
      */
-    public abstract Mono<Void> startExposure(double duration, boolean useLightFrame) throws DeviceException;
+    public abstract Mono<Boolean> startExposure(double duration, boolean useLightFrame) throws DeviceException;
 
     /**
      * Starts an exposure.
@@ -434,9 +434,9 @@ public abstract class CameraService {
      * @param binY the binning in the Y direction
      * @throws DeviceException if there was an error starting the exposure.
      */
-    public Mono<Void> startExposure(double duration, boolean useLightFrame, int[] subframe, int binX, int binY) throws DeviceException {
+    public Mono<Boolean> startExposure(double duration, boolean useLightFrame, int[] subframe, int binX, int binY) throws DeviceException {
         return getCapabilities().flatMap(caps -> {
-            Mono<Void> actions = setSubframe(subframe[0], subframe[1], subframe[2], subframe[3]);
+            Mono<Boolean> actions = setSubframe(subframe[0], subframe[1], subframe[2], subframe[3]);
             
             if (caps.canBinning) {
                 if (caps.canAsymBinning)  {
@@ -454,13 +454,13 @@ public abstract class CameraService {
      * Stops the current exposure early, if any. The exposure will not be discarded.
      * @throws DeviceException if there was an error stopping the exposure.
      */
-    public abstract Mono<Void> stopExposure() throws DeviceException;
+    public abstract Mono<Boolean> stopExposure() throws DeviceException;
 
     /**
      * Aborts and discards the current exposure, if any.
      * @throws DeviceException if there was an error discarding the exposure.
      */
-    public abstract Mono<Void> abortExposure() throws DeviceException;
+    public abstract Mono<Boolean> abortExposure() throws DeviceException;
 
     //#endregion
 

@@ -15,6 +15,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
+import com.aajpm.altair.config.ObservatoryConfig;
 import com.aajpm.altair.entity.*;
 import com.aajpm.altair.security.account.AltairUser;
 import com.aajpm.altair.security.account.AltairUserService;
@@ -57,8 +58,7 @@ public class GovernorService {
     private final AtomicBoolean busyFlag = new AtomicBoolean(false);
 
     /** isSafe() disable override */
-    private final AtomicBoolean safeFlag = new AtomicBoolean(true);
-    // TODO: change back to false
+    private final AtomicBoolean safeFlag = new AtomicBoolean(false);
 
     //#endregion
 
@@ -96,8 +96,9 @@ public class GovernorService {
     ///////////////////////////// CONSTRUCTORS ////////////////////////////////
     //#region Constructors
 
-    public GovernorService() {
+    public GovernorService(ObservatoryConfig config) {
         super();
+        safeFlag.set(config.getDisableSafetyChecks());
     }
 
     //#endregion
@@ -121,7 +122,15 @@ public class GovernorService {
             boolean isParked = status.telescope().parked() &&
                                 status.dome().parked() &&
                                 DomeService.SHUTTER_CLOSED_STATUS.equalsIgnoreCase(status.dome().shutterStatus());
+            
+            boolean isOff = !status.telescope().connected() &&
+                            !status.dome().connected() &&
+                            !status.camera().connected() &&
+                            !status.focuser().connected() &&
+                            !status.filterWheel().connected();
 
+            if (isOff)
+                return State.PARKED;
             if (currentOrder == null)
                 return isParked ? State.PARKED : State.IDLE;
             if (currentOrder instanceof ControlOrder)
@@ -244,14 +253,14 @@ public class GovernorService {
     /**
      * Enables the governor.
      */
-    public Mono<Void> enable() {
+    public Mono<Boolean> enable() {
         return weatherWatch.connect().doOnSuccess(v -> enabledFlag.set(true));
     }
 
     /**
      * Disables the governor.
      */
-    public Mono<Void> disable() {
+    public Mono<Boolean> disable() {
         return disconnectAll().doOnSuccess(v -> enabledFlag.set(false));
     }
 
@@ -261,7 +270,7 @@ public class GovernorService {
      * @return A {@link Mono} that will complete inmidiately.
      *         If an error occurs, it will complete with an error.
      */
-    public Mono<Void> connectAll() {
+    public Mono<Boolean> connectAll() {
         return observatoryService.connectAll();
     }
 
@@ -271,8 +280,18 @@ public class GovernorService {
      * @return A {@link Mono} that will complete inmidiately.
      *         If an error occurs, it will complete with an error.
      */
-    public Mono<Void> disconnectAll() {
+    public Mono<Boolean> disconnectAll() {
         return observatoryService.disconnectAll();
+    }
+
+    /**
+     * Disconnects all the devices of the observatory except the weather station.
+     * 
+     * @return A {@link Mono} that will complete inmidiately.
+     *         If an error occurs, it will complete with an error.
+     */
+    public Mono<Boolean> disconnectAllExceptWeather() {
+        return observatoryService.disconnectAllExceptWeather();
     }
 
     /**
@@ -329,8 +348,20 @@ public class GovernorService {
      * 
      * @return A {@link Mono} that will complete as soon as the changes apply.
      */
-    public Mono<Void> setSlaving(boolean slaved) {
-        return observatoryService.setSlaving(slaved);
+    public Mono<Boolean> setSlaving(boolean slaved) {
+        return observatoryService.setSlaved(slaved);
+    }
+
+    /**
+     * Enables/disables dome slaving.
+     * 
+     * @param slaving If true, the dome will be slaved to the telescope.
+     *                If false, the dome will be free to move independently.
+     * 
+     * @return A {@link Mono} that will complete as soon as the dome syncs and the changes apply.
+     */
+    public Mono<Boolean> setSlavingAwait(boolean slaved) {
+        return observatoryService.setSlavedAwait(slaved);
     }
 
     /**
@@ -341,7 +372,7 @@ public class GovernorService {
      *                          the dome's native slaving.
      * @return A {@link Mono} that will complete as soon as the changes apply.
      */
-    public Mono<Void> useAltairSlaving(boolean useAltairSlaving) {
+    public Mono<Boolean> useAltairSlaving(boolean useAltairSlaving) {
         return observatoryService.useAltairSlaving(useAltairSlaving);
     }
 
@@ -450,7 +481,7 @@ public class GovernorService {
             ExposureParams params = exposureOrder.getExposureParams();
             
 
-            Mono<Void> job = observatoryService.startCamera();
+            Mono<Boolean> job = observatoryService.startCamera();
             if (target.shouldHaveRaDec()) {
                 job = job.then(observatoryService
                             .slewTogetherRaDecAwait(target.getRa(), target.getDec()));
@@ -460,7 +491,7 @@ public class GovernorService {
             }
 
             job = job
-                    .then(observatoryService.setSlavingAwait(true))
+                    .then(observatoryService.setSlavedAwait(true))
                     .then(observatoryService.startExposure(params))
                     .doOnTerminate(() -> {
                         long exposureTime = Math.round(params.getExposureTime());
@@ -506,15 +537,16 @@ public class GovernorService {
      * Aborts the current order, manages the order's status and goes to IDLE.
      * @return a Mono that executes the abort order and completes when the order is aborted.
      */
-    public Mono<Void> abortOrderMono() {
+    public Mono<Boolean> abortOrderMono() {
         return observatoryService.abort()
                 .doOnSubscribe(s -> busyFlag.set(true))
-                .doOnTerminate(() -> {
+                .then(Mono.fromCallable(() -> {
                     markAsFail();
                     currentOrder = null;
                     currentOrderInterval = null;
                     busyFlag.set(false);
-                });
+                    return true;
+                }));
     }
 
     /**
@@ -539,7 +571,6 @@ public class GovernorService {
         }
     }
 
-    // TODO FIX: org.hibernate.StaleObjectStateException: Row was updated or deleted by another transaction (or unsaved-value mapping was incorrect) : [com.aajpm.altair.entity.ExposureOrder#70]
     private void markAsComplete() {
         double exposureTime = currentOrderInterval.getDuration().getSeconds();
         if (currentOrder instanceof ProgramOrder) {
@@ -644,9 +675,10 @@ public class GovernorService {
         Mono<Boolean> isSafeMono = weatherWatch.connect().then(observatoryService
                                     .isSafe(false)  // will use nextNight if available
                                     .onErrorReturn(false));
-        Mono<State> stateMono = this
-                                    .getState()
+
+        Mono<State> stateMono = this.getState()
                                     .onErrorReturn(State.ERROR);
+
         Tuple2<Boolean, State> t = Mono
                                     .zip(isSafeMono, stateMono)
                                     .blockOptional(Duration.ofMillis(timeout))
@@ -723,7 +755,7 @@ public class GovernorService {
             if (!isSafe) {
                 logger.info("Governor: it's not safe to observe, parking the telescope. [isSafe = {}, nextNight = {}, isNight = {}]", isSafe, nextNight, nextNight == null ? "null" : nextNight.contains(Instant.now()));
                 observatoryService.stopAwait()
-                        .then(observatoryService.disconnectAll())
+                        .then(observatoryService.disconnectAllExceptWeather())
                         .block(Duration.ofMinutes(5));
                 return;
             }
@@ -735,7 +767,7 @@ public class GovernorService {
             if (orders == null || orders.isEmpty()) {
                 logger.info("Governor: no orders to run, parking the telescope.");
                 observatoryService.stopAwait()
-                        .then(observatoryService.disconnectAll())
+                        .then(disconnectAllExceptWeather())
                         .block(Duration.ofMinutes(5));
                 return;
             }

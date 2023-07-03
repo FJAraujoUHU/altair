@@ -46,7 +46,7 @@ public class GovernorAPIController {
     }
 
     @PostMapping(value = "/enable")
-    public Mono<Void> enable() {
+    public Mono<Boolean> enable() {
         try {
             AltairUser user = AltairUserService.getCurrentUser();
             if (!governor.canOperate(user))
@@ -59,7 +59,7 @@ public class GovernorAPIController {
     }
 
     @PostMapping(value = "/disable")
-    public Mono<Void> disable() {
+    public Mono<Boolean> disable() {
         try {
             AltairUser user = AltairUserService.getCurrentUser();
             if (!governor.canOperate(user))
@@ -72,7 +72,7 @@ public class GovernorAPIController {
     }
 
     @PostMapping(value = "/connectall")
-    public Mono<Void> connectAll() {
+    public Mono<Boolean> connectAll() {
         try {
             AltairUser user = AltairUserService.getCurrentUser();
             if (!governor.canOperate(user))
@@ -85,7 +85,7 @@ public class GovernorAPIController {
     }
 
     @PostMapping(value = "/disconnectall")
-    public Mono<Void> disconnectAll() {
+    public Mono<Boolean> disconnectAll() {
         try {
             AltairUser user = AltairUserService.getCurrentUser();
             if (!governor.canOperate(user))
@@ -98,43 +98,43 @@ public class GovernorAPIController {
     }
 
     @PostMapping(value = "/enteradminmode")
-    public Mono<Void> enterAdminMode() {
+    public Mono<Boolean> enterAdminMode() {
         try {
             AltairUser user = AltairUserService.getCurrentUser();
             governor.enterAdminMode(user);
-            return Mono.empty();
+            return Mono.just(true);
         } catch (Exception e) {
             return Mono.error(e);
         }
     }
 
     @PostMapping(value = "/exitadminmode")
-    public Mono<Void> exitAdminMode() {
+    public Mono<Boolean> exitAdminMode() {
         try {
             AltairUser user = AltairUserService.getCurrentUser();
             governor.exitAdminMode(user);
-            return Mono.empty();
+            return Mono.just(true);
         } catch (Exception e) {
             return Mono.error(e);
         }
     }
 
     @PostMapping(value = "/setsafeoverride")
-    public Mono<Void> setSafeOverride(@RequestParam(value = "override") boolean safeOverride) {
+    public Mono<Boolean> setSafeOverride(@RequestParam(value = "override") boolean safeOverride) {
         try {
             AltairUser user = AltairUserService.getCurrentUser();
             if (!governor.canOperate(user))
                 return Mono.error(new UnauthorisedException(user));
 
             governor.setSafeOverride(safeOverride);
-            return Mono.empty();
+            return Mono.just(true);
         } catch (Exception e) {
             return Mono.error(e);
         }
     }
 
     @PostMapping(value = "/setslaving")
-    public Mono<Void> setSlaving(@RequestParam(value = "enable") boolean enable) {
+    public Mono<Boolean> setSlaving(@RequestParam(value = "enable") boolean enable) {
         try {
             AltairUser user = AltairUserService.getCurrentUser();
             if (!governor.canOperate(user))
@@ -146,7 +146,7 @@ public class GovernorAPIController {
     }
 
     @PostMapping(value = "/usealtairslaving")
-    public Mono<Void> useAltairSlaving(@RequestParam(value = "usealtair") boolean useAltair) {
+    public Mono<Boolean> useAltairSlaving(@RequestParam(value = "usealtair") boolean useAltair) {
         try {
             AltairUser user = AltairUserService.getCurrentUser();
             if (!governor.canOperate(user))
@@ -158,42 +158,42 @@ public class GovernorAPIController {
     }
 
     @PostMapping(value = "/startorder")
-    public Mono<Void> startOrder(@RequestParam(value = "orderid") int orderId) {
+    public Mono<Boolean> startOrder(@RequestParam(value = "orderid") int orderId) {
         try {
             AltairUser user = AltairUserService.getCurrentUser();
             if (!governor.canOperate(user))
                 return Mono.error(new UnauthorisedException(user));
 
             governor.startOrder(orderService.findById(orderId));
-            return Mono.empty();
+            return Mono.just(true);
         } catch (Exception e) {
             return Mono.error(e);
         }
     }
 
     @PostMapping(value = "/startprogram")
-    public Mono<Void> startProgram(@RequestParam(value = "programid") int programId) {
+    public Mono<Boolean> startProgram(@RequestParam(value = "programid") int programId) {
         try {
             AltairUser user = AltairUserService.getCurrentUser();
             if (!governor.canOperate(user))
                 return Mono.error(new UnauthorisedException(user));
 
             governor.startProgram(programService.findById(programId), user);
-            return Mono.empty();
+            return Mono.just(true);
         } catch (Exception e) {
             return Mono.error(e);
         }
     }
 
     @PostMapping(value = "/abortorder")
-    public Mono<Void> abortOrder() {
+    public Mono<Boolean> abortOrder() {
         try {
             AltairUser user = AltairUserService.getCurrentUser();
             if (!governor.canOperate(user))
                 return Mono.error(new UnauthorisedException(user));
 
             governor.abortOrder();
-            return Mono.empty();
+            return Mono.just(true);
         } catch (Exception e) {
             return Mono.error(e);
         }

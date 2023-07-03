@@ -364,17 +364,17 @@ public class ASCOMWeatherWatchService extends WeatherWatchService {
     // #region Setters/Actions
 
     @Override
-    public Mono<Void> connect() {
+    public Mono<Boolean> connect() {
         MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
         params.add("Connected", String.valueOf(true));
-        return this.put("connected", params).then();
+        return this.put("connected", params).thenReturn(true);
     }
 
     @Override
-    public Mono<Void> disconnect() {
+    public Mono<Boolean> disconnect() {
         MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
         params.add("Connected", String.valueOf(false));
-        return this.put("connected", params).then();
+        return this.put("connected", params).thenReturn(true);
     }
 
     // #endregion

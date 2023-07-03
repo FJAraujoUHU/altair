@@ -71,94 +71,94 @@ public abstract class TelescopeService {
     /**
      * Connects to the telescope.
      * @throws DeviceException If there was an error connecting to the telescope.
-     * @return A Mono that completes when the device has been connected.
+     * @return A Mono that completes and signals True when the device has been connected.
      */
-    public abstract Mono<Void> connect() throws DeviceException;
+    public abstract Mono<Boolean> connect() throws DeviceException;
 
     /**
      * Disconnects from the telescope.
      * @throws DeviceException If there was an error disconnecting from the telescope.
-     * @return A Mono that completes when the device has been disconnected.
+     * @return A Mono that completes and signals True when the device has been disconnected.
      */
-    public abstract Mono<Void> disconnect() throws DeviceException;
+    public abstract Mono<Boolean> disconnect() throws DeviceException;
 
     /**
      * Parks the telescope asynchonously.
      * @throws DeviceException If there was an error parking the telescope.
-     * @return A Mono that completes when the telescope has been parked.
+     * @return A Mono that completes and signals True when the telescope has been parked.
      */
-    public abstract Mono<Void> park() throws DeviceException;
+    public abstract Mono<Boolean> park() throws DeviceException;
 
     /**
      * Parks the telescope synchronously, and wait for the operation to complete.
      * @throws DeviceException If there was an error parking the telescope.
-     * @return A Mono that completes when the telescope has been parked.
+     * @return A Mono that completes and signals True when the telescope has been parked.
      */
-    public abstract Mono<Void> parkAwait() throws DeviceException;
+    public abstract Mono<Boolean> parkAwait() throws DeviceException;
 
     /**
      * Unparks the telescope asynchronously.
      * @throws DeviceException If there was an error unparking the telescope.
-     * @return A Mono that completes when the telescope has been unparked.
+     * @return A Mono that completes and signals True when the telescope has been unparked.
      */
-    public abstract Mono<Void> unpark() throws DeviceException;
+    public abstract Mono<Boolean> unpark() throws DeviceException;
 
     /**
      * Unparks the telescope synchronously, and wait for the operation to complete.
      * @throws DeviceException If there was an error unparking the telescope.
-     * @return A Mono that completes when the telescope has been unparked.
+     * @return A Mono that completes and signals True when the telescope has been unparked.
      */
-    public abstract Mono<Void> unparkAwait() throws DeviceException;
+    public abstract Mono<Boolean> unparkAwait() throws DeviceException;
 
     /**
      * Sets the telescope to the designated home position asynchronously.
      * @throws DeviceException If there was an error setting the telescope to the designated home position.
-     * @return A Mono that completes when the telescope has been set.
+     * @return A Mono that completes and signals True when the telescope has been set.
      */
-    public abstract Mono<Void> findHome() throws DeviceException;
+    public abstract Mono<Boolean> findHome() throws DeviceException;
 
     /**
      * Sets the telescope to the designated home position synchronously, and wait for the slew to complete.
      * @throws DeviceException If there was an error setting the telescope to the designated home position.
-     * @return A Mono that completes when the telescope has slewed home.
+     * @return A Mono that completes and signals True when the telescope has slewed home.
      */
-    public abstract Mono<Void> findHomeAwait() throws DeviceException;
+    public abstract Mono<Boolean> findHomeAwait() throws DeviceException;
 
     /**
      * Slew the telescope to the designated coordinates asynchronously.
      * @param rightAscension The Right Ascension to slew to.
      * @param declination The Declination to slew to.
      * @throws DeviceException If there was an error slewing the telescope.
-     * @return A Mono that completes when the slew has been ordered.
+     * @return A Mono that completes and signals True when the slew has been ordered.
      */
-    public abstract Mono<Void> slewToCoords(double rightAscension, double declination) throws DeviceException;
+    public abstract Mono<Boolean> slewToCoords(double rightAscension, double declination) throws DeviceException;
 
     /**
      * Slew the telescope to the designated coordinates synchronously, and wait for the slew to complete.
      * @param rightAscension The Right Ascension to slew to.
      * @param declination The Declination to slew to.
      * @throws DeviceException If there was an error slewing the telescope.
-     * @return A Mono that completes when slew is complete.
+     * @return A Mono that completes and signals True when slew is complete.
      */
-    public abstract Mono<Void> slewToCoordsAwait(double rightAscension, double declination) throws DeviceException;
+    public abstract Mono<Boolean> slewToCoordsAwait(double rightAscension, double declination) throws DeviceException;
 
     /**
      * Slew the telescope to the designated altitude and azimuth asynchronously.
      * @param altitude The altitude to slew to.
      * @param azimuth The azimuth to slew to.
      * @throws DeviceException If there was an error slewing the telescope.
-     * @return A Mono that completes when the slew has been ordered.
+     * @return A Mono that completes and signals True when the slew has been ordered.
      */
-    public abstract Mono<Void> slewToAltAz(double altitude, double azimuth) throws DeviceException;
+    public abstract Mono<Boolean> slewToAltAz(double altitude, double azimuth) throws DeviceException;
 
     /**
      * Slew the telescope to the designated altitude and azimuth synchronously, and wait for the slew to complete.
      * @param altitude The altitude to slew to.
      * @param azimuth The azimuth to slew to.
      * @throws DeviceException If there was an error slewing the telescope.
-     * @return A Mono that completes when slew is complete.
+     * @return A Mono that completes and signals True when slew is complete.
      */
-    public abstract Mono<Void> slewToAltAzAwait(double altitude, double azimuth) throws DeviceException;
+    public abstract Mono<Boolean> slewToAltAzAwait(double altitude, double azimuth) throws DeviceException;
 
     /**
      * Slew the telescope relative to its current position asynchronously.
@@ -166,9 +166,9 @@ public abstract class TelescopeService {
      * @param direction The direction to slew in (0 = North, 1 = East, 2 = South, 3 = West).
      * @throws DeviceException If there was an error slewing the telescope.
      * @throws IllegalArgumentException If the direction is not valid.
-     * @return A Mono that completes when the slew has been ordered.
+     * @return A Mono that completes and signals True when the slew has been ordered.
      */
-    public Mono<Void> slewRelative(double degrees, int direction) throws DeviceException, IllegalArgumentException {
+    public Mono<Boolean> slewRelative(double degrees, int direction) throws DeviceException, IllegalArgumentException {
         return getAltAz().flatMap(altAz -> {
             if (altAz == null) {
                 return Mono.error(new DeviceException("Could not get current altitude and azimuth."));
@@ -194,9 +194,9 @@ public abstract class TelescopeService {
      * @param direction The direction to slew in (0 = North, 1 = East, 2 = South, 3 = West).
      * @throws DeviceException If there was an error slewing the telescope.
      * @throws IllegalArgumentException If the direction is not valid.
-     * @return A Mono that completes when slew is complete.
+     * @return A Mono that completes and signals True when slew is complete.
      */
-    public Mono<Void> slewRelativeAwait(double degrees, int direction) throws DeviceException, IllegalArgumentException {
+    public Mono<Boolean> slewRelativeAwait(double degrees, int direction) throws DeviceException, IllegalArgumentException {
         return getAltAz().flatMap(altAz -> {
             if (altAz == null) {
                 return Mono.error(new DeviceException("Could not get current altitude and azimuth."));
@@ -219,17 +219,17 @@ public abstract class TelescopeService {
     /**
      * Aborts the current slew, if there is one.
      * @throws DeviceException If there was an error aborting the current slew.
-     * @return A Mono that completes when the current operation has been aborted.
+     * @return A Mono that completes and signals True when the current operation has been aborted.
      */
-    public abstract Mono<Void> abortSlew() throws DeviceException;
+    public abstract Mono<Boolean> abortSlew() throws DeviceException;
 
     /**
      * Set the state of the sidereal tracking.
      * @param tracking True to enable tracking, false to disable tracking.
      * @throws DeviceException If there was an error setting the tracking.
-     * @return A Mono that completes when the tracking state has been set.
+     * @return A Mono that completes and signals True when the tracking state has been set.
      */
-    public abstract Mono<Void> setTracking(boolean tracking) throws DeviceException;
+    public abstract Mono<Boolean> setTracking(boolean tracking) throws DeviceException;
 
     //#endregion
     //////////////////////////// STATUS REPORTING /////////////////////////////

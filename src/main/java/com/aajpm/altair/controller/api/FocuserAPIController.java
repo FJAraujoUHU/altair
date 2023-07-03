@@ -41,32 +41,32 @@ public class FocuserAPIController {
     }
 
     @PostMapping(value = "/connect")
-    public Mono<Void> connect() {
+    public Mono<Boolean> connect() {
         return focuser.connect();
     }
 
     @PostMapping(value = "/disconnect")
-    public Mono<Void> disconnect() {
+    public Mono<Boolean> disconnect() {
         return focuser.disconnect();
     }
 
     @PostMapping(value = "/abort")
-    public Mono<Void> abort() {
+    public Mono<Boolean> abort() {
         return focuser.halt();
     }
 
     @PostMapping(value = "/move")
-    public Mono<Void> move(@RequestParam(value = "position") int position) {
+    public Mono<Boolean> move(@RequestParam(value = "position") int position) {
         return focuser.move(position);
     }
 
     @PostMapping(value = "/moverelative")
-    public Mono<Void> moveRelative(@RequestParam(value = "steps") int steps) {
+    public Mono<Boolean> moveRelative(@RequestParam(value = "steps") int steps) {
         return focuser.moveRelative(steps);
     }
 
     @PostMapping(value = "/tempcomp")
-    public Mono<Void> tempComp(@RequestParam(value = "enable") boolean enable) {
+    public Mono<Boolean> tempComp(@RequestParam(value = "enable") boolean enable) {
         return focuser.setTempComp(enable);
     }
 }

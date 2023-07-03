@@ -106,30 +106,30 @@ public class ASCOMDomeService extends DomeService {
     //#region Setters/Actions
 
     @Override
-    public Mono<Void> connect() throws DeviceException {
+    public Mono<Boolean> connect() throws DeviceException {
         MultiValueMap<String, String> args = new LinkedMultiValueMap<>(1);
         args.add("Connected", "true");
         return this.put("connected", args)
             .doOnSuccess(v -> this.getCapabilities().subscribe())   // attempt to get the device's capabilities
-            .then();
+            .thenReturn(true);
     }
 
     @Override
-    public Mono<Void> disconnect() throws DeviceException {
+    public Mono<Boolean> disconnect() throws DeviceException {
         MultiValueMap<String, String> args = new LinkedMultiValueMap<>(1);
         args.add("Connected", "false");
-        return this.put("connected", args).then();
+        return this.put("connected", args).thenReturn(true);
     }
 
     @Override
-    public Mono<Void> closeShutter() throws DeviceException {
+    public Mono<Boolean> closeShutter() throws DeviceException {
         return getCapabilities().flatMap(caps -> {
            if (caps.canShutter()) {
                 return this.getShutterStatus().flatMap(status -> {
                     if (status == DomeService.SHUTTER_CLOSED) {
-                        return Mono.empty();
+                        return Mono.just(true);
                     } else {
-                        return this.put("closeshutter", null).then();
+                        return this.put("closeshutter", null).thenReturn(true);
                     }
                 });
            } else {
@@ -139,12 +139,12 @@ public class ASCOMDomeService extends DomeService {
     }
 
     @Override
-    public Mono<Void> closeShutterAwait() throws DeviceException {
+    public Mono<Boolean> closeShutterAwait() throws DeviceException {
         return getCapabilities().flatMap(caps -> {
            if (caps.canShutter()) {
                 return this.getShutterStatus().flatMap(status -> {
                     if (status == DomeService.SHUTTER_CLOSED) {
-                        return Mono.empty();
+                        return Mono.just(true);
                     } else {
                         return closeShutter()
                             .then(Mono.delay(Duration.ofMillis(statusUpdateInterval)))          // wait before checking state
@@ -153,8 +153,7 @@ public class ASCOMDomeService extends DomeService {
                                 .filter(Boolean.FALSE::equals)
                                 .flatMap(open -> Mono.just(true))
                             ).next()
-                            .timeout(Duration.ofMillis((synchronousTimeout > 0) ? synchronousTimeout : Long.MAX_VALUE)) // timeout if it takes too long
-                            .then();
+                            .timeout(Duration.ofMillis((synchronousTimeout > 0) ? synchronousTimeout : Long.MAX_VALUE));
                     }
                 });
            } else {
@@ -164,10 +163,10 @@ public class ASCOMDomeService extends DomeService {
     }
     
     @Override
-    public Mono<Void> findHome() throws DeviceException {
+    public Mono<Boolean> findHome() throws DeviceException {
         return getCapabilities().flatMap(caps -> {
             if (caps.canFindHome()) {
-                return this.put("findhome", null).then();
+                return this.put("findhome", null).thenReturn(true);
             } else {
                 return Mono.error(new DeviceException("Dome does not support finding home"));
             }
@@ -175,7 +174,7 @@ public class ASCOMDomeService extends DomeService {
     }
 
     @Override
-    public Mono<Void> findHomeAwait() throws DeviceException {
+    public Mono<Boolean> findHomeAwait() throws DeviceException {
         return findHome()
             .then(Mono.delay(Duration.ofMillis(statusUpdateInterval)))          // wait before checking state
             .thenMany(Flux.interval(Duration.ofMillis(statusUpdateInterval)))   // check periodically if at home
@@ -183,30 +182,29 @@ public class ASCOMDomeService extends DomeService {
                 .filter(Boolean.TRUE::equals)
                 .flatMap(atHome -> Mono.just(true))
             ).next()
-            .timeout(Duration.ofMillis((synchronousTimeout > 0) ? synchronousTimeout : Long.MAX_VALUE)) // timeout if it takes too long
-            .then();
+            .timeout(Duration.ofMillis((synchronousTimeout > 0) ? synchronousTimeout : Long.MAX_VALUE));
     }
 
     @Override
-    public Mono<Void> halt() throws DeviceException {
+    public Mono<Boolean> halt() throws DeviceException {
         // No need to check capabilities, as this is always supported
         // Check if slewing first just in case
         return isSlewing()
                 .flatMap(slewing -> Boolean.TRUE.equals(slewing)
                         ? put("abortslew", null)
                         : Mono.empty()
-                ).then();
+                ).thenReturn(true);
     }
 
     @Override
-    public Mono<Void> openShutter() throws DeviceException {
+    public Mono<Boolean> openShutter() throws DeviceException {
         return getCapabilities().flatMap(caps -> {
             if (caps.canShutter()) {
                 return this.getShutterStatus().flatMap(status -> {
                     if (status == DomeService.SHUTTER_OPEN) {
-                        return Mono.empty();
+                        return Mono.just(true);
                     } else {
-                        return this.put("openshutter", null).then();
+                        return this.put("openshutter", null).thenReturn(true);
                     }
                 });
             } else {
@@ -216,12 +214,12 @@ public class ASCOMDomeService extends DomeService {
     }
 
     @Override
-    public Mono<Void> openShutterAwait() throws DeviceException {
+    public Mono<Boolean> openShutterAwait() throws DeviceException {
         return getCapabilities().flatMap(caps -> {
             if (caps.canShutter()) {
                 return this.getShutterStatus().flatMap(status -> {
                     if (status == DomeService.SHUTTER_OPEN) {
-                        return Mono.empty();
+                        return Mono.just(true);
                     } else {
                         return openShutter()
                             .then(Mono.delay(Duration.ofMillis(statusUpdateInterval)))          // wait before checking state
@@ -230,8 +228,7 @@ public class ASCOMDomeService extends DomeService {
                                 .filter(Boolean.TRUE::equals)
                                 .flatMap(isOpen -> Mono.just(true))
                             ).next()
-                            .timeout(Duration.ofMillis((synchronousTimeout > 0) ? synchronousTimeout : Long.MAX_VALUE)) // timeout if it takes too long
-                            .then();
+                            .timeout(Duration.ofMillis((synchronousTimeout > 0) ? synchronousTimeout : Long.MAX_VALUE));
                     }
                 });
             } else {
@@ -241,14 +238,14 @@ public class ASCOMDomeService extends DomeService {
     }
 
     @Override
-    public Mono<Void> park() throws DeviceException {
+    public Mono<Boolean> park() throws DeviceException {
         return getCapabilities().flatMap(caps -> {
             if (caps.canPark()) {
                 return this.isParked().flatMap(parked -> {
                     if (Boolean.TRUE.equals(parked)) {
-                        return Mono.empty();
+                        return Mono.just(true);
                     } else {
-                        return this.put("park", null).then();
+                        return this.put("park", null).thenReturn(true);
                     }
                 });
             } else {
@@ -258,12 +255,12 @@ public class ASCOMDomeService extends DomeService {
     }
 
     @Override
-    public Mono<Void> parkAwait() throws DeviceException {
+    public Mono<Boolean> parkAwait() throws DeviceException {
         return getCapabilities().flatMap(caps -> {
             if (caps.canPark()) {
                 return this.isParked().flatMap(parked -> {
                     if (Boolean.TRUE.equals(parked)) {
-                        return Mono.empty();
+                        return Mono.just(true);
                     } else {
                         return park()
                             .then(Mono.delay(Duration.ofMillis(statusUpdateInterval)))          // wait before checking state
@@ -272,8 +269,7 @@ public class ASCOMDomeService extends DomeService {
                                 .filter(Boolean.TRUE::equals)
                                 .flatMap(p -> Mono.just(true))
                             ).next()
-                            .timeout(Duration.ofMillis((synchronousTimeout > 0) ? synchronousTimeout : Long.MAX_VALUE)) // timeout if it takes too long
-                            .then();
+                            .timeout(Duration.ofMillis((synchronousTimeout > 0) ? synchronousTimeout : Long.MAX_VALUE));
                     }
                 });
             } else {
@@ -283,7 +279,7 @@ public class ASCOMDomeService extends DomeService {
     }
 
     @Override
-    public Mono<Void> setAlt(double degrees) throws DeviceException {
+    public Mono<Boolean> setAlt(double degrees) throws DeviceException {
         if (degrees < 0) {
             degrees = 0;
         } else if (degrees > 90) {
@@ -294,7 +290,7 @@ public class ASCOMDomeService extends DomeService {
 
         return getCapabilities().flatMap(caps -> {
             if (caps.canSetAltitude()) {
-                return this.put("slewtoaltitude", params).then();
+                return this.put("slewtoaltitude", params).thenReturn(true);
             } else {
                 return Mono.error(new DeviceException("Dome does not support setting altitude"));
             }
@@ -302,7 +298,7 @@ public class ASCOMDomeService extends DomeService {
     }
 
     @Override
-    public Mono<Void> setAltAwait(double degrees) throws DeviceException {
+    public Mono<Boolean> setAltAwait(double degrees) throws DeviceException {
         return setAlt(degrees)
             .then(Mono.delay(Duration.ofMillis(statusUpdateInterval)))          // wait before checking state
             .thenMany(Flux.interval(Duration.ofMillis(statusUpdateInterval)))   // check periodically if it is slewing
@@ -310,20 +306,19 @@ public class ASCOMDomeService extends DomeService {
                 .filter(Boolean.FALSE::equals)
                 .flatMap(alt -> Mono.just(true))
             ).next()
-            .timeout(Duration.ofMillis((synchronousTimeout > 0) ? synchronousTimeout : Long.MAX_VALUE)) // timeout if it takes too long
-            .then();
+            .timeout(Duration.ofMillis((synchronousTimeout > 0) ? synchronousTimeout : Long.MAX_VALUE));
     }
 
     
 
     @Override
-    public Mono<Void> setSlaved(boolean slaved) throws DeviceException {
+    public Mono<Boolean> setSlaved(boolean slaved) throws DeviceException {
         MultiValueMap<String, String> params = new LinkedMultiValueMap<>(1);
         params.add("Slaved", String.valueOf(slaved));
 
         return getCapabilities().flatMap(caps -> {
             if (caps.canSlave()) {
-                return this.put("slaved", params).then();
+                return this.put("slaved", params).thenReturn(true);
             } else {
                 return Mono.error(new DeviceException("Dome does not support slaving"));
             }
@@ -331,7 +326,7 @@ public class ASCOMDomeService extends DomeService {
     }
 
     @Override
-    public Mono<Void> slew(double az) throws DeviceException {
+    public Mono<Boolean> slew(double az) throws DeviceException {
         az = az % 360;
         if (az < 0) {
             az += 360;
@@ -344,7 +339,7 @@ public class ASCOMDomeService extends DomeService {
 
         return getCapabilities().flatMap(caps -> {
             if (caps.canSetAzimuth()) {
-                return this.put("slewtoazimuth", params).then();
+                return this.put("slewtoazimuth", params).thenReturn(true);
             } else {
                 return Mono.error(new DeviceException("Dome does not support slewing"));
             }
@@ -352,7 +347,7 @@ public class ASCOMDomeService extends DomeService {
     }
 
     @Override
-    public Mono<Void> slewAwait(double az) throws DeviceException {
+    public Mono<Boolean> slewAwait(double az) throws DeviceException {
         return slew(az)
             .then(Mono.delay(Duration.ofMillis(statusUpdateInterval)))          // wait before checking state
             .thenMany(Flux.interval(Duration.ofMillis(statusUpdateInterval)))   // check periodically if it is slewing
@@ -360,32 +355,31 @@ public class ASCOMDomeService extends DomeService {
                 .filter(Boolean.FALSE::equals)
                 .flatMap(slewing -> Mono.just(true))
             ).next()
-            .timeout(Duration.ofMillis((synchronousTimeout > 0) ? synchronousTimeout : Long.MAX_VALUE)) // timeout if it takes too long
-            .then();
+            .timeout(Duration.ofMillis((synchronousTimeout > 0) ? synchronousTimeout : Long.MAX_VALUE));
     }
 
     @Override
-    public Mono<Void> unpark() throws DeviceException {
+    public Mono<Boolean> unpark() throws DeviceException {
         // ASCOM does not have an unpark method, so we call findHome instead if available.
         // Else, just do nothing.
         return getCapabilities().flatMap(caps -> {
             if (caps.canFindHome()) {
-                return this.findHome().then();
+                return this.findHome();
             } else {
-                return Mono.empty();
+                return Mono.just(true);
             }
         });
     }
 
     @Override
-    public Mono<Void> unparkAwait() throws DeviceException {
+    public Mono<Boolean> unparkAwait() throws DeviceException {
         // ASCOM does not have an unpark method, so we call findHome instead if available.
         // Else, just do nothing.
         return getCapabilities().flatMap(caps -> {
             if (caps.canFindHome()) {
-                return this.findHomeAwait().then();
+                return this.findHomeAwait();
             } else {
-                return Mono.empty();
+                return Mono.just(true);
             }
         });
     }

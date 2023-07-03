@@ -47,12 +47,12 @@ public class WeatherWatchAPIController {
     //#region Setters
 
     @PostMapping(value = "/connect")
-    public Mono<Void> connect() {
+    public Mono<Boolean> connect() {
         return weatherWatch.connect();
     }
 
     @PostMapping(value = "/disconnect")
-    public Mono<Void> disconnect() {
+    public Mono<Boolean> disconnect() {
         return weatherWatch.disconnect();
     }
 

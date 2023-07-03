@@ -117,31 +117,31 @@ public class ASCOMTelescopeService extends TelescopeService {
     //#region Setters/Actions
 
     @Override
-    public Mono<Void> connect() throws DeviceException {
+    public Mono<Boolean> connect() throws DeviceException {
         MultiValueMap<String, String> args = new LinkedMultiValueMap<>(1);
         args.add("Connected", "true");
         return this.put("connected", args)
             .doOnSuccess(v -> this.getCapabilities().subscribe())   // attempt to get the device's capabilities
-            .then();
+            .thenReturn(true);
     }
 
     @Override
-    public Mono<Void> disconnect() throws DeviceException {
+    public Mono<Boolean> disconnect() throws DeviceException {
         MultiValueMap<String, String> args = new LinkedMultiValueMap<>(1);
         args.add("Connected", "false");
-        return this.put("connected", args).then();
+        return this.put("connected", args).thenReturn(true);
     }
 
     @Override
-    public Mono<Void> park() throws DeviceException {
+    public Mono<Boolean> park() throws DeviceException {
         return this.getCapabilities().flatMap(caps -> {
             if (caps.canPark()) {
                 return this.isParked().flatMap(parked -> {
                     if (Boolean.TRUE.equals(parked)) {
                         // Do nothing if already parked
-                        return Mono.empty();
+                        return Mono.just(true);
                     } else {
-                        return this.put("park", null).then();
+                        return this.put("park", null).thenReturn(true);
                     }
                 });
             } else {
@@ -151,13 +151,13 @@ public class ASCOMTelescopeService extends TelescopeService {
     }
 
     @Override
-    public Mono<Void> parkAwait() throws DeviceException {
+    public Mono<Boolean> parkAwait() throws DeviceException {
         return this.getCapabilities().flatMap(caps -> {
             if (caps.canPark()) {
                 return this.isParked().flatMap(parked -> {
                     if (Boolean.TRUE.equals(parked)) {
                         // Do nothing if already parked
-                        return Mono.empty();
+                        return Mono.just(true);
                     } else {
                         return this.park()
                             .then(Mono.delay(Duration.ofMillis(statusUpdateInterval)))          // wait before checking state
@@ -166,8 +166,7 @@ public class ASCOMTelescopeService extends TelescopeService {
                                 .filter(Boolean.TRUE::equals)
                                 .flatMap(p -> Mono.just(true))
                             ).next()
-                            .timeout(Duration.ofMillis((synchronousTimeout > 0) ? synchronousTimeout : Long.MAX_VALUE))
-                            .then();
+                            .timeout(Duration.ofMillis((synchronousTimeout > 0) ? synchronousTimeout : Long.MAX_VALUE));
                     }
                 });
             } else {
@@ -177,15 +176,15 @@ public class ASCOMTelescopeService extends TelescopeService {
     }
 
     @Override
-    public Mono<Void> unpark() throws DeviceException {
+    public Mono<Boolean> unpark() throws DeviceException {
         return this.getCapabilities().flatMap(caps -> {
             if (caps.canPark()) {
                 return this.isParked().flatMap(parked -> {
                     if (Boolean.FALSE.equals(parked)) {
                         // Do nothing if already unparked
-                        return Mono.empty();
+                        return Mono.just(true);
                     } else {
-                        return this.put("unpark", null).then();
+                        return this.put("unpark", null).thenReturn(true);
                     }
                 });
             } else {
@@ -195,13 +194,13 @@ public class ASCOMTelescopeService extends TelescopeService {
     }
 
     @Override
-    public Mono<Void> unparkAwait() throws DeviceException {
+    public Mono<Boolean> unparkAwait() throws DeviceException {
         return this.getCapabilities().flatMap(caps -> {
             if (caps.canPark()) {
                 return this.isParked().flatMap(parked -> {
                     if (Boolean.FALSE.equals(parked)) {
                         // Do nothing if already unparked
-                        return Mono.empty();
+                        return Mono.just(true);
                     } else {
                         return this.unpark()
                             .then(Mono.delay(Duration.ofMillis(statusUpdateInterval)))          // wait before checking state
@@ -210,8 +209,7 @@ public class ASCOMTelescopeService extends TelescopeService {
                                 .filter(Boolean.FALSE::equals)
                                 .flatMap(p -> Mono.just(true))
                             ).next()
-                            .timeout(Duration.ofMillis((synchronousTimeout > 0) ? synchronousTimeout : Long.MAX_VALUE))
-                            .then();
+                            .timeout(Duration.ofMillis((synchronousTimeout > 0) ? synchronousTimeout : Long.MAX_VALUE));
                     }
                 }); 
             } else {
@@ -221,10 +219,10 @@ public class ASCOMTelescopeService extends TelescopeService {
     }
 
     @Override
-    public Mono<Void> findHome() throws DeviceException {
+    public Mono<Boolean> findHome() throws DeviceException {
         return this.getCapabilities().flatMap(caps -> {
             if (caps.canFindHome()) {
-                return this.put("findhome", null).then();
+                return this.put("findhome", null).thenReturn(true);
             } else {
                 return Mono.error(new DeviceException("Telescope does not support finding home."));
             }
@@ -232,7 +230,7 @@ public class ASCOMTelescopeService extends TelescopeService {
     }
 
     @Override
-    public Mono<Void> findHomeAwait() throws DeviceException {
+    public Mono<Boolean> findHomeAwait() throws DeviceException {
         return findHome()
             .then(Mono.delay(Duration.ofMillis(statusUpdateInterval)))          // wait before checking state
             .thenMany(Flux.interval(Duration.ofMillis(statusUpdateInterval)))   // check periodically if at home
@@ -240,18 +238,17 @@ public class ASCOMTelescopeService extends TelescopeService {
                 .filter(Boolean.TRUE::equals)
                 .flatMap(atHome -> Mono.just(true))
             ).next()
-            .timeout(Duration.ofMillis((synchronousTimeout > 0) ? synchronousTimeout : Long.MAX_VALUE)) // timeout if it takes too long
-            .then();
+            .timeout(Duration.ofMillis((synchronousTimeout > 0) ? synchronousTimeout : Long.MAX_VALUE));
     }
 
     @Override
-    public Mono<Void> slewToCoords(double rightAscension, double declination) throws DeviceException {
+    public Mono<Boolean> slewToCoords(double rightAscension, double declination) throws DeviceException {
         MultiValueMap<String, String> args = new LinkedMultiValueMap<>(2);
         args.add("RightAscension", String.valueOf(rightAscension));
         args.add("Declination", String.valueOf(declination));
         return this.getCapabilities().flatMap(caps -> {
             if (caps.canSlew()) {
-                return this.put("slewtocoordinatesasync", args).then();
+                return this.put("slewtocoordinatesasync", args).thenReturn(true);
             } else {
                 return Mono.error(new DeviceException("Telescope does not support slewing."));
             }
@@ -259,13 +256,13 @@ public class ASCOMTelescopeService extends TelescopeService {
     }
 
     @Override
-    public Mono<Void> slewToCoordsAwait(double rightAscension, double declination) throws DeviceException {
+    public Mono<Boolean> slewToCoordsAwait(double rightAscension, double declination) throws DeviceException {
         MultiValueMap<String, String> args = new LinkedMultiValueMap<>(2);
         args.add("RightAscension", String.valueOf(rightAscension));
         args.add("Declination", String.valueOf(declination));
         return this.getCapabilities().flatMap(caps -> {
             if (caps.canSlewAwait()) {
-                return this.put("slewtocoordinates", args).then();
+                return this.put("slewtocoordinates", args).thenReturn(true);
             } else if (caps.canSlew()) {
                 return this.slewToCoords(rightAscension, declination)
                     .then(Mono.delay(Duration.ofMillis(statusUpdateInterval)))          // wait before checking state
@@ -274,8 +271,7 @@ public class ASCOMTelescopeService extends TelescopeService {
                         .filter(Boolean.FALSE::equals)
                         .flatMap(slewing -> Mono.just(true))
                     ).next()
-                    .timeout(Duration.ofMillis((synchronousTimeout > 0) ? synchronousTimeout : Long.MAX_VALUE)) // timeout if it takes too long
-                    .then();
+                    .timeout(Duration.ofMillis((synchronousTimeout > 0) ? synchronousTimeout : Long.MAX_VALUE));
             } else {
                 return Mono.error(new DeviceException("Telescope does not support slewing."));
             }
@@ -283,13 +279,13 @@ public class ASCOMTelescopeService extends TelescopeService {
     }
 
     @Override
-    public Mono<Void> slewToAltAz(double altitude, double azimuth) throws DeviceException {
+    public Mono<Boolean> slewToAltAz(double altitude, double azimuth) throws DeviceException {
         MultiValueMap<String, String> args = new LinkedMultiValueMap<>(2);
         args.add("Altitude", String.valueOf(altitude));
         args.add("Azimuth", String.valueOf(azimuth));
         return this.getCapabilities().flatMap(caps -> {
             if (caps.canSlew()) {
-                return this.put("slewtoaltazasync", args).then();
+                return this.put("slewtoaltazasync", args).thenReturn(true);
             } else {
                 return Mono.error(new DeviceException("Telescope does not support slewing."));
             }
@@ -297,13 +293,13 @@ public class ASCOMTelescopeService extends TelescopeService {
     }
 
     @Override
-    public Mono<Void> slewToAltAzAwait(double altitude, double azimuth) throws DeviceException {
+    public Mono<Boolean> slewToAltAzAwait(double altitude, double azimuth) throws DeviceException {
         MultiValueMap<String, String> args = new LinkedMultiValueMap<>(2);
         args.add("Altitude", String.valueOf(altitude));
         args.add("Azimuth", String.valueOf(azimuth));
         return this.getCapabilities().flatMap(caps -> {
             if (caps.canSlewAwait()) {
-                return this.put("slewtoaltaz", args).then();
+                return this.put("slewtoaltaz", args).thenReturn(true);
             } else if (caps.canSlew()) {
                 return this.slewToAltAz(altitude, azimuth)
                     .then(Mono.delay(Duration.ofMillis(statusUpdateInterval)))          // wait before checking state
@@ -312,8 +308,7 @@ public class ASCOMTelescopeService extends TelescopeService {
                         .filter(Boolean.FALSE::equals)
                         .flatMap(slewing -> Mono.just(true))
                     ).next()
-                    .timeout(Duration.ofMillis((synchronousTimeout > 0) ? synchronousTimeout : Long.MAX_VALUE)) // timeout if it takes too long
-                    .then();
+                    .timeout(Duration.ofMillis((synchronousTimeout > 0) ? synchronousTimeout : Long.MAX_VALUE));
             } else {
                 return Mono.error(new DeviceException("Telescope does not support slewing."));
             }
@@ -321,13 +316,14 @@ public class ASCOMTelescopeService extends TelescopeService {
     }
 
     @Override
-    public Mono<Void> abortSlew() throws DeviceException {
+    public Mono<Boolean> abortSlew() throws DeviceException {
         return this.getCapabilities().flatMap(caps -> {
             if (caps.canSlew()) {
                 return this.isSlewing() // Check if slewing, if not, do nothing.
                         .flatMap(slewing -> Boolean.TRUE.equals(slewing)
                             ? put("abortslew", null)
-                            : Mono.empty()).then();
+                            : Mono.empty()
+                        ).thenReturn(true);
             } else {
                 return Mono.error(new DeviceException("Telescope does not support slewing."));
             }
@@ -335,12 +331,12 @@ public class ASCOMTelescopeService extends TelescopeService {
     }
 
     @Override
-    public Mono<Void> setTracking(boolean tracking) throws DeviceException {
+    public Mono<Boolean> setTracking(boolean tracking) throws DeviceException {
         MultiValueMap<String, String> args = new LinkedMultiValueMap<>(1);
         args.add("Tracking", String.valueOf(tracking));
         return this.getCapabilities().flatMap(caps -> {
             if (caps.canTrack()) {
-                return this.put("tracking", args).then();
+                return this.put("tracking", args).thenReturn(true);
             } else {
                 return Mono.error(new DeviceException("Telescope does not support tracking."));
             }

@@ -161,23 +161,23 @@ public class ASCOMFilterWheelService extends FilterWheelService {
     //#region Setters/Actions
 
     @Override
-    public Mono<Void> connect() throws DeviceException {
+    public Mono<Boolean> connect() throws DeviceException {
         MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
         params.add("Connected", String.valueOf(true));
         return this.put("connected", params)
             .doOnSuccess(v -> this.getPosition().subscribe())
-            .then();
+            .thenReturn(true);
     }
 
     @Override
-    public Mono<Void> disconnect() throws DeviceException {
+    public Mono<Boolean> disconnect() throws DeviceException {
         MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
         params.add("Connected", String.valueOf(false));
-        return this.put("connected", params).then();
+        return this.put("connected", params).thenReturn(true);
     }
 
     @Override
-    public Mono<Void> setPosition(int position) throws DeviceException {
+    public Mono<Boolean> setPosition(int position) throws DeviceException {
         if (position < 0 || (this.filterNames != null && position >= this.filterNames.size())) {
             return Mono.error(new IndexOutOfBoundsException(position));
         }
@@ -185,11 +185,11 @@ public class ASCOMFilterWheelService extends FilterWheelService {
         params.add("Position", String.valueOf(position));
         return this.put("position", params)
                 .doOnSuccess(v -> currentPosition = position)   // ASCOM returns -1 if it's currently moving, so we can't rely on the response.
-                .then();
+                .thenReturn(true);
     }
 
     @Override
-    public Mono<Void> setPositionAwait(int position) throws DeviceException {
+    public Mono<Boolean> setPositionAwait(int position) throws DeviceException {
         return setPosition(position)
             .then(Mono.delay(Duration.ofMillis(statusUpdateInterval)))          // wait before checking state
             .thenMany(Flux.interval(Duration.ofMillis(statusUpdateInterval)))   // check periodically if moving
@@ -197,8 +197,7 @@ public class ASCOMFilterWheelService extends FilterWheelService {
                 .filter(Boolean.FALSE::equals)
                 .flatMap(moving -> Mono.just(true))
             ).next()
-            .timeout(Duration.ofMillis((synchronousTimeout > 0) ? synchronousTimeout : Long.MAX_VALUE)) // timeout if it takes too long
-            .then();
+            .timeout(Duration.ofMillis((synchronousTimeout > 0) ? synchronousTimeout : Long.MAX_VALUE)); // timeout if it takes too long
     }
 
     //#endregion

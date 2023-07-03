@@ -172,15 +172,15 @@ public abstract class WeatherWatchService {
 
     /**
      * Connects the device
-     * @return A Mono that completes when the device has been connected.
+     * @return A Mono that completes when the device has been connected and emits TRUE.
      */
-    public abstract Mono<Void> connect();
+    public abstract Mono<Boolean> connect();
 
     /**
      * Disconnects the device
-     * @return A Mono that completes when the device has been disconnected.
+     * @return A Mono that completes when the device has been disconnected and emits TRUE.
      */
-    public abstract Mono<Void> disconnect();
+    public abstract Mono<Boolean> disconnect();
 
     //#endregion
     //////////////////////////// STATUS REPORTING /////////////////////////////

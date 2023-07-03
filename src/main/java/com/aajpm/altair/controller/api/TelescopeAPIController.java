@@ -43,56 +43,53 @@ public class TelescopeAPIController {
     }
 
     @PostMapping(value = "/connect")
-    public Mono<Void> connect() {
+    public Mono<Boolean> connect() {
         return telescope.connect();
     }
 
     @PostMapping(value = "/disconnect")
-    public Mono<Void> disconnect() {
+    public Mono<Boolean> disconnect() {
         return telescope.disconnect();
     }
 
     @PostMapping(value = "/park")
-    public Mono<Void> park() {
+    public Mono<Boolean> park() {
         return telescope.park();
     }
 
     @PostMapping(value = "/unpark")
-    public Mono<Void> unpark() {
+    public Mono<Boolean> unpark() {
         return telescope.unpark();
     }
 
     @PostMapping(value = "/findhome")
-    public Mono<Void> findHome() {
+    public Mono<Boolean> findHome() {
         return telescope.findHome();
     }
 
     @PostMapping(value = "/abortslew")
-    public Mono<Void> abortSlew() {
+    public Mono<Boolean> abortSlew() {
         return telescope.abortSlew();
     }
 
     @PostMapping(value = "/settracking")
-    public Mono<Void> setTracking(@RequestParam(value = "tracking") boolean tracking) {
+    public Mono<Boolean> setTracking(@RequestParam(value = "tracking") boolean tracking) {
         return telescope.setTracking(tracking);
     }
 
     @PostMapping(value = "/slewrelative")
-    public Mono<Void> slewRelative(@RequestParam(value = "direction") int direction, @RequestParam(value = "degrees") double degrees) {
+    public Mono<Boolean> slewRelative(@RequestParam(value = "direction") int direction, @RequestParam(value = "degrees") double degrees) {
         return telescope.slewRelative(degrees, direction);
     }
 
     @PostMapping(value = "/slewtocoords")
-    public Mono<Void> slewTo(@RequestParam(value = "ra") double ra, @RequestParam(value = "dec") double dec) {
+    public Mono<Boolean> slewTo(@RequestParam(value = "ra") double ra, @RequestParam(value = "dec") double dec) {
         return telescope.slewToCoords(ra, dec);
     }
 
     @PostMapping(value = "/slewtoaltaz")
-    public Mono<Void> slewToAltAz(@RequestParam(value = "az") double az, @RequestParam(value = "alt") double alt) {
+    public Mono<Boolean> slewToAltAz(@RequestParam(value = "az") double az, @RequestParam(value = "alt") double alt) {
         return telescope.slewToAltAz(alt, az);
     }
 
-
-    
-    
 }

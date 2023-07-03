@@ -70,17 +70,17 @@ public class FilterWheelAPIController {
     }
 
     @PostMapping(value = "/connect")
-    public Mono<Void> connect() {
+    public Mono<Boolean> connect() {
         return filterWheel.connect();
     }
 
     @PostMapping(value = "/disconnect")
-    public Mono<Void> disconnect() {
+    public Mono<Boolean> disconnect() {
         return filterWheel.disconnect();
     }
 
     @PostMapping(value = "/setposition")
-    public Mono<Void> setPosition(int position) {
+    public Mono<Boolean> setPosition(int position) {
         return filterWheel.setPosition(position);
     }
 }

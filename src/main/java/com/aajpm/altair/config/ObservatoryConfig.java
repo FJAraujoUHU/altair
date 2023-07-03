@@ -46,6 +46,19 @@ public class ObservatoryConfig {
      */
     private long synchronousTimeout = 60000;
 
+    /**
+     * Whether to use the native slaving of the dome to the telescope or let
+     * Altair manually slave them together.
+     */
+    private boolean useNativeSlaving = true;
+
+    /**
+     * If true, Altair will not check if the conditions are safe to operate
+     * before slewing. This is not recommended, as it might cause damage to the
+     * mount. Use only if you really know what you are doing.
+     */
+    private boolean disableSafetyChecks = false;
+
     private CameraConfig camera;
 
     private FilterWheelConfig filterWheel;
@@ -66,6 +79,22 @@ public class ObservatoryConfig {
 
     public void setSynchronousTimeout(long synchronousTimeout) {
         this.synchronousTimeout = synchronousTimeout;
+    }
+
+    public boolean getUseNativeSlaving() {
+        return useNativeSlaving;
+    }
+
+    public void setUseNativeSlaving(boolean useNativeSlaving) {
+        this.useNativeSlaving = useNativeSlaving;
+    }
+
+    public boolean getDisableSafetyChecks() {
+        return disableSafetyChecks;
+    }
+
+    public void setDisableSafetyChecks(boolean disableSafetyChecks) {
+        this.disableSafetyChecks = disableSafetyChecks;
     }
 
     public CameraConfig getCamera() {

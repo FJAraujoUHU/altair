@@ -93,27 +93,27 @@ public abstract class FilterWheelService {
      * Connects the filter wheel
      * @throws DeviceException If there was an error connecting the filter wheel.
      */
-    public abstract Mono<Void> connect() throws DeviceException;
+    public abstract Mono<Boolean> connect() throws DeviceException;
 
     /**
      * Disconnects the filter wheel
      * @throws DeviceException If there was an error disconnecting the filter wheel.
      */
-    public abstract Mono<Void> disconnect() throws DeviceException;
+    public abstract Mono<Boolean> disconnect() throws DeviceException;
 
     /**
      * Moves the filter wheel to the specified position
      * @param position The position to move to, as a zero-based index
      * @throws DeviceException If there was an error moving the filter wheel.
      */
-    public abstract Mono<Void> setPosition(int position) throws DeviceException;
+    public abstract Mono<Boolean> setPosition(int position) throws DeviceException;
 
     /**
      * Moves the filter wheel to the specified position synchronously, and wait for the operation to complete
      * @param position The position to move to, as a zero-based index
      * @throws DeviceException If there was an error moving the filter wheel.
      */
-    public abstract Mono<Void> setPositionAwait(int position) throws DeviceException;
+    public abstract Mono<Boolean> setPositionAwait(int position) throws DeviceException;
 
     //#endregion
     //////////////////////////// STATUS REPORTING /////////////////////////////
