@@ -1,6 +1,7 @@
 package com.aajpm.altair.utility.exception;
 
 public class SolverException extends RuntimeException {
+
     public SolverException() {
         super();
     }

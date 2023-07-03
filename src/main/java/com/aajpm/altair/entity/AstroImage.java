@@ -55,7 +55,7 @@ public class AstroImage extends BasicEntity implements Serializable {
     @ManyToOne(fetch = FetchType.EAGER, optional = true)
     private ControlOrder controlOrder;
 
-    @ManyToOne(fetch = FetchType.EAGER, optional = true)
+    @OneToOne(fetch = FetchType.EAGER, optional = true, mappedBy = "image")
     private ExposureOrder exposureOrder;
 
     @ManyToOne(fetch = FetchType.EAGER, optional = true)

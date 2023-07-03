@@ -722,7 +722,12 @@ public class ASCOMCameraService extends CameraService {
         
         return this.getCapabilities().flatMap(caps -> {
             if (caps.canSetCoolerTemp()) {
-                return this.put("setccdtemperature", params).then();
+                return this.put("setccdtemperature", params)
+                            .onErrorResume( 
+                                // Complete if InvalidValueException, usually a false positive
+                                e -> e instanceof ASCOMException && ((ASCOMException) e).getErrorCode() == 1025,
+                                e -> Mono.empty()
+                            ).then();
             } else {
                 return Mono.error(new DeviceException("Camera does not support temperature control."));
             }
@@ -750,6 +755,7 @@ public class ASCOMCameraService extends CameraService {
         return this.getCapabilities().flatMap(caps -> {
             if (caps.canSetCoolerTemp()) {
                 return this.getTemperatureAmbient()
+                    .map(ambient -> ambient > 25 ? 25.0 : ambient)  // Clamp to 25C as to not overheat the sensor
                     .onErrorReturn(25.0)
                     .flatMap(ambient -> this.setTargetTemp(ambient));
             } else {
@@ -765,6 +771,7 @@ public class ASCOMCameraService extends CameraService {
         return this.getCapabilities().flatMap(caps -> {
             if (caps.canSetCoolerTemp()) {
                 return this.getTemperatureAmbient()
+                    .map(ambient -> ambient > 25 ? 25.0 : ambient)  // Clamp to 25C as to not overheat the sensor
                     .onErrorReturn(25.0)
                     .flatMap(ambient -> this.warmupAwait(ambient));
             } else {
@@ -775,12 +782,13 @@ public class ASCOMCameraService extends CameraService {
 
     @Override
     public Mono<Void> warmupAwait(double target) {
-        return this.setTargetTemp(target)
+        double targetClamp = target > 25 ? 25.0 : target;  // Clamp to 25C as to not overheat the sensor
+        return this.setTargetTemp(targetClamp)
                     .then(Mono.delay(Duration.ofMillis(statusUpdateInterval)))          // wait before checking temp
                     .thenMany(Flux.interval(Duration.ofMillis(statusUpdateInterval)))   // check periodically if reached
                     .flatMap(i -> this.getTemperature()                                 // keep checking until temp is above target
-                        .filter(temp -> temp >= target)
-                        .flatMap(warmed -> Mono.empty())
+                        .filter(temp -> temp >= targetClamp)
+                        .flatMap(warmed -> Mono.just(true))
                     ).next()
                     .timeout(Duration.ofMillis((synchronousTimeout > 0) ? synchronousTimeout : Long.MAX_VALUE))
                     .then();
@@ -1037,9 +1045,16 @@ public class ASCOMCameraService extends CameraService {
     }
 
     private Mono<Tuple2<Integer, Integer>> getBayerOffset() {
-        Mono<Integer> x = this.get("bayeroffsetx").map(JsonNode::asInt);
-        Mono<Integer> y = this.get("bayeroffsety").map(JsonNode::asInt);
-        return Mono.zip(x, y);
+        return this.getSensorType()
+            .flatMap(type -> {
+                if (type.equalsIgnoreCase("Monochrome") || type.equalsIgnoreCase("Unknown")) {
+                    return Mono.just(Tuples.of(0, 0));
+                } else {
+                    Mono<Integer> x = this.get("bayeroffsetx").map(JsonNode::asInt);
+                    Mono<Integer> y = this.get("bayeroffsety").map(JsonNode::asInt);
+                    return Mono.zip(x, y);
+                }
+            });
     }
 
     @Override

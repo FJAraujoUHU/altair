@@ -136,7 +136,14 @@ public class ASCOMTelescopeService extends TelescopeService {
     public Mono<Void> park() throws DeviceException {
         return this.getCapabilities().flatMap(caps -> {
             if (caps.canPark()) {
-                return this.put("park", null).then();
+                return this.isParked().flatMap(parked -> {
+                    if (Boolean.TRUE.equals(parked)) {
+                        // Do nothing if already parked
+                        return Mono.empty();
+                    } else {
+                        return this.put("park", null).then();
+                    }
+                });
             } else {
                 return Mono.error(new DeviceException("Telescope does not support parking."));
             }
@@ -145,22 +152,42 @@ public class ASCOMTelescopeService extends TelescopeService {
 
     @Override
     public Mono<Void> parkAwait() throws DeviceException {
-        return this.park()
-            .then(Mono.delay(Duration.ofMillis(statusUpdateInterval)))          // wait before checking state
-            .thenMany(Flux.interval(Duration.ofMillis(statusUpdateInterval)))   // check periodically if parked
-            .flatMap(i -> this.isParked()                                       // keep checking until parked
-                .filter(Boolean.TRUE::equals)
-                .flatMap(parked -> Mono.empty())
-            ).next()
-            .timeout(Duration.ofMillis((synchronousTimeout > 0) ? synchronousTimeout : Long.MAX_VALUE))
-            .then();
+        return this.getCapabilities().flatMap(caps -> {
+            if (caps.canPark()) {
+                return this.isParked().flatMap(parked -> {
+                    if (Boolean.TRUE.equals(parked)) {
+                        // Do nothing if already parked
+                        return Mono.empty();
+                    } else {
+                        return this.park()
+                            .then(Mono.delay(Duration.ofMillis(statusUpdateInterval)))          // wait before checking state
+                            .thenMany(Flux.interval(Duration.ofMillis(statusUpdateInterval)))   // check periodically if parked
+                            .flatMap(i -> this.isParked()                                       // keep checking until parked
+                                .filter(Boolean.TRUE::equals)
+                                .flatMap(p -> Mono.just(true))
+                            ).next()
+                            .timeout(Duration.ofMillis((synchronousTimeout > 0) ? synchronousTimeout : Long.MAX_VALUE))
+                            .then();
+                    }
+                });
+            } else {
+                return Mono.error(new DeviceException("Telescope does not support parking."));
+            }
+        });
     }
 
     @Override
     public Mono<Void> unpark() throws DeviceException {
         return this.getCapabilities().flatMap(caps -> {
             if (caps.canPark()) {
-                return this.put("unpark", null).then();
+                return this.isParked().flatMap(parked -> {
+                    if (Boolean.FALSE.equals(parked)) {
+                        // Do nothing if already unparked
+                        return Mono.empty();
+                    } else {
+                        return this.put("unpark", null).then();
+                    }
+                });
             } else {
                 return Mono.error(new DeviceException("Telescope does not support parking."));
             }
@@ -169,15 +196,28 @@ public class ASCOMTelescopeService extends TelescopeService {
 
     @Override
     public Mono<Void> unparkAwait() throws DeviceException {
-        return unpark()
-            .then(Mono.delay(Duration.ofMillis(statusUpdateInterval)))          // wait before checking state
-            .thenMany(Flux.interval(Duration.ofMillis(statusUpdateInterval)))   // check periodically if parked
-            .flatMap(i -> this.isParked()                                       // keep checking until parked is false
-                .filter(Boolean.FALSE::equals)
-                .flatMap(parked -> Mono.empty())
-            ).next()
-            .timeout(Duration.ofMillis((synchronousTimeout > 0) ? synchronousTimeout : Long.MAX_VALUE))
-            .then();
+        return this.getCapabilities().flatMap(caps -> {
+            if (caps.canPark()) {
+                return this.isParked().flatMap(parked -> {
+                    if (Boolean.FALSE.equals(parked)) {
+                        // Do nothing if already unparked
+                        return Mono.empty();
+                    } else {
+                        return this.unpark()
+                            .then(Mono.delay(Duration.ofMillis(statusUpdateInterval)))          // wait before checking state
+                            .thenMany(Flux.interval(Duration.ofMillis(statusUpdateInterval)))   // check periodically if parked
+                            .flatMap(i -> this.isParked()                                       // keep checking until parked is false
+                                .filter(Boolean.FALSE::equals)
+                                .flatMap(p -> Mono.just(true))
+                            ).next()
+                            .timeout(Duration.ofMillis((synchronousTimeout > 0) ? synchronousTimeout : Long.MAX_VALUE))
+                            .then();
+                    }
+                }); 
+            } else {
+                return Mono.error(new DeviceException("Telescope does not support parking."));
+            }
+        });
     }
 
     @Override
@@ -198,7 +238,7 @@ public class ASCOMTelescopeService extends TelescopeService {
             .thenMany(Flux.interval(Duration.ofMillis(statusUpdateInterval)))   // check periodically if at home
             .flatMap(i -> this.isAtHome()                                       // keep checking until atHome is true
                 .filter(Boolean.TRUE::equals)
-                .flatMap(atHome -> Mono.empty())
+                .flatMap(atHome -> Mono.just(true))
             ).next()
             .timeout(Duration.ofMillis((synchronousTimeout > 0) ? synchronousTimeout : Long.MAX_VALUE)) // timeout if it takes too long
             .then();
@@ -232,7 +272,7 @@ public class ASCOMTelescopeService extends TelescopeService {
                     .thenMany(Flux.interval(Duration.ofMillis(statusUpdateInterval)))   // check periodically if slewing
                     .flatMap(i -> this.isSlewing()                                      // check until it stops slewing
                         .filter(Boolean.FALSE::equals)
-                        .flatMap(slewing -> Mono.empty())
+                        .flatMap(slewing -> Mono.just(true))
                     ).next()
                     .timeout(Duration.ofMillis((synchronousTimeout > 0) ? synchronousTimeout : Long.MAX_VALUE)) // timeout if it takes too long
                     .then();
@@ -270,7 +310,7 @@ public class ASCOMTelescopeService extends TelescopeService {
                     .thenMany(Flux.interval(Duration.ofMillis(statusUpdateInterval)))   // check periodically if slewing
                     .flatMap(i -> this.isSlewing()                                      // check until it stops slewing
                         .filter(Boolean.FALSE::equals)
-                        .flatMap(slewing -> Mono.empty())
+                        .flatMap(slewing -> Mono.just(true))
                     ).next()
                     .timeout(Duration.ofMillis((synchronousTimeout > 0) ? synchronousTimeout : Long.MAX_VALUE)) // timeout if it takes too long
                     .then();
@@ -284,7 +324,10 @@ public class ASCOMTelescopeService extends TelescopeService {
     public Mono<Void> abortSlew() throws DeviceException {
         return this.getCapabilities().flatMap(caps -> {
             if (caps.canSlew()) {
-                return this.put("abortslew", null).then();
+                return this.isSlewing() // Check if slewing, if not, do nothing.
+                        .flatMap(slewing -> Boolean.TRUE.equals(slewing)
+                            ? put("abortslew", null)
+                            : Mono.empty()).then();
             } else {
                 return Mono.error(new DeviceException("Telescope does not support slewing."));
             }
@@ -297,7 +340,7 @@ public class ASCOMTelescopeService extends TelescopeService {
         args.add("Tracking", String.valueOf(tracking));
         return this.getCapabilities().flatMap(caps -> {
             if (caps.canTrack()) {
-                return this.put("settracking", args).then();
+                return this.put("tracking", args).then();
             } else {
                 return Mono.error(new DeviceException("Telescope does not support tracking."));
             }
@@ -321,7 +364,7 @@ public class ASCOMTelescopeService extends TelescopeService {
         Mono<Boolean> canSlew = this.get("canslewasync").map(JsonNode::asBoolean).onErrorReturn(false);
         Mono<Boolean> canSlewAwait = this.get("canslew").map(JsonNode::asBoolean).onErrorReturn(false);
         Mono<Boolean> canTrack = this.get("cansettracking").map(JsonNode::asBoolean).onErrorReturn(false);
-        Mono<String> name = client.get("name").map(JsonNode::asText).onErrorReturn("ASCOM Telescope");
+        Mono<String> name = this.get("name").map(JsonNode::asText).onErrorReturn("ASCOM Telescope");
 
         Mono<TelescopeCapabilities> ret = Mono
             .zip(canFindHome, canPark, canUnpark, canSlewAwait, canSlew, canTrack, name)

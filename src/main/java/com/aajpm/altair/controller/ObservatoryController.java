@@ -23,7 +23,7 @@ import com.aajpm.altair.service.observatory.WeatherWatchService;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-// TODO: Add Governor panel and controller
+// TODO: Add Governor panel
 // TODO: Add Admin panel with CRUD for all services
 @Controller
 @RequestMapping("/altair/observatory")
@@ -129,6 +129,11 @@ public class ObservatoryController {
                 return Mono.empty();
             })
             .thenReturn("observatory/weatherwatch.html");
+    }
+
+    @GetMapping("/governor")
+    public String governor(Model model) {
+        return "observatory/governor.html";
     }
 
     @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)

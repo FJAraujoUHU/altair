@@ -195,7 +195,7 @@ public class ASCOMFilterWheelService extends FilterWheelService {
             .thenMany(Flux.interval(Duration.ofMillis(statusUpdateInterval)))   // check periodically if moving
             .flatMap(i -> this.isMoving()                                       // check until it stops moving
                 .filter(Boolean.FALSE::equals)
-                .flatMap(moving -> Mono.empty())
+                .flatMap(moving -> Mono.just(true))
             ).next()
             .timeout(Duration.ofMillis((synchronousTimeout > 0) ? synchronousTimeout : Long.MAX_VALUE)) // timeout if it takes too long
             .then();

@@ -3,6 +3,8 @@ package com.aajpm.altair.utility;
 import java.io.Serializable;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 
 /**
  * Represents a time interval. Immutable.
@@ -329,7 +331,10 @@ public class Interval implements Serializable {
 
     @Override
     public String toString() {
-        return "[" + start + " -> " + this.getEnd() + "]";
+        DateTimeFormatter formatter = DateTimeFormatter
+            .ofPattern("yyyy-MM-dd HH:mm")
+            .withZone(ZoneOffset.UTC);
+        return "[" + formatter.format(start) + " -> " + formatter.format(getEnd()) + "]";
     }
 
     /**

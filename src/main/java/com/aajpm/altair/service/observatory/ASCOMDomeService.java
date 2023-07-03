@@ -125,7 +125,13 @@ public class ASCOMDomeService extends DomeService {
     public Mono<Void> closeShutter() throws DeviceException {
         return getCapabilities().flatMap(caps -> {
            if (caps.canShutter()) {
-               return this.put("closeshutter", null).then();
+                return this.getShutterStatus().flatMap(status -> {
+                    if (status == DomeService.SHUTTER_CLOSED) {
+                        return Mono.empty();
+                    } else {
+                        return this.put("closeshutter", null).then();
+                    }
+                });
            } else {
                return Mono.error(new DeviceException("Dome does not support shutter control"));
            } 
@@ -134,15 +140,27 @@ public class ASCOMDomeService extends DomeService {
 
     @Override
     public Mono<Void> closeShutterAwait() throws DeviceException {
-        return closeShutter()
-            .then(Mono.delay(Duration.ofMillis(statusUpdateInterval)))          // wait before checking state
-            .thenMany(Flux.interval(Duration.ofMillis(statusUpdateInterval)))   // check periodically if still open
-            .flatMap(i -> this.isShutterOpen()                                  // keep checking until it closes
-                .filter(Boolean.FALSE::equals)
-                .flatMap(open -> Mono.empty())
-            ).next()
-            .timeout(Duration.ofMillis((synchronousTimeout > 0) ? synchronousTimeout : Long.MAX_VALUE)) // timeout if it takes too long
-            .then();
+        return getCapabilities().flatMap(caps -> {
+           if (caps.canShutter()) {
+                return this.getShutterStatus().flatMap(status -> {
+                    if (status == DomeService.SHUTTER_CLOSED) {
+                        return Mono.empty();
+                    } else {
+                        return closeShutter()
+                            .then(Mono.delay(Duration.ofMillis(statusUpdateInterval)))          // wait before checking state
+                            .thenMany(Flux.interval(Duration.ofMillis(statusUpdateInterval)))   // check periodically if still open
+                            .flatMap(i -> this.isShutterOpen()                                  // keep checking until it closes
+                                .filter(Boolean.FALSE::equals)
+                                .flatMap(open -> Mono.just(true))
+                            ).next()
+                            .timeout(Duration.ofMillis((synchronousTimeout > 0) ? synchronousTimeout : Long.MAX_VALUE)) // timeout if it takes too long
+                            .then();
+                    }
+                });
+           } else {
+               return Mono.error(new DeviceException("Dome does not support shutter control"));
+           } 
+        });        
     }
     
     @Override
@@ -163,7 +181,7 @@ public class ASCOMDomeService extends DomeService {
             .thenMany(Flux.interval(Duration.ofMillis(statusUpdateInterval)))   // check periodically if at home
             .flatMap(i -> this.isAtHome()                                       // keep checking until atHome is true
                 .filter(Boolean.TRUE::equals)
-                .flatMap(atHome -> Mono.empty())
+                .flatMap(atHome -> Mono.just(true))
             ).next()
             .timeout(Duration.ofMillis((synchronousTimeout > 0) ? synchronousTimeout : Long.MAX_VALUE)) // timeout if it takes too long
             .then();
@@ -171,14 +189,26 @@ public class ASCOMDomeService extends DomeService {
 
     @Override
     public Mono<Void> halt() throws DeviceException {
-        return this.put("abortslew", null).then();
+        // No need to check capabilities, as this is always supported
+        // Check if slewing first just in case
+        return isSlewing()
+                .flatMap(slewing -> Boolean.TRUE.equals(slewing)
+                        ? put("abortslew", null)
+                        : Mono.empty()
+                ).then();
     }
 
     @Override
     public Mono<Void> openShutter() throws DeviceException {
         return getCapabilities().flatMap(caps -> {
             if (caps.canShutter()) {
-                return this.put("openshutter", null).then();
+                return this.getShutterStatus().flatMap(status -> {
+                    if (status == DomeService.SHUTTER_OPEN) {
+                        return Mono.empty();
+                    } else {
+                        return this.put("openshutter", null).then();
+                    }
+                });
             } else {
                 return Mono.error(new DeviceException("Dome does not support shutter control"));
             }
@@ -187,22 +217,40 @@ public class ASCOMDomeService extends DomeService {
 
     @Override
     public Mono<Void> openShutterAwait() throws DeviceException {
-        return openShutter()
-            .then(Mono.delay(Duration.ofMillis(statusUpdateInterval)))          // wait before checking state
-            .thenMany(Flux.interval(Duration.ofMillis(statusUpdateInterval)))   // check periodically if open
-            .flatMap(i -> this.isShutterOpen()                                  // keep checking until isShutterOpen() is true
-                .filter(Boolean.TRUE::equals)
-                .flatMap(isOpen -> Mono.empty())
-            ).next()
-            .timeout(Duration.ofMillis((synchronousTimeout > 0) ? synchronousTimeout : Long.MAX_VALUE)) // timeout if it takes too long
-            .then();
+        return getCapabilities().flatMap(caps -> {
+            if (caps.canShutter()) {
+                return this.getShutterStatus().flatMap(status -> {
+                    if (status == DomeService.SHUTTER_OPEN) {
+                        return Mono.empty();
+                    } else {
+                        return openShutter()
+                            .then(Mono.delay(Duration.ofMillis(statusUpdateInterval)))          // wait before checking state
+                            .thenMany(Flux.interval(Duration.ofMillis(statusUpdateInterval)))   // check periodically if open
+                            .flatMap(i -> this.isShutterOpen()                                  // keep checking until isShutterOpen() is true
+                                .filter(Boolean.TRUE::equals)
+                                .flatMap(isOpen -> Mono.just(true))
+                            ).next()
+                            .timeout(Duration.ofMillis((synchronousTimeout > 0) ? synchronousTimeout : Long.MAX_VALUE)) // timeout if it takes too long
+                            .then();
+                    }
+                });
+            } else {
+                return Mono.error(new DeviceException("Dome does not support shutter control"));
+            }
+        });
     }
 
     @Override
     public Mono<Void> park() throws DeviceException {
         return getCapabilities().flatMap(caps -> {
             if (caps.canPark()) {
-                return this.put("park", null).then();
+                return this.isParked().flatMap(parked -> {
+                    if (Boolean.TRUE.equals(parked)) {
+                        return Mono.empty();
+                    } else {
+                        return this.put("park", null).then();
+                    }
+                });
             } else {
                 return Mono.error(new DeviceException("Dome does not support parking"));
             }
@@ -211,15 +259,27 @@ public class ASCOMDomeService extends DomeService {
 
     @Override
     public Mono<Void> parkAwait() throws DeviceException {
-        return park()
-            .then(Mono.delay(Duration.ofMillis(statusUpdateInterval)))          // wait before checking state
-            .thenMany(Flux.interval(Duration.ofMillis(statusUpdateInterval)))   // check periodically if parked
-            .flatMap(i -> this.isParked()                                       // keep checking until atPark is true
-                .filter(Boolean.TRUE::equals)
-                .flatMap(parked -> Mono.empty())
-            ).next()
-            .timeout(Duration.ofMillis((synchronousTimeout > 0) ? synchronousTimeout : Long.MAX_VALUE)) // timeout if it takes too long
-            .then();
+        return getCapabilities().flatMap(caps -> {
+            if (caps.canPark()) {
+                return this.isParked().flatMap(parked -> {
+                    if (Boolean.TRUE.equals(parked)) {
+                        return Mono.empty();
+                    } else {
+                        return park()
+                            .then(Mono.delay(Duration.ofMillis(statusUpdateInterval)))          // wait before checking state
+                            .thenMany(Flux.interval(Duration.ofMillis(statusUpdateInterval)))   // check periodically if parked
+                            .flatMap(i -> this.isParked()                                       // keep checking until atPark is true
+                                .filter(Boolean.TRUE::equals)
+                                .flatMap(p -> Mono.just(true))
+                            ).next()
+                            .timeout(Duration.ofMillis((synchronousTimeout > 0) ? synchronousTimeout : Long.MAX_VALUE)) // timeout if it takes too long
+                            .then();
+                    }
+                });
+            } else {
+                return Mono.error(new DeviceException("Dome does not support parking"));
+            }
+        });
     }
 
     @Override
@@ -248,7 +308,7 @@ public class ASCOMDomeService extends DomeService {
             .thenMany(Flux.interval(Duration.ofMillis(statusUpdateInterval)))   // check periodically if it is slewing
             .flatMap(i -> this.isSlewing()                                      // keep checking until it stops slewing
                 .filter(Boolean.FALSE::equals)
-                .flatMap(alt -> Mono.empty())
+                .flatMap(alt -> Mono.just(true))
             ).next()
             .timeout(Duration.ofMillis((synchronousTimeout > 0) ? synchronousTimeout : Long.MAX_VALUE)) // timeout if it takes too long
             .then();
@@ -298,7 +358,7 @@ public class ASCOMDomeService extends DomeService {
             .thenMany(Flux.interval(Duration.ofMillis(statusUpdateInterval)))   // check periodically if it is slewing
             .flatMap(i -> this.isSlewing()                                      // keep checking until it stops slewing
                 .filter(Boolean.FALSE::equals)
-                .flatMap(slewing -> Mono.empty())
+                .flatMap(slewing -> Mono.just(true))
             ).next()
             .timeout(Duration.ofMillis((synchronousTimeout > 0) ? synchronousTimeout : Long.MAX_VALUE)) // timeout if it takes too long
             .then();
@@ -378,20 +438,7 @@ public class ASCOMDomeService extends DomeService {
         Mono<Boolean> parked =          isParked().onErrorReturn(false);
         Mono<Boolean> slaved =          isSlaved().onErrorReturn(false);
         Mono<Boolean> slewing =         isSlewing().onErrorReturn(false);
-        Mono<String> shutterStatus =    getShutterStatus()
-            .map(status -> {
-                switch (status) {
-                    case SHUTTER_OPEN:
-                        return "Open";
-                    case SHUTTER_CLOSED:
-                        return "Closed";
-                    case SHUTTER_OPENING:
-                        return "Opening";
-                    case SHUTTER_CLOSING:
-                        return "Closing";
-                    default:
-                        return "Error";
-            }}).onErrorReturn("Error");
+        Mono<String> shutterStatus =    getShutterStatus().map(DomeService::shutterStatusToString).onErrorReturn(SHUTTER_ERROR_STATUS);
 
         return Mono.zip(connected, az, shutter, shutterStatus, atHome, parked, slewing, slaved)
                 .map(tuple -> new DomeStatus(

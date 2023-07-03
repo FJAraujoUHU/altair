@@ -10,6 +10,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.IntStream;
 import java.util.zip.GZIPOutputStream;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -57,6 +59,8 @@ public class ObservatoryService {
     protected final AtomicBoolean altairSlaved = new AtomicBoolean(false);
 
     protected final AtomicBoolean isExecutingSlew = new AtomicBoolean(false);
+
+    private final Logger logger = LoggerFactory.getLogger(ObservatoryService.class.getName());
 
     //#endregion
     /////////////////////////// SUPPORTING SERVICES ////////////////////////////
@@ -123,12 +127,13 @@ public class ObservatoryService {
      *        if the weather and daylight conditions are safe for observing.
      */
     public Mono<Boolean> isSafe(boolean checkDaylight) {
-        Mono<Boolean> weatherSafe = weatherWatch.connect()
-                                        .then(weatherWatch.isSafe())
+        Mono<Boolean> weatherSafe = weatherWatch.isConnected()
+                                        .flatMap(conn -> Boolean.TRUE.equals(conn)
+                                                        ? weatherWatch.isSafe()
+                                                        : Mono.just(false))
                                         .onErrorReturn(false);
-        Mono<Boolean> daylightSafe = Mono.just(checkDaylight)
-                                        .filter(check -> check)
-                                        .flatMap(check -> ephemeridesSolver.getNightTime())
+
+        Mono<Boolean> daylightSafe = ephemeridesSolver.getNightTime()
                                         .map(nightTime -> nightTime.contains(Instant.now()))
                                         .onErrorReturn(false);
 
@@ -146,7 +151,9 @@ public class ObservatoryService {
         if (useAltairSlaving.get())
             return Mono.just(altairSlaved.get());
         else
-            return dome.isSlaved();
+            return dome.isConnected().flatMap(conn -> Boolean.TRUE.equals(conn)
+                                                        ? dome.isSlaved()
+                                                        : Mono.just(false));
     }
 
     /**
@@ -170,7 +177,7 @@ public class ObservatoryService {
      *         If an error occurs, it will complete with an error.
      */
     public Mono<Void> connectAll() {
-        return Mono.when(
+        return Mono.whenDelayError(
             telescope.connect(),
             dome.connect(),
             focuser.connect(),
@@ -187,7 +194,7 @@ public class ObservatoryService {
      *         If an error occurs, it will complete with an error.
      */
     public Mono<Void> disconnectAll() {
-        return Mono.when(
+        return Mono.whenDelayError(
             telescope.disconnect(),
             dome.disconnect(),
             focuser.disconnect(),
@@ -241,7 +248,7 @@ public class ObservatoryService {
                             .thenMany(Flux.interval(Duration.ofMillis(statusUpdateInterval)))
                             .flatMap(i -> this.areTelescopeAndDomeInSync()
                                 .filter(Boolean.TRUE::equals)
-                                .flatMap(parked -> Mono.empty())
+                                .flatMap(parked -> Mono.just(true))
                             ).next()
                             .timeout(Duration.ofMinutes(5))
                             .then();
@@ -257,7 +264,7 @@ public class ObservatoryService {
                                     .thenMany(Flux.interval(Duration.ofMillis(statusUpdateInterval)))
                                     .flatMap(i -> this.areTelescopeAndDomeInSync()
                                         .filter(Boolean.TRUE::equals)
-                                        .flatMap(parked -> Mono.empty())
+                                        .flatMap(parked -> Mono.just(true))
                                     ).next()
                                     .timeout(Duration.ofMinutes(5))
                                     .then();
@@ -338,11 +345,11 @@ public class ObservatoryService {
                 .then(Mono
                     .zip(telescopeCapabilities, domeCapabilities, cameraCapabilities)
                     .flatMap(tuple ->
-                        Mono.zip(
+                        Mono.whenDelayError(
                             startTelescope(tuple.getT1()),
                             startDome(tuple.getT2()),
-                            startCamera(tuple.getT3()))
-                        .then()
+                            startCamera(tuple.getT3())
+                        )
                     )
                 ).doOnSubscribe(s -> this.isExecutingSlew.set(true))
                 .doOnTerminate(() -> this.isExecutingSlew.set(false));
@@ -425,11 +432,11 @@ public class ObservatoryService {
                 .then(Mono
                     .zip(telescopeCapabilities, domeCapabilities, cameraCapabilities)
                     .flatMap(tuple ->
-                        Mono.zip(
+                        Mono.whenDelayError(
                             startTelescopeAwait(tuple.getT1()),
                             startDomeAwait(tuple.getT2()),
-                            startCamera(tuple.getT3()))
-                        .then()
+                            startCamera(tuple.getT3())
+                        )
                     )
                 ).doOnSubscribe(s -> this.isExecutingSlew.set(true))
                 .doOnTerminate(() -> this.isExecutingSlew.set(false));
@@ -491,11 +498,11 @@ public class ObservatoryService {
                 .then(Mono
                     .zip(telescopeCapabilities, domeCapabilities, cameraCapabilities)
                     .flatMap(tuple ->
-                        Mono.zip(
+                        Mono.whenDelayError(
                             stopTelescope(tuple.getT1()),
                             stopDome(tuple.getT2()),
-                            stopCamera(tuple.getT3()))
-                        .then()
+                            stopCamera(tuple.getT3())
+                        )
                     )
                 ).doOnSubscribe(s -> this.isExecutingSlew.set(true))
                 .doOnTerminate(() -> this.isExecutingSlew.set(false));
@@ -539,7 +546,12 @@ public class ObservatoryService {
     }
 
     private Mono<Void> stopCamera(CameraCapabilities capabilities) {
-        return capabilities.canSetCoolerTemp() ? camera.warmup() : Mono.empty();
+        if (!capabilities.canSetCoolerTemp()) Mono.empty();
+
+        return camera.isCoolerOn()
+                    .flatMap(coolOn -> Boolean.TRUE.equals(coolOn)
+                                        ? camera.warmup()
+                                        : Mono.empty());
     }
 
     /**
@@ -560,11 +572,11 @@ public class ObservatoryService {
                 .then(Mono
                     .zip(telescopeCapabilities, domeCapabilities, cameraCapabilities)
                     .flatMap(tuple ->
-                        Mono.zip(
+                        Mono.whenDelayError(
                             stopTelescopeAwait(tuple.getT1()),
                             stopDomeAwait(tuple.getT2()),
-                            stopCameraAwait(tuple.getT3()))
-                        .then()
+                            stopCameraAwait(tuple.getT3())
+                        )
                     )
                 ).doOnSubscribe(s -> this.isExecutingSlew.set(true))
                 .doOnTerminate(() -> this.isExecutingSlew.set(false));
@@ -583,7 +595,7 @@ public class ObservatoryService {
         if (capabilities.canPark())
             ret = ret.then(telescope.parkAwait());    
 
-        return ret;
+        return ret.doOnSuccess(s -> logger.debug("Telescope has stopped successfully"));
     }
 
     private Mono<Void> stopDomeAwait(DomeCapabilities capabilities) {
@@ -599,7 +611,7 @@ public class ObservatoryService {
         ret = ret.then(dome.halt());
 
         if (capabilities.canShutter() && capabilities.canPark()) {
-            ret = ret.then(Mono.zip(dome.closeShutterAwait(),dome.parkAwait()).then());
+            ret = ret.then(Mono.whenDelayError(dome.closeShutterAwait(),dome.parkAwait()));
         } else {
             if (capabilities.canShutter())
                 ret = ret.then(dome.closeShutterAwait());
@@ -608,14 +620,17 @@ public class ObservatoryService {
                 ret = ret.then(dome.parkAwait());
         }
         
-        return ret;
+        return ret.doOnSuccess(s -> logger.debug("Dome has stopped successfully"));
     }
 
     private Mono<Void> stopCameraAwait(CameraCapabilities capabilities) {
-        if (!capabilities.canSetCoolerTemp()) Mono.empty();
+        if (!capabilities.canSetCoolerTemp()) return Mono.empty();
 
-        return camera.warmupAwait()
-                .then(camera.setCooler(false));
+        return camera.isCoolerOn()
+                    .flatMap(coolOn -> Boolean.TRUE.equals(coolOn)
+                    ? camera.warmupAwait().then(camera.setCooler(false))
+                    : Mono.empty())
+                    .doOnSuccess(s -> logger.debug("Camera has stopped successfully"));
     }
 
 
@@ -634,10 +649,10 @@ public class ObservatoryService {
                 .then(Mono
                     .zip(telescopeCapabilities, domeCapabilities)
                     .flatMap(tuple ->
-                        Mono.zip(
+                        Mono.whenDelayError(
                             abortTelescope(tuple.getT1()),
-                            abortDome(tuple.getT2()))
-                        .then()
+                            abortDome(tuple.getT2())
+                        )
                     )
                 ).doOnSubscribe(s -> this.isExecutingSlew.set(true))
                 .doOnTerminate(() -> this.isExecutingSlew.set(false));
@@ -693,10 +708,10 @@ public class ObservatoryService {
                 .then(Mono
                     .zip(telescopeCapabilities, telescopeStatus, domeCapabilities, domeStatus, asAltAz)
                     .flatMap(tuple ->
-                        Mono.zip(
+                        Mono.whenDelayError(
                             slewTelescopeRaDec(ra, dec, tuple.getT1(),tuple.getT2()),
                             slewDome(tuple.getT5()[0], tuple.getT5()[1], tuple.getT3(),tuple.getT4())
-                        ).then()
+                        )
                     )
                 ).doOnSubscribe(s -> this.isExecutingSlew.set(true))
                 .doOnTerminate(() -> this.isExecutingSlew.set(false));   
@@ -721,10 +736,10 @@ public class ObservatoryService {
                 .then(Mono
                     .zip(telescopeCapabilities, telescopeStatus, domeCapabilities, domeStatus)
                     .flatMap(tuple ->
-                        Mono.zip(
+                        Mono.whenDelayError(
                             slewTelescopeAltAz(alt, az, tuple.getT1(),tuple.getT2()),
                             slewDome(alt, az, tuple.getT3(),tuple.getT4())
-                        ).then()
+                        )
                     )
                 ).doOnSubscribe(s -> this.isExecutingSlew.set(true))
                 .doOnTerminate(() -> this.isExecutingSlew.set(false));
@@ -766,12 +781,9 @@ public class ObservatoryService {
         if (caps.canFindHome() && !status.atHome())
             ret = ret.then(telescope.findHome());
 
-        if (caps.canTrack())
-            ret = ret.then(telescope.setTracking(true));
-
         if (caps.canSlew())
             ret = ret.then(telescope.slewToAltAz(alt, az));
-
+        
         return ret;        
     }
 
@@ -802,7 +814,7 @@ public class ObservatoryService {
             thread2 = dome.slew(az);
         }
 
-        return base.then(Mono.zip(thread1, thread2).then());
+        return base.then(Mono.whenDelayError(thread1, thread2));
     }
 
     /**
@@ -824,10 +836,10 @@ public class ObservatoryService {
                 .then(Mono
                     .zip(telescopeCapabilities, telescopeStatus, domeCapabilities, domeStatus, asAltAz)
                     .flatMap(tuple ->
-                        Mono.zip(
+                        Mono.whenDelayError(
                             slewTelescopeRaDecAwait(ra, dec, tuple.getT1(),tuple.getT2()),
                             slewDomeAwait(tuple.getT5()[0], tuple.getT5()[1], tuple.getT3(),tuple.getT4())
-                        ).then()
+                        )
                     )
                 ).doOnSubscribe(s -> this.isExecutingSlew.set(true))
                 .doOnTerminate(() -> this.isExecutingSlew.set(false));
@@ -851,10 +863,10 @@ public class ObservatoryService {
                 .then(Mono
                     .zip(telescopeCapabilities, telescopeStatus, domeCapabilities, domeStatus)
                     .flatMap(tuple ->
-                        Mono.zip(
+                        Mono.whenDelayError(
                             slewTelescopeAltAzAwait(alt, az, tuple.getT1(),tuple.getT2()),
                             slewDomeAwait(alt, az, tuple.getT3(),tuple.getT4())
-                        ).then()
+                        )
                     )
                 ).doOnSubscribe(s -> this.isExecutingSlew.set(true))
                 .doOnTerminate(() -> this.isExecutingSlew.set(false));
@@ -895,11 +907,11 @@ public class ObservatoryService {
         if (caps.canFindHome() && !status.atHome())
             ret = ret.then(telescope.findHomeAwait());
 
-        if (caps.canTrack())
-            ret = ret.then(telescope.setTracking(true));
-
         if (caps.canSlew())
             ret = ret.then(telescope.slewToAltAzAwait(alt, az));
+
+        if (caps.canTrack())
+            ret = ret.then(telescope.setTracking(true));
 
         return ret;        
     }
@@ -931,7 +943,7 @@ public class ObservatoryService {
             thread2 = dome.slewAwait(az);
         }
 
-        return base.then(Mono.zip(thread1, thread2).then());
+        return base.then(Mono.whenDelayError(thread1, thread2));
     }
 
 
@@ -991,10 +1003,10 @@ public class ObservatoryService {
         } else {
             cameraAction = camera.getCapabilities().flatMap(caps -> {
                 int[] subFrame = new int[] {
-                        0,
-                        0,
-                        caps.sensorX(),
-                        caps.sensorY()
+                        5,
+                        5,
+                        caps.sensorX()-10,
+                        caps.sensorY()-10
                     };
                 return camera
                         .startExposure(
@@ -1025,7 +1037,7 @@ public class ObservatoryService {
             // Also select the filter. If filter wasn't found, throw an error
             Mono<Void> filterAction = filterWheel.setPositionAwait(filterIndex);
 
-            return Mono.zip(focuserAction, filterAction).then(cameraActionFinal);
+            return Mono.when(focuserAction, filterAction).then(cameraActionFinal);
         });
     }
 
@@ -1039,7 +1051,7 @@ public class ObservatoryService {
         return Flux.interval(Duration.ofMillis(config.getStatusUpdateInterval()))
                 .flatMap(i -> camera.isImageReady()
                     .filter(Boolean.TRUE::equals)
-                    .flatMap(ready -> Mono.empty())
+                    .flatMap(ready -> Mono.just(true))
                 ).next()
                 .timeout(timeout)
                 .then();
@@ -1500,7 +1512,7 @@ public class ObservatoryService {
         if (altAz != null && altAz[1] != null && Double.isNaN(altAz[1]))
             slewAz = dome.slewAwait(altAz[1]);
 
-        Mono.zip(slewAlt, slewAz).block(Duration.ofMinutes(5));
+        Mono.when(slewAlt, slewAz).block(Duration.ofMinutes(5));
     }
 
     //#endregion

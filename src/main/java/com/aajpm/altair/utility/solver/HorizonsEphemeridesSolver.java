@@ -16,6 +16,8 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.util.UriBuilder;
 
@@ -40,6 +42,8 @@ public class HorizonsEphemeridesSolver extends EphemeridesSolver {
     private WebClient client;
     private Map<String, String> baseParams;
 
+    private final Logger logger = LoggerFactory.getLogger(HorizonsEphemeridesSolver.class);
+
     /**
      * Creates a new {@link HorizonsEphemeridesSolver} with the given
      * {@link AstrometricsConfig}.
@@ -61,7 +65,7 @@ public class HorizonsEphemeridesSolver extends EphemeridesSolver {
         baseParams.put("OBJ_DATA", "NO");           // Don't include object data
         baseParams.put("EPHEM_TYPE", "OBSERVER");   // Select observer ephemerides
         baseParams.put("CENTER", "coord@399");      // Center on the observatory
-        baseParams.put("SITE_COORD", String.format("%f,%f,%f", config.getSiteLongitude(), config.getSiteLatitude(), config.getSiteElevation() / 1000)); // Set the observatory coordinates
+        baseParams.put("SITE_COORD", String.format("%.4f,%.4f,%.4f", config.getSiteLongitude(), config.getSiteLatitude(), config.getSiteElevation() / 1000)); // Set the observatory coordinates
         baseParams.put("APPARENT", "REFRACTED");    // Account for atmospheric refraction
         baseParams.put("EXTRA_PREC", "YES");        // Use extra precision for coordinates
         baseParams.put("CSV_FORMAT", "YES");        // Add commas to separate values
@@ -79,13 +83,14 @@ public class HorizonsEphemeridesSolver extends EphemeridesSolver {
         Map<String, String> params = new HashMap<>(baseParams);
         
         // Fix the time string to be in the correct format for Horizons
-        String timeString = time.toString().replace("T", " ").replace("Z", "");
+        String timeString = parseToHorizonsDate(time);
         params.put("TLIST", timeString);
         params.put("QUANTITIES", "4"); // Alt/Az
         
         return getBodyId(body).flatMap(id -> {
             params.put("COMMAND", "" + id);
             return getReq(params).flatMap(response -> {
+                logger.trace("getAltAz(body = {},time = {}) Horizons response: \n{}", body, time, response);
                 String[] lines = response.split("\n");
                 
                 // Scroll through the lines until it finds the start of the data
@@ -125,7 +130,7 @@ public class HorizonsEphemeridesSolver extends EphemeridesSolver {
         Map<String, String> params = new HashMap<>(baseParams);
         
         // Fix the time string to be in the correct format for Horizons
-        String timeString = time.toString().replace("T", " ").replace("Z", "");
+        String timeString = parseToHorizonsDate(time);
         params.put("TLIST", timeString);
         params.put("QUANTITIES", "4,12"); // Alt/Az + visibility
         
@@ -136,6 +141,7 @@ public class HorizonsEphemeridesSolver extends EphemeridesSolver {
         return getBodyId(body).flatMap(id -> {
             params.put("COMMAND", "" + id);
             return getReq(params).flatMap(response -> {
+                logger.trace("isVisible(body = {},time = {}, altitude = {}) Horizons response: \n{}", body, time, altitude, response);
                 String[] lines = response.split("\n");
                 
                 // Scroll through the lines until it finds the start of the data
@@ -181,24 +187,22 @@ public class HorizonsEphemeridesSolver extends EphemeridesSolver {
         boolean mayMidnightSun = Math.abs(this.getConfig().getSiteLatitude()) > 65;
         int searchIntervalDays = mayMidnightSun ? 200 : 1;
 
-        Interval searchInterval = new Interval( start,
-                                                start.plus(
-                                                    Duration.ofDays(searchIntervalDays)
-                                                ));
+        Interval searchInterval = new Interval(start, Duration.ofDays(searchIntervalDays));
 
         Map<String, String> params = new HashMap<>(baseParams);
         baseParams.put("EXTRA_PREC", "NO");
         params.put("COMMAND", "10");
         params.put("QUANTITIES", "4");
         params.put("ANG_FORMAT", "DEG");
-        params.put("SKIP_DAYLT", "YES");
-        params.put("START_TIME", searchInterval.getStart().toString().replace("T", " ").replace("Z", ""));
-        params.put("STOP_TIME", searchInterval.getEnd().toString().replace("T", " ").replace("Z", ""));
+        params.put("SKIP_DAYLT", "NO");
+        params.put("START_TIME", parseToHorizonsDate(searchInterval.getStart()));
+        params.put("STOP_TIME", parseToHorizonsDate(searchInterval.getEnd()));
         params.put("STEP_SIZE", mayMidnightSun ? "15m" : "5m");
         params.put("ELEV_CUT", Double.toString(config.getDawnLine()));
 
         // Get the date of last line before the cutoff
         return getReq(params).flatMap(response -> {
+            logger.trace("getNightTime() Horizons response: \n{}", response);
             List<String> ephemerides = Arrays.stream(response.split("\n"))
                                         .dropWhile(line -> !line.contains("$$SOE"))
                                         .skip(1)
@@ -209,7 +213,7 @@ public class HorizonsEphemeridesSolver extends EphemeridesSolver {
 
             
             if (ephemerides.isEmpty() || ephemerides.get(0).contains("No ephemeris")) {
-                return Mono.error(new SolverException("Horizons returned no ephemeris for Sol"));
+                return Mono.error(new SolverException("Horizons returned no ephemeris for Sol: " + response));
             }
 
             boolean isNight = ephemerides.get(0).contains("Elevation Cut-off");
@@ -240,11 +244,6 @@ public class HorizonsEphemeridesSolver extends EphemeridesSolver {
         });   
     }
 
-
-
-
-
-
     /**
      * {@inheritDoc}
      * 
@@ -260,13 +259,8 @@ public class HorizonsEphemeridesSolver extends EphemeridesSolver {
         Instant baseTime = searchInterval.getStart();
         Instant endTime = searchInterval.getEnd();
 
-        // Fix the time string to be in the correct format for Horizons
-        String baseTimeString = baseTime.toString().replace("T", " ").replace("Z", "");
-        params.put("START_TIME", baseTimeString);
-        
-        String endTimeString = endTime.toString().replace("T", " ").replace("Z", "");
-        params.put("STOP_TIME", endTimeString);
-
+        params.put("START_TIME", parseToHorizonsDate(baseTime));
+        params.put("STOP_TIME", parseToHorizonsDate(endTime));
         params.put("STEP_SIZE", "1m TVH");  // Precision of 1 minute, highest precision available
 
         if (altitude != 0) {
@@ -279,6 +273,8 @@ public class HorizonsEphemeridesSolver extends EphemeridesSolver {
         return getBodyId(body).flatMap(id -> {
             params.put("COMMAND", "" + id);
             return getReq(params).flatMap(response -> {
+                logger.trace("getRiseSetTime(body = {},interval = {}, altitude = {}) Horizons response: \n{}", body, searchInterval, altitude, response);
+                
                 String[] lines = response.split("\n");
                 
                 // Scroll through the lines until it finds the start and the end of the data
@@ -501,6 +497,7 @@ public class HorizonsEphemeridesSolver extends EphemeridesSolver {
 
         return getReq(params)
                 .flatMap(response -> {
+                    logger.trace("getBodyId({}) Horizons response: {}", body, response);
                     String[] lines = response.split("\n");
                     // Split lines[0] trimmed by multiple spaces
                     String[] firstLine = lines[1].trim().split("\\s{2,}");
@@ -650,7 +647,7 @@ public class HorizonsEphemeridesSolver extends EphemeridesSolver {
      * Parses a date {@link String} from Horizons API into an
      * {@link Instant}.
      * 
-     * @param response The response from Horizons API.
+     * @param date The date to parse
      * 
      * @return A {@link Mono} containing the parsed response.
      */
@@ -660,6 +657,20 @@ public class HorizonsEphemeridesSolver extends EphemeridesSolver {
             .withZone(ZoneOffset.UTC);
         
         return Instant.from(formatter.parse(date));
+    }
+
+    /**
+     * Parses an {@link Instant} into a date {@link String} for Horizons API.
+     * 
+     * @param date The {@link Instant} to parse.
+     * @return The date {@link String} for Horizons API.
+     */
+    private static String parseToHorizonsDate(Instant date) {
+        DateTimeFormatter formatter = DateTimeFormatter
+            .ofPattern("yyyy-MM-dd HH:mm")
+            .withZone(ZoneOffset.UTC);
+        
+        return formatter.format(date);
     }
 
     private static final String MARKER_RISE = "r";

@@ -152,8 +152,9 @@ public class ProgramOrderService extends BasicEntityCRUDService<ProgramOrder> {
                                 .map(expOrder -> expOrder.getExposureParams().getExposureTime())
                                 .min(Double::compare)
                                 .orElse(null);
-                    Interval startExposureInterval = visibleInterval != null ? new Interval(visibleInterval.getStart(),
-                            visibleInterval.getEnd().minus(Duration.ofSeconds(shortestRemainingExposure.longValue()))) : Interval.empty();
+                    Interval startExposureInterval = (visibleInterval != null && shortestRemainingExposure != null)
+                                            ? new Interval(visibleInterval.getStart(), visibleInterval.getEnd().minus(Duration.ofSeconds(shortestRemainingExposure.longValue())))
+                                            : Interval.empty();
 
 
                     return (!startExposureInterval.isEmpty()) && range.contains(startExposureInterval);

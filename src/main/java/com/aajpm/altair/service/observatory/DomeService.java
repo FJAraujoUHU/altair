@@ -371,6 +371,29 @@ public abstract class DomeService {
     public static final int SHUTTER_CLOSING = 3;
     public static final int SHUTTER_ERROR = 4;
 
+    public static final String SHUTTER_CLOSED_STATUS = "Closed";
+    public static final String SHUTTER_OPEN_STATUS = "Open";
+    public static final String SHUTTER_OPENING_STATUS = "Opening";
+    public static final String SHUTTER_CLOSING_STATUS = "Closing";
+    public static final String SHUTTER_ERROR_STATUS = "Error";
+
+    protected static String shutterStatusToString(Integer shutterStatus) {
+        switch (shutterStatus) {
+            case SHUTTER_OPEN:
+                return SHUTTER_OPEN_STATUS;
+            case SHUTTER_CLOSED:
+                return SHUTTER_CLOSED_STATUS;
+            case SHUTTER_OPENING:
+                return SHUTTER_OPENING_STATUS;
+            case SHUTTER_CLOSING:
+                return SHUTTER_CLOSING_STATUS;
+            default:
+                return SHUTTER_ERROR_STATUS;
+        }
+    }
+
+    
+
     /**
      * A record containing the device capabilities
      */
@@ -388,13 +411,21 @@ public abstract class DomeService {
      * A record containing the device status
      */
     public record DomeStatus(
+        /** If the dome is connected */
         boolean connected,
+        /** The azimuth the dome is aiming at */
         double azimuth,
+        /** How open is the shutter opened in a scale of 0-100 */
         int shutter,
+        /** The status of the shutter as a String */
         String shutterStatus,
+        /** If the dome is at its home position */
         boolean atHome,
+        /** If the dome is parked */
         boolean parked,
+        /** If the dome is slewing */
         boolean slewing,
+        /** If the dome is slaved to the telescope */
         boolean slaved   
     ) {}
 

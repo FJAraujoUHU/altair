@@ -435,11 +435,19 @@ public abstract class CameraService {
      * @throws DeviceException if there was an error starting the exposure.
      */
     public Mono<Void> startExposure(double duration, boolean useLightFrame, int[] subframe, int binX, int binY) throws DeviceException {
-        return Mono.when(
-            setSubframe(subframe[0], subframe[1], subframe[2], subframe[3]),
-            setBinning(binX, binY),
-            startExposure(duration, useLightFrame)
-        );
+        return getCapabilities().flatMap(caps -> {
+            Mono<Void> actions = setSubframe(subframe[0], subframe[1], subframe[2], subframe[3]);
+            
+            if (caps.canBinning) {
+                if (caps.canAsymBinning)  {
+                    actions = actions.then(setBinning(binX, binY));
+                } else {
+                    actions = actions.then(setBinning(binX));
+                }
+            }
+
+            return actions.then(startExposure(duration, useLightFrame));
+        });
     }
 
     /**

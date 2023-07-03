@@ -102,7 +102,7 @@ public class AstroObject extends BasicEntity implements Serializable {
         this.magnitude = magnitude;
     }
 
-    public int getBaseFocus() {
+    public Integer getBaseFocus() {
         return baseFocus;
     }
 

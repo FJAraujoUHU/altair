@@ -59,6 +59,9 @@ public class ExposureOrder extends BasicEntity implements Serializable {
     @ManyToOne(fetch = FetchType.EAGER, optional = false)
     private ExposureParams exposureParams;
 
+    @OneToOne(fetch = FetchType.EAGER, optional = true, cascade = CascadeType.ALL, orphanRemoval = false)
+    private AstroImage image;
+
     //#region Getters & Setters
     public ProgramOrder getProgram() {
         return program;
@@ -74,6 +77,14 @@ public class ExposureOrder extends BasicEntity implements Serializable {
 
     public void setExposureParams(ExposureParams exposureParams) {
         this.exposureParams = exposureParams;
+    }
+
+    public AstroImage getImage() {
+        return image;
+    }
+
+    public void setImage(AstroImage image) {
+        this.image = image;
     }
     //#endregion
 

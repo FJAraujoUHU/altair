@@ -236,12 +236,13 @@ public class AltairUser extends BasicEntity implements UserDetails {
             return false;
         if (enabled != that.enabled)
             return false;
-        if (lastLoginAttempt != null ? !lastLoginAttempt.equals(that.lastLoginAttempt) : that.lastLoginAttempt != null)
-            return false;
-        if (failedLoginAttempts != that.failedLoginAttempts)
-            return false;
 
-        return roles != null ? roles.equals(that.roles) : that.roles == null;
+        if (this.roles == that.roles)
+            return true;
+
+        return this.roles.stream()
+                .filter(r1 -> that.roles.stream().noneMatch(r2 -> r1.equals(r2)))
+                .count() == 0;
     }
 
     @Override
