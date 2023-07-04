@@ -22,6 +22,7 @@ import com.aajpm.altair.security.account.AltairUserService;
 import com.aajpm.altair.service.observatory.DomeService;
 import com.aajpm.altair.service.observatory.WeatherWatchService;
 import com.aajpm.altair.utility.Interval;
+import com.aajpm.altair.utility.exception.DeviceUnavailableException;
 import com.aajpm.altair.utility.exception.UnauthorisedException;
 import com.aajpm.altair.utility.solver.EphemeridesSolver;
 
@@ -293,6 +294,37 @@ public class GovernorService {
     public Mono<Boolean> disconnectAllExceptWeather() {
         return observatoryService.disconnectAllExceptWeather();
     }
+
+    /**
+     * Starts the observatory and sets it up ready for use asynchronously.
+     * It should unpark the telescope and dome, set them at their home positions,
+     * and start chilling the camera.
+     * 
+     * Note: This method will not open the dome nor slave it to the telescope.
+     * 
+     * @return A {@link Mono} that will complete inmidiately.
+     * 
+     * @throws DeviceUnavailableException If a device is unaccessible.
+     */
+    public Mono<Boolean> startObservatory() {
+        return observatoryService.start();
+    }
+
+    /**
+     * Stops the observatory and puts it into a safe state.
+     * It should close the shutter, park the telescope and dome, and turn off
+     * the camera cooler.
+     * 
+     * Note: This method will not disconnect the devices.
+     * 
+     * @return A {@link Mono} that will complete inmidiately.
+     * 
+     * @throws DeviceUnavailableException If a device is unaccessible.
+     */
+    public Mono<Boolean> stopObservatory() {
+        return observatoryService.stop();
+    }
+
 
     /**
      * Sets the governor to admin mode.
@@ -572,8 +604,8 @@ public class GovernorService {
     }
 
     private void markAsComplete() {
-        double exposureTime = currentOrderInterval.getDuration().getSeconds();
         if (currentOrder instanceof ProgramOrder) {
+            double exposureTime = currentOrderInterval.getDuration().getSeconds();
             ProgramOrder programOrder = (ProgramOrder) currentOrder;
             // Find the exposure order that was just completed
             ExposureOrder exposureOrder = programOrder
@@ -625,8 +657,8 @@ public class GovernorService {
     }
 
     private void markAsFail() {
-        double orderTime = currentOrderInterval.getDuration().getSeconds();
         if (currentOrder instanceof ProgramOrder) {
+            double orderTime = currentOrderInterval.getDuration().getSeconds();
             ProgramOrder programOrder = (ProgramOrder) currentOrder;
             ExposureOrder exposureOrder = programOrder
                                             .getExposureOrders()

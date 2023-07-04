@@ -114,6 +114,7 @@ public class SetupDataLoader implements ApplicationListener<ContextRefreshedEven
             moon.setType(AstroType.MOON);
             moon.setRa(null);
             moon.setDec(null);
+            moon.setBaseFocus(7500);
             moon = astroObjects.save(moon);
         }
         AstroObject mercury = astroObjects.findByName("Mercury");

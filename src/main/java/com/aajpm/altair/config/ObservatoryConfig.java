@@ -144,7 +144,7 @@ public class ObservatoryConfig {
 
     @Bean
     public CameraService cameraService() {
-        AlpacaClient client = new AlpacaClient("http://localhost:11111/", (int) synchronousTimeout, (int) synchronousTimeout);
+        AlpacaClient client = new AlpacaClient("http://localhost:32323/", (int) synchronousTimeout, (int) synchronousTimeout);
         
         return new ASCOMCameraService(client, 0, camera, statusUpdateInterval, synchronousTimeout);
     }

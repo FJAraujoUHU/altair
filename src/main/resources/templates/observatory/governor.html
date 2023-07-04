@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/thymeleaf-extras-springsecurity6" data-bs-theme="dark">
+
+<head>
+    <th:block th:replace="~{fragments/controlpanel.html :: mainHead}">
+        <!-- Loads head from the fragments using Thymeleaf -->
+    </th:block>
+    <link href="/css/noArrowsOnInput.css" rel="stylesheet">
+    <title>Governor</title>
+</head>
+
+<body style="padding-top: 60px">
+    <nav th:replace="~{fragments/controlpanel.html :: navbar(activeLink='governor')}">
+        <!-- Loads navbar and heading from the fragments using Thymeleaf -->
+    </nav>
+    <main style="padding-left: 1.5rem; padding-right: 1.5rem">
+        <div class="row row-cols-1 row-cols-md-2 g-3">
+            <!-- Governor status -->
+            <div class="col mx-auto">
+                <div class="card h-100 text-bg-primary" style="max-width: 32rem; min-width: 15rem">
+                    <div class="card-header"><h5 class="card-title">Status</h5></div>
+                    <div class="card-body text-bg-light">
+                        <div class="row flex-nowrap">
+                            <div class="col-auto">
+                                <p class="card-text">
+                                    State: <br>
+                                    Safe?: <br>
+                                    Safe override: <br>
+                                    Current order: <br>
+                                    Current user: <br>
+                                    Remaining time: <br>
+                                    Next night: <br>
+                                    Altair slewing: <br>
+                                </p>
+                            </div>
+                            <div class="col">
+                                <p class="card-text">
+                                    <span id="gvState">???</span><br>
+                                    <span id="gvSafe">???</span><br>
+                                    <span id="gvSafeOvr">???</span><br>
+                                    <span id="gvCurrOrder">???</span><br>
+                                    <span id="gvCurrUser">???</span><br>
+                                    <span id="gvRemainingTime">???</span><br>
+                                    <span id="gvNextNight">???</span><br>
+                                    <span id="gvSlaving">???</span><br>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Governor control -->
+            <div class="col mx-auto" sec:authorize="hasRole('ADVANCED_USER')">
+                <div class="card text-bg-primary" style="max-width: 32rem; min-width: 15rem" id="governorCard">
+                    <div class="card-header"><h5 class="card-title">Governor</h5></div>
+                    <div class="card-body text-bg-light">
+
+                        <h5 class="text-primary-emphasis mt-2">Mode control</h5>
+                        <div class="d-flex justify-content-around p-1" id="gvModeBtns">
+                            <button type="button" class="btn btn-primary col-5" id="gvEnable" disabled>Enable</button>
+                            <button type="button" class="btn btn-primary col-5" id="gvAdminMode" disabled>Admin mode</button>
+                        </div>
+
+                        <h5 class="text-primary-emphasis mt-2">Connect devices</h5>
+                        <div class="d-flex justify-content-around p-1" id="gvConnectBtns">
+                            <button type="button" class="btn btn-primary col-5" id="gvConnectAll" disabled>Connect</button>
+                            <button type="button" class="btn btn-primary col-5" id="gvDisconnectAll" disabled>Disconnect</button>
+                        </div>
+
+                        <h5 class="text-primary-emphasis mt-2">Start/Stop</h5>
+                        <div class="d-flex justify-content-around p-1" id="gvStartStopBtns">
+                            <button type="button" class="btn btn-primary col-5" id="gvStart" disabled>Start</button>
+                            <button type="button" class="btn btn-primary col-5" id="gvStop" disabled>Stop</button>
+                        </div>
+
+                        <h5 class="text-primary-emphasis mt-2">Slaving</h5>
+                        <div class="d-flex justify-content-around p-1" id="gvStartStopBtns">
+                            <div class="form-check form-switch col-5">
+                                <input class="form-check-input" type="checkbox" role="switch" id="gvSlaved" disabled>
+                                <label class="form-check-label" for="gvSlaved" id="gvSlavedTxt">Slaved</label>
+                            </div>
+                            <div class="form-check form-switch col-5">
+                                <input class="form-check-input" type="checkbox" role="switch" id="gvSlaveMode" disabled>
+                                <label class="form-check-label" for="gvSlaved" id="gvSlaveModeTxt">Native</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Management menus -->
+            <div class="col mx-auto" sec:authorize="hasRole('ADMIN')">
+                <div class="card text-bg-primary" style="max-width: 32rem; min-width: 15rem" id="managementCard">
+                    <div class="card-header"><h5 class="card-title">Manage programs</h5></div>
+                    <div class="card-body text-bg-light">
+
+                        <h5 class="text-primary-emphasis mt-2">Astro objects</h5>
+                        <div class="d-flex justify-content-between p-1">
+                            <a class="btn btn-primary flex-fill mx-1" href="/altair/data/astro-object/list">List</a>
+                            <a class="btn btn-primary flex-fill mx-1" href="/altair/data/astro-object/add">Add</a>
+                        </div>
+
+                        <h5 class="text-primary-emphasis mt-2">Programs</h5>
+                        <div class="d-flex justify-content-between p-1">
+                            <a class="btn btn-primary flex-fill mx-1 disabled" href="/altair/data/program/list" aria-disabled="true">List</a>
+                            <a class="btn btn-primary flex-fill mx-1 disabled" href="/altair/data/program/add" aria-disabled="true">Add</a>
+                        </div>
+
+                        <h5 class="text-primary-emphasis mt-2">Orders</h5>
+                        <div class="d-flex justify-content-between p-1">
+                            <a class="btn btn-primary flex-fill mx-1 disabled" href="/altair/data/order/list" aria-disabled="true">List</a>
+                            <a class="btn btn-primary flex-fill mx-1 disabled" href="/altair/data/control-order/add" aria-disabled="true">Add time</a>
+                            <a class="btn btn-primary flex-fill mx-1 disabled" href="/altair/data/program-order/add" aria-disabled="true">Add request</a>
+                        </div>
+
+                        <h5 class="text-primary-emphasis mt-2">Images</h5>
+                        <div class="d-flex justify-content-between p-1">
+                            <a class="btn btn-primary flex-fill mx-1 disabled" id="mgAstroObjLst" href="/altair/data/astro-image/list" aria-disabled="true">List</a>
+                            <a class="btn btn-primary flex-fill mx-1 disabled" id="mgAstroObjAdd" href="/altair/data/image-attribute/list" aria-disabled="true">Add Attibutes</a>
+                            <a class="btn btn-primary flex-fill mx-1 disabled" id="mgAstroObjAdd" href="/altair/data/image-attribute/list" aria-disabled="true">Add Attibutes</a>
+                        </div>
+
+
+                    </div>
+                </div>
+            </div>
+
+
+        </div>
+    </main>
+
+    <th:block th:replace="~{fragments/controlpanel.html :: bottomDefs}"/>
+    <script src="/js/governor.js"></script>
+</body>
+</html>

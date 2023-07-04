@@ -198,5 +198,31 @@ public class GovernorAPIController {
             return Mono.error(e);
         }
     }
+
+    @PostMapping(value = "/startobservatory")
+    public Mono<Boolean> startObservatory() {
+        try {
+            AltairUser user = AltairUserService.getCurrentUser();
+            if (!governor.canOperate(user))
+                return Mono.error(new UnauthorisedException(user));
+
+            return governor.startObservatory();
+        } catch (Exception e) {
+            return Mono.error(e);
+        }
+    }
+
+    @PostMapping(value = "/stopobservatory")
+    public Mono<Boolean> stopObservatory() {
+        try {
+            AltairUser user = AltairUserService.getCurrentUser();
+            if (!governor.canOperate(user))
+                return Mono.error(new UnauthorisedException(user));
+                
+            else return governor.stopObservatory();
+        } catch (Exception e) {
+            return Mono.error(e);
+        }
+    }
     
 }

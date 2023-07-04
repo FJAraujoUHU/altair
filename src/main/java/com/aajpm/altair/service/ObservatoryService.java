@@ -1532,9 +1532,9 @@ public class ObservatoryService {
         
         Mono<Boolean> slewAlt = Mono.just(true);
         Mono<Boolean> slewAz = Mono.just(true);
-        if (altAz != null && altAz.getT1() != null && Double.isNaN(altAz.getT1()))
+        if (altAz != null && altAz.getT1() != null && !Double.isNaN(altAz.getT1()))
             slewAlt = dome.setAltAwait(altAz.getT1());
-        if (altAz != null && altAz.getT2() != null && Double.isNaN(altAz.getT2()))
+        if (altAz != null && altAz.getT2() != null && !Double.isNaN(altAz.getT2()))
             slewAz = dome.slewAwait(altAz.getT2());
 
         Mono.when(slewAlt, slewAz).block(Duration.ofMinutes(5));

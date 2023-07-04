@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/thymeleaf-extras-springsecurity6" data-bs-theme="dark">
+
+<head>
+    <th:block th:replace="~{fragments/controlpanel.html :: mainHead}">
+        <!-- Loads head from the fragments using Thymeleaf -->
+    </th:block>
+    <title>Available objects</title>
+</head>
+
+<body style="padding-top: 60px">
+
+    <nav th:replace="~{fragments/controlpanel.html :: navbar(activeLink='none')}">
+        <!-- Loads navbar and heading from the fragments using Thymeleaf -->
+    </nav>
+
+    <main style="padding-left: 1.5rem; padding-right: 1.5rem">
+    
+        <div class="card h-100 text-bg-primary" style="min-width: 15rem">
+            <div class="card-header"><h5 class="card-title">Astro objects</h5></div>
+            <div class="card-body text-bg-light">
+                
+                <div th:switch="${astroObjects}">
+                    <h2 th:case="null">No objects yet!</h2>
+                        <div th:case="*">
+                            <table class="table-primary-striped w-100">
+                                <thead>
+                                    <tr>
+                                        <th scope="col">ID</th>
+                                        <th scope="col">Name</th>
+                                        <th scope="col">Type</th>
+                                        <th scope="col">Right Ascension</th>
+                                        <th scope="col">Declination</th>
+                                        <th scope="col">Magnitude</th>
+                                        <th scope="col">Base focus</th>
+                                        <th scope="col">Description</th>
+                                        <th scope="col">View</th>
+                                        <th scope="col">Edit</th>
+                                        <th scope="col">Delete</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                <tr th:each="ao : ${astroObjects}">
+                                    <td th:text="${ao.id}"></td>
+                                    <td th:text="${ao.name}"></td>
+                                    <td th:text="${ao.type}"></td>
+                                    <td th:text="${ao.ra}"></td>
+                                    <td th:text="${ao.dec}"></td>
+                                    <td th:text="${ao.magnitude}"></td>
+                                    <td th:text="${ao.baseFocus}"></td>
+                                    <td th:text="${ao.description}" class="text-truncate" style="max-width: 200px;"></td>
+                                    <td><a th:href="@{/altair/data/astro-object/view/{id}(id=${ao.id})}">View</a></td>
+                                    <td><a th:href="@{/altair/data/astro-object/edit/{id}(id=${ao.id})}">Edit</a></td>
+                                    <td><a th:href="@{/altair/data/astro-object/delete/{id}(id=${ao.id})}">Delete</a></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>      
+                    <p><a href="/altair/data/astro-object/add">Add a new object</a></p>
+                </div>
+
+
+
+            </div>
+        </div>
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    </main>
+</body>
