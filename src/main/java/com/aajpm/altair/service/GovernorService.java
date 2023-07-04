@@ -690,7 +690,7 @@ public class GovernorService {
             return;
         }
 
-        long timeout = 10000;
+        long timeout = 15000;
 
         // Check if next night is cached. If not, fetch it.
         // * Note: this is done because the night time is not expected to change

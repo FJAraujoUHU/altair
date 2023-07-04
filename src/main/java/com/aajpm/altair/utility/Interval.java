@@ -57,13 +57,8 @@ public class Interval implements Serializable {
      * Returns the start of the interval.
      * 
      * @return The start of the interval, as an Instant.
-     * 
-     * @throws IllegalStateException If the interval is empty.
      */
-    public Instant getStart() throws IllegalStateException {
-        if (this.isEmpty())
-            throw new IllegalStateException("Trying to operate on an empty interval");
-
+    public Instant getStart() {
         return start;
     }
 
@@ -136,12 +131,10 @@ public class Interval implements Serializable {
      * Returns the end of the interval.
      * 
      * @return The end of the interval, as an Instant.
-     * 
-     * @throws IllegalStateException If the interval is empty.
      */
     public Instant getEnd() throws IllegalStateException {
         if (this.isEmpty())
-            throw new IllegalStateException("Trying to operate on an empty interval");
+            return start;
 
         return start.plus(duration);
     }
@@ -214,13 +207,8 @@ public class Interval implements Serializable {
      * @param interval The interval to check.
      * 
      * @return Whether the given interval is before this interval.
-     * 
-     * @throws IllegalStateException If either interval is empty.
      */
     public boolean isBefore(Interval interval) throws IllegalStateException {
-        if (this.isEmpty() || interval.isEmpty())
-            throw new IllegalStateException("Trying to operate on an empty interval");
-
         return getEnd().isBefore(interval.getStart());
     }
 
@@ -230,12 +218,8 @@ public class Interval implements Serializable {
      * @param instant The instant to check.
      * 
      * @return Whether the given instant is before this interval.
-     * 
-     * @throws IllegalStateException If the interval is empty.
      */
     public boolean isBefore(Instant instant) throws IllegalStateException {
-        if (this.isEmpty())
-            throw new IllegalStateException("Trying to operate on an empty interval");
         return getEnd().isBefore(instant);
     }
 
@@ -245,12 +229,8 @@ public class Interval implements Serializable {
      * @param interval The interval to check.
      * 
      * @return Whether the given interval is after this interval.
-     * 
-     * @throws IllegalStateException If either interval is empty.
      */
-    public boolean isAfter(Interval interval) throws IllegalStateException {
-        if (this.isEmpty() || interval.isEmpty())
-            throw new IllegalStateException("Trying to operate on an empty interval");
+    public boolean isAfter(Interval interval) {
         return interval.isBefore(this);
     }
 
@@ -260,12 +240,8 @@ public class Interval implements Serializable {
      * @param instant The instant to check.
      * 
      * @return Whether the given instant is after this interval.
-     * 
-     * @throws IllegalStateException If the interval is empty.
      */
     public boolean isAfter(Instant instant) throws IllegalStateException {
-        if (this.isEmpty())
-            throw new IllegalStateException("Trying to operate on an empty interval");
         return instant.isBefore(start);
     }
 

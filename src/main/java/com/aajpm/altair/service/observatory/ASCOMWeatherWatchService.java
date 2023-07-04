@@ -402,10 +402,10 @@ public class ASCOMWeatherWatchService extends WeatherWatchService {
                 .onErrorReturn(false);
 
         // Workaround for drivers who can check sky temperature but not quality.
-        Mono<Integer> canSkyQuality = this.get("skyquality")
-                .flatMap(result -> Mono.just(CAPABILITIES_SPECIFIC))
+        Mono<Integer> canSkyQuality = this.get("skyquality").flatMap(result -> Mono.just(CAPABILITIES_SPECIFIC)).onErrorComplete()
                 .switchIfEmpty(this.get("skytemperature").flatMap(result -> Mono.just(CAPABILITIES_GENERAL)))
-                .defaultIfEmpty(CAPABILITIES_NONE);
+                .defaultIfEmpty(CAPABILITIES_NONE)
+                .onErrorReturn(CAPABILITIES_NONE);
 
         // Combine all the results into a single object. Given ASCOM returns numeric
         // values, it is assumed that if a value is returned, the device supports it.
