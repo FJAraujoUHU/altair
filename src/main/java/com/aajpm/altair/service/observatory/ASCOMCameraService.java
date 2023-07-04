@@ -12,6 +12,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.Locale;
 import java.util.stream.IntStream;
 
 import org.slf4j.Logger;
@@ -481,9 +482,9 @@ public class ASCOMCameraService extends CameraService {
                     String dateObs;
                     if (headerData.expTime != null) {
                         Instant dateObsInstant = Instant.now().minus(Duration.ofSeconds(headerData.expTime));
-                        dateObs = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss").format(dateObsInstant.atZone(ZoneId.of("UTC")));
+                        dateObs = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss", Locale.US).format(dateObsInstant.atZone(ZoneId.of("UTC")));
                     } else {
-                        dateObs = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss").format(Instant.now().atZone(ZoneId.of("UTC")));
+                        dateObs = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss", Locale.US).format(Instant.now().atZone(ZoneId.of("UTC")));
                     }
                     header.addValue("DATE", dateObs, "UTC start of exposure");
                     header.addValue("DATE-OBS", dateObs, "UTC start of exposure");

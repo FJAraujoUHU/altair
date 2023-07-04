@@ -7,9 +7,11 @@ import java.nio.file.Path;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.Locale;
 import java.util.zip.GZIPOutputStream;
 
 import com.aajpm.altair.config.ObservatoryConfig.CameraConfig;
+import com.aajpm.altair.service.ObservatoryService;
 
 import nom.tam.fits.Fits;
 import nom.tam.fits.ImageHDU;
@@ -260,7 +262,7 @@ public abstract class CameraService {
      * @throws DeviceException if there was an error polling the data.
      */
     public Mono<Path> dumpImage() throws DeviceException {
-        String filename = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss'_dump.dat'")
+        String filename = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss'_dump.dat'", Locale.US)
                                             .format(Instant.now().atZone(ZoneId.of("UTC")));
         return dumpImage(filename);
     }
@@ -515,7 +517,7 @@ public abstract class CameraService {
                         break;
                 }
                 if ((tuple.getT2() != null) && !tuple.getT2().isNaN()) {
-                    statusStr += String.format(" (%.2f%%)", tuple.getT2() * 100);
+                    statusStr += String.format(Locale.US," (%.2f%%)", tuple.getT2() * 100);
                 }
                 return statusStr;
             });
@@ -595,7 +597,7 @@ public abstract class CameraService {
         int sfY                         // The Y offset of the subframe
     ) {
         public CameraStatus(boolean connected, double temperature, int coolerStatus, double coolerPower, int status, int binX, int binY, double statusCompletion, int sfWidth, int sfHeight, int sfX, int sfY) {
-            this(connected, temperature, getStrCoolerStatus(coolerStatus), coolerPower, getStrStatus(status), String.format("%dx%d", binX, binY), statusCompletion, sfWidth, sfHeight, sfX, sfY);
+            this(connected, temperature, getStrCoolerStatus(coolerStatus), coolerPower, getStrStatus(status), String.format(Locale.US,"%dx%d", binX, binY), statusCompletion, sfWidth, sfHeight, sfX, sfY);
         }
 
         // Helper methods to convert status codes to strings

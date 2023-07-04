@@ -5,6 +5,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.IntStream;
@@ -1322,7 +1323,7 @@ public class ObservatoryService {
 
             String extension = useCompression ? ".fit.gz" : ".fit";
 
-            filename = String.format("%s_%s_%s_%s%s", obsDate, objName, filter, imgType, extension);
+            filename = String.format(Locale.US,"%s_%s_%s_%s%s", obsDate, objName, filter, imgType, extension);
         } else {
             // Add extension if necessary
             if (!(filename.toUpperCase().endsWith(".FIT") || filename.toUpperCase().endsWith(".FITS"))) {

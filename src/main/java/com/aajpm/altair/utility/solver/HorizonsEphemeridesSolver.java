@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Matcher;
@@ -65,7 +66,7 @@ public class HorizonsEphemeridesSolver extends EphemeridesSolver {
         baseParams.put("OBJ_DATA", "NO");           // Don't include object data
         baseParams.put("EPHEM_TYPE", "OBSERVER");   // Select observer ephemerides
         baseParams.put("CENTER", "coord@399");      // Center on the observatory
-        baseParams.put("SITE_COORD", String.format("%.4f,%.4f,%.4f", config.getSiteLongitude(), config.getSiteLatitude(), config.getSiteElevation() / 1000)); // Set the observatory coordinates
+        baseParams.put("SITE_COORD", String.format(Locale.US,"%.4f,%.4f,%.4f", config.getSiteLongitude(), config.getSiteLatitude(), config.getSiteElevation() / 1000)); // Set the observatory coordinates
         baseParams.put("APPARENT", "REFRACTED");    // Account for atmospheric refraction
         baseParams.put("EXTRA_PREC", "YES");        // Use extra precision for coordinates
         baseParams.put("CSV_FORMAT", "YES");        // Add commas to separate values
@@ -636,8 +637,11 @@ public class HorizonsEphemeridesSolver extends EphemeridesSolver {
                 if (json == null || !json.has("result"))
                     return Mono.error(new SolverException("Horizons returned an empty response"));
                 
-                if (json.has("error"))
+                if (json.has("error")) {
+                    logger.error("{}", params.entrySet().stream().map(e -> e.getKey() + "=" + e.getValue()).collect(Collectors.joining("&")));
                     return Mono.error(new SolverException(json.findValue("error").asText()));
+                }
+                    
                 
                 return Mono.just(json.findValue("result").asText());
             });
@@ -653,7 +657,7 @@ public class HorizonsEphemeridesSolver extends EphemeridesSolver {
      */
     private static Instant parseHorizonsDate(String date) {
         DateTimeFormatter formatter = DateTimeFormatter
-            .ofPattern("yyyy-MMM-dd HH:mm")
+            .ofPattern("yyyy-MMM-dd HH:mm", Locale.US)
             .withZone(ZoneOffset.UTC);
         
         return Instant.from(formatter.parse(date));
@@ -667,7 +671,7 @@ public class HorizonsEphemeridesSolver extends EphemeridesSolver {
      */
     private static String parseToHorizonsDate(Instant date) {
         DateTimeFormatter formatter = DateTimeFormatter
-            .ofPattern("yyyy-MM-dd HH:mm")
+            .ofPattern("yyyy-MM-dd HH:mm", Locale.US)
             .withZone(ZoneOffset.UTC);
         
         return formatter.format(date);

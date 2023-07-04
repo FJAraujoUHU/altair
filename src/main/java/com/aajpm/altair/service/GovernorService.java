@@ -5,6 +5,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -153,9 +154,9 @@ public class GovernorService {
         String currentOrderStr;
         if (currentOrder instanceof ProgramOrder) {
             ProgramOrder programOrder = (ProgramOrder) currentOrder;
-            currentOrderStr = String.format("%s [ID: %d]", programOrder.getProgram().getName(), programOrder.getId());
+            currentOrderStr = String.format(Locale.US,"%s [ID: %d]", programOrder.getProgram().getName(), programOrder.getId());
         } else if (currentOrder != null) {
-            currentOrderStr = String.format("[ID: %d]", currentOrder.getId());
+            currentOrderStr = String.format(Locale.US,"[ID: %d]", currentOrder.getId());
         } else {
             currentOrderStr = "None";
         }
@@ -170,7 +171,7 @@ public class GovernorService {
                                         .map(use -> Boolean.TRUE.equals(use) ? "Altair":"Native").onErrorReturn("Unknown");
         Mono<String> isSlaved = observatoryService.isSlaved().onErrorReturn(false)
                                         .map(slaved -> Boolean.TRUE.equals(slaved) ? "Slaved":"Not slaved").onErrorReturn("Unknown");
-        Mono<String> slavingMono = useAltairSlaving.zipWith(isSlaved, (use, slaved) -> String.format("%s (%s)", slaved, use));
+        Mono<String> slavingMono = useAltairSlaving.zipWith(isSlaved, (use, slaved) -> String.format(Locale.US,"%s (%s)", slaved, use));
 
         Mono<Boolean> isSafeMono = observatoryService.isSafe(false).onErrorReturn(false);
         

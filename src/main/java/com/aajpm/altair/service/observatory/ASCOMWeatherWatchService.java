@@ -8,6 +8,8 @@ import reactor.core.publisher.Mono;
 import reactor.util.function.Tuple5;
 import reactor.util.function.Tuple8;
 
+import java.util.Locale;
+
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 
@@ -438,7 +440,7 @@ public class ASCOMWeatherWatchService extends WeatherWatchService {
             if (caps.canSkyQuality() == CAPABILITIES_GENERAL)
                 return this.getSkyQuality();
             if (caps.canSkyQuality() == CAPABILITIES_SPECIFIC)
-                return this.getSkyQualityValue().map(value -> String.format("%.2f", value));	
+                return this.getSkyQualityValue().map(value -> String.format(Locale.US,"%.2f", value));	
             return Mono.just(String.valueOf(Double.NaN));
         }).onErrorReturn("Unknown");
         Mono<Double> temperatureSky = this.getTemperatureSkyValue().onErrorReturn(Double.NaN);
@@ -473,17 +475,17 @@ public class ASCOMWeatherWatchService extends WeatherWatchService {
             new WeatherWatchStatus(
                 tuples.getT1().getT1(),
                 tuples.getT1().getT2(),
-                String.format("%.2f", tuples.getT1().getT3()),
-                String.format("%.2f", tuples.getT1().getT4()),
-                String.format("%.2f", tuples.getT1().getT5()),
-                String.format("%.2f", tuples.getT1().getT6()),
-                String.format("%.2f", tuples.getT1().getT7()),
+                String.format(Locale.US,"%.2f", tuples.getT1().getT3()),
+                String.format(Locale.US,"%.2f", tuples.getT1().getT4()),
+                String.format(Locale.US,"%.2f", tuples.getT1().getT5()),
+                String.format(Locale.US,"%.2f", tuples.getT1().getT6()),
+                String.format(Locale.US,"%.2f", tuples.getT1().getT7()),
                 tuples.getT1().getT8(),
-                String.format("%.2f", tuples.getT2().getT1()),
-                String.format("%.2f", tuples.getT2().getT2()),
-                String.format("%.2f", tuples.getT2().getT3()),
-                String.format("%.2f", tuples.getT2().getT4()),
-                String.format("%.2f", tuples.getT2().getT5())
+                String.format(Locale.US,"%.2f", tuples.getT2().getT1()),
+                String.format(Locale.US,"%.2f", tuples.getT2().getT2()),
+                String.format(Locale.US,"%.2f", tuples.getT2().getT3()),
+                String.format(Locale.US,"%.2f", tuples.getT2().getT4()),
+                String.format(Locale.US,"%.2f", tuples.getT2().getT5())
             )
         );
     }
