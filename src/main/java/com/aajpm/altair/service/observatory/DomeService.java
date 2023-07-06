@@ -55,6 +55,14 @@ public abstract class DomeService {
     public abstract Mono<Boolean> isShutterOpen() throws DeviceException;
 
     /**
+     * Returns true if the shutter is closed. Note that if the shutter is able to change
+     * altitude and it is set to 0, it still counts as open.
+     * @return True if the shutter is closed, false otherwise.
+     * @throws DeviceException If there was an error polling the data.
+     */
+    public abstract Mono<Boolean> isShutterClosed() throws DeviceException;
+
+    /**
      * Returns the azimuth the dome is pointing at.
      * @return The azimuth the dome is pointing at, in degrees, clockwise positive from North.
      * @throws DeviceException If there was an error polling the data.

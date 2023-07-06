@@ -86,6 +86,11 @@ public class ASCOMDomeService extends DomeService {
     }
 
     @Override
+    public Mono<Boolean> isShutterClosed() throws DeviceException {
+        return this.getShutterStatus().map(status -> status == DomeService.SHUTTER_CLOSED);
+    }
+
+    @Override
     public Mono<Boolean> isSlaved() throws DeviceException {
         return getCapabilities().flatMap(caps -> {
             if (caps.canSlave()) {

@@ -31,8 +31,8 @@ altair:
         lockout-time: 300                       # Time in seconds that the account is locked after too many failed login attempts
         default-password: hikoboshi             # Default password for the admin, please change this after deployment
     observatory:
-        status-update-interval: 7000            # Interval in ms between status updates for the observatory. If set too fast, it might hang the server/devices.
-        synchronous-timeout: 300000             # Timeout in ms for synchronous operations. If set too high, failed operations might never finish, and if set too low, some successful operations might get interrupted. Set to 0 to disable timeouts (not recommended).
+        status-update-interval: 5000            # Interval in ms between status updates for the observatory. If set too fast, it might hang the server/devices.
+        synchronous-timeout: 60000             # Timeout in ms for synchronous operations. If set too high, failed operations might never finish, and if set too low, some successful operations might get interrupted. Set to 0 to disable timeouts (not recommended).
         use-native-slaving: false               # If true, Altair will use the native slaving capabilities of the mount, if available. Else, Altair will use its own slaving mechanism.
         disable-safety-checks: true             # If true, Altair will not check if the conditions are safe to operate before slewing. This is not recommended, as it might cause damage to the mount. Use only if you really know what you are doing.
         camera:
