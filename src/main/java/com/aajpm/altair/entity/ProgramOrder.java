@@ -1,7 +1,7 @@
 package com.aajpm.altair.entity;
 
-import java.util.Collection;
-import java.util.HashSet;
+import java.util.ArrayList;
+import java.util.List;
 
 import jakarta.persistence.*;
 
@@ -15,7 +15,7 @@ public class ProgramOrder extends Order {
 
     public ProgramOrder() {
         super();
-        exposureOrders = new HashSet<>();
+        exposureOrders = new ArrayList<>();
     }
 
     //#endregion
@@ -32,7 +32,7 @@ public class ProgramOrder extends Order {
     private Program program;
 
     @OneToMany(mappedBy = "program", fetch = FetchType.EAGER, cascade = CascadeType.ALL)
-    private Collection<ExposureOrder> exposureOrders;
+    private List<ExposureOrder> exposureOrders;
 
 
     //#region Getters & Setters
@@ -44,11 +44,11 @@ public class ProgramOrder extends Order {
         this.program = program;
     }
 
-    public Collection<ExposureOrder> getExposureOrders() {
+    public List<ExposureOrder> getExposureOrders() {
         return exposureOrders;
     }
 
-    public void setExposureOrders(Collection<ExposureOrder> exposureOrders) {
+    public void setExposureOrders(List<ExposureOrder> exposureOrders) {
         this.exposureOrders = exposureOrders;
     }
 

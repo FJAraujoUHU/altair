@@ -144,7 +144,7 @@ public class ProgramOrderService extends BasicEntityCRUDService<ProgramOrder> {
                         .map(visibleInterval ->  Tuples.of(order, visibleInterval)))
                 // Filter out orders that are not visible in the given time range.
                 .filter(tuple -> {
-                    Collection<ExposureOrder> exposureOrders = tuple.getT1().getExposureOrders();
+                    List<ExposureOrder> exposureOrders = tuple.getT1().getExposureOrders();
                     Interval visibleInterval = tuple.getT2();
 
                     Double shortestRemainingExposure = exposureOrders.stream()

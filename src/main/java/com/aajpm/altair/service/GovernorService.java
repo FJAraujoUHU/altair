@@ -32,7 +32,7 @@ import reactor.core.publisher.Mono;
 import reactor.util.function.Tuple2;
 import reactor.util.function.Tuples;
 
-
+// TODO: BUSY system does not work. Make a queue and let the governor run it?
 @Service
 public class GovernorService {
 
@@ -480,7 +480,6 @@ public class GovernorService {
             } else {
                 throw new UnsupportedOperationException("Order " + order.getId() + " type not supported");
             }
-            // busyFlag sets to false when the order gets started
 
         } catch (Exception e) {
             busyFlag.set(false);
@@ -527,7 +526,10 @@ public class GovernorService {
                     .then(observatoryService.setSlavedAwait(true))
                     .then(observatoryService.startExposure(params))
                     .doOnTerminate(() -> {
-                        long exposureTime = Math.round(params.getExposureTime());
+                        // Mark the exposureOrder as in progress
+                        exposureOrder.setState(ExposureOrder.States.IN_PROGRESS);
+                        ExposureOrder savedExposureOrder = exposureOrderService.update(exposureOrder);
+                        long exposureTime = Math.round(savedExposureOrder.getExposureParams().getExposureTime());
                         currentOrderInterval = new Interval(Instant.now(), Duration.of(exposureTime, ChronoUnit.SECONDS));
                         busyFlag.set(false);
                     });
@@ -575,6 +577,7 @@ public class GovernorService {
                 .doOnSubscribe(s -> busyFlag.set(true))
                 .then(Mono.fromCallable(() -> {
                     markAsFail();
+
                     currentOrder = null;
                     currentOrderInterval = null;
                     busyFlag.set(false);
@@ -591,7 +594,6 @@ public class GovernorService {
 
             observatoryService.abort()
                 .doOnTerminate(() -> {
-
                     markAsComplete();
 
                     currentOrder = null;
@@ -606,15 +608,12 @@ public class GovernorService {
 
     private void markAsComplete() {
         if (currentOrder instanceof ProgramOrder) {
-            double exposureTime = currentOrderInterval.getDuration().getSeconds();
             ProgramOrder programOrder = (ProgramOrder) currentOrder;
-            // Find the exposure order that was just completed
+            // Find the exposure order that was running
             ExposureOrder exposureOrder = programOrder
                                             .getExposureOrders()
                                             .stream()
-                                            .filter(eo -> 
-                                                !eo.isCompleted() &&
-                                                (Double.compare(eo.getExposureParams().getExposureTime(), exposureTime) == 0))
+                                            .filter(eo -> eo.getState() == ExposureOrder.States.IN_PROGRESS)
                                             .findFirst()
                                             .orElse(null);
             // If found, mark it as completed and save the image
@@ -630,6 +629,8 @@ public class GovernorService {
                             AstroImage dbImage = astroImageService.create(path);
                             dbImage.setExposureOrder(exposureOrder);
                             exposureOrder.setImage(dbImage);
+                            exposureOrder.setState(ExposureOrder.States.COMPLETED);
+
 
                             // Check if all exposure orders are completed
                             boolean allCompleted = programOrder
@@ -637,8 +638,9 @@ public class GovernorService {
                                                     .stream()
                                                     .allMatch(ExposureOrder::isCompleted);
 
-                            if (allCompleted) {
+                        if (allCompleted) {
                                 logger.debug("Governor: All exposures completed, marking order {} as completed", programOrder.getId());
+                                
                                 programOrder.setCompleted(true);
                                 programOrderService.update(programOrder);
                             } else {
@@ -659,14 +661,12 @@ public class GovernorService {
 
     private void markAsFail() {
         if (currentOrder instanceof ProgramOrder) {
-            double orderTime = currentOrderInterval.getDuration().getSeconds();
             ProgramOrder programOrder = (ProgramOrder) currentOrder;
+            // Find the current exposure order and mark it as failed
             ExposureOrder exposureOrder = programOrder
                                             .getExposureOrders()
                                             .stream()
-                                            .filter(eo -> 
-                                                !eo.isCompleted() &&
-                                                (Double.compare(eo.getExposureParams().getExposureTime(), orderTime) == 0))
+                                            .filter(eo -> eo.getState() == ExposureOrder.States.IN_PROGRESS)
                                             .findFirst()
                                             .orElse(null);
             if (exposureOrder != null) {

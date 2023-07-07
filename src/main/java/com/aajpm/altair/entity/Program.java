@@ -1,8 +1,8 @@
 package com.aajpm.altair.entity;
 
 import java.io.Serializable;
-import java.util.Collection;
-import java.util.HashSet;
+import java.util.ArrayList;
+import java.util.List;
 
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
@@ -16,7 +16,7 @@ public class Program extends BasicEntity implements Serializable {
 
     public Program() {
         super();
-        exposures = new HashSet<>();
+        exposures = new ArrayList<>();
     }
 
     //#endregion
@@ -65,18 +65,18 @@ public class Program extends BasicEntity implements Serializable {
     //#region Relationships
 
     @OneToMany(mappedBy = "program", fetch = FetchType.EAGER, cascade = CascadeType.ALL)
-    private Collection<ExposureParams> exposures;
+    private List<ExposureParams> exposures;
 
     @ManyToOne(fetch = FetchType.EAGER, optional = false)
     private AstroObject target;
 
 
     //#region Getters & Setters
-    public Collection<ExposureParams> getExposures() {
+    public List<ExposureParams> getExposures() {
         return exposures;
     }
 
-    public void setExposures(Collection<ExposureParams> exposures) {
+    public void setExposures(List<ExposureParams> exposures) {
         this.exposures = exposures;
     }
 
