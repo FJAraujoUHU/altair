@@ -1,10 +1,11 @@
 package com.aajpm.altair.service.observatory;
 
 import java.time.Duration;
-import java.util.Objects;
 
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
+
+import com.aajpm.altair.config.ObservatoryConfig.FocuserConfig;
 import com.aajpm.altair.utility.exception.DeviceException;
 import com.aajpm.altair.utility.webutils.AlpacaClient;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -25,11 +26,12 @@ public class ASCOMFocuserService extends FocuserService {
     private FocuserCapabilities capabilities;
 
 
-    public ASCOMFocuserService(AlpacaClient client, int statusUpdateInterval, long synchronousTimeout) {
-        this(client, 0 , statusUpdateInterval, synchronousTimeout);
+    public ASCOMFocuserService(AlpacaClient client, FocuserConfig config, int statusUpdateInterval, long synchronousTimeout) {
+        this(client, 0, config, statusUpdateInterval, synchronousTimeout);
     }
 
-    public ASCOMFocuserService(AlpacaClient client, int deviceNumber, int statusUpdateInterval, long synchronousTimeout) {
+    public ASCOMFocuserService(AlpacaClient client, int deviceNumber, FocuserConfig config, int statusUpdateInterval, long synchronousTimeout) {
+        super(config);
         this.client = client;
         this.deviceNumber = deviceNumber;
         this.statusUpdateInterval = statusUpdateInterval;
@@ -97,88 +99,163 @@ public class ASCOMFocuserService extends FocuserService {
         return this.put("connected", params).thenReturn(true);
     }
 
+
     @Override
     public Mono<Boolean> move(int position) throws DeviceException {
-        return this.getCapabilities().zipWith(this.getPosition()).flatMap(tuple -> {
-            int maxIncrement = tuple.getT1().maxIncrement();
-            int maxStep = tuple.getT1().maxStep();
-            int startPos = tuple.getT2();
+        return this.getCapabilities().flatMap(caps -> {
+            int maxIncrement = caps.maxIncrement();
+            int maxStep = caps.maxStep();
+            boolean absolute = caps.canAbsolute();
             int targetPos = Math.min(Math.max(0, position), maxStep); // Clamp to limits
             
-            // Calculate the number of moves required to reach the target position
-            int delta = targetPos - startPos;
-            int moves = (int) Math.ceil(Math.abs(delta) / (double) maxIncrement);
-
-            boolean absolute = tuple.getT1().canAbsolute();
-
-            // If the target position is reachable, move there in one command
-            if (moves == 1) {
-                return moveCmd(absolute ? targetPos : delta);
-            }
-
-            Mono<Boolean> firstMove = moveCmd(absolute ? startPos + maxIncrement : maxIncrement)
-                .then(getPosition())
-                .repeatWhen(repeat -> repeat.delayElements(Duration.ofMillis(statusUpdateInterval)))
-                .takeUntil(actualPos -> Objects.equals(actualPos, startPos + maxIncrement))
-                .last()
-                .thenReturn(true);
-
-            // Create a stream of moves to execute
-            Mono<Boolean> remainingMoves = Flux
-                .range(2, moves-1)
-                .concatMap(i -> {
-                    int increment = (i >= moves) ? delta % maxIncrement : maxIncrement; // Last move may be smaller than maxIncrement
-                    int currTarget = startPos + (maxIncrement*(i-1) + increment);       // Current target position
-                    int moveTo = absolute ? currTarget : increment;                     // Parameter for the move command, either absolutely or relatively
-                    
-                    return moveCmd(moveTo)
-                        .then(getPosition())
-                        .repeatWhen(repeat -> repeat.delayElements(Duration.ofMillis(statusUpdateInterval)))
-                        .takeUntil(actualPos -> Objects.equals(actualPos, currTarget))
-                        .last();
-                }).then().thenReturn(true);
-
-            // return firstMove and make remainingMoves wait for firstMove to complete, only returning firstMove's signal as firstMove finishes
-            return firstMove.doOnSuccess(v -> remainingMoves.subscribe());
+            Duration timeout = Duration.ofMillis((synchronousTimeout > 0) ? synchronousTimeout : Long.MAX_VALUE);
+            return absolute ? moveUntilAbsolute(targetPos, maxIncrement).timeout(timeout)
+                            : moveUntilRelative(targetPos, maxIncrement).timeout(timeout);
         });
     }
 
     @Override
     public Mono<Boolean> moveAwait(int position) throws DeviceException {
-        return this.getCapabilities().zipWith(this.getPosition()).flatMap(tuple -> {
-            int maxIncrement = tuple.getT1().maxIncrement();
-            int maxStep = tuple.getT1().maxStep();
-            int startPos = tuple.getT2();
+        return this.getCapabilities().flatMap(caps -> {
+            int maxIncrement = caps.maxIncrement();
+            int maxStep = caps.maxStep();
+            boolean absolute = caps.canAbsolute();
             int targetPos = Math.min(Math.max(0, position), maxStep); // Clamp to limits
-            
-            // Calculate the number of moves required to reach the target position
-            int delta = targetPos - startPos;
-            int moves = (int) Math.ceil(Math.abs(delta) / (double) maxIncrement);
 
-            boolean absolute = tuple.getT1().canAbsolute();
+            Duration timeout = Duration.ofMillis((synchronousTimeout > 0) ? synchronousTimeout : Long.MAX_VALUE);
+            return absolute ? moveUntilAbsoluteAwait(targetPos, maxIncrement).timeout(timeout)
+                            : moveUntilRelativeAwait(targetPos, maxIncrement).timeout(timeout);
+        });
+    }
 
-            // If the target position is reachable, move there in one command
-            if (moves == 1) {
-                return moveCmd(absolute ? targetPos : delta)
-                    .then(getPosition())
-                    .repeatWhen(repeat -> repeat.delayElements(Duration.ofMillis(statusUpdateInterval)))
-                    .takeUntil(actualPos -> Objects.equals(actualPos, targetPos))
-                    .last()
-                    .thenReturn(true);
+
+    private Mono<Boolean> moveUntilAbsolute(int target, int maxIncrement) {
+         return getPosition().flatMap(startPos -> {
+            // Calculate the next move
+            int delta = target - startPos;
+
+            if (Math.abs(delta) <= config.getPositionTolerance()) {
+                // If it's within the tolerance to the target, stop moving
+                return Mono.just(true);
             }
 
-            // Create a stream of moves and use concatMap to execute the moves sequentially
-            return Flux.range(1, moves).concatMap(i -> {
-                int increment = (i >= moves) ? delta % maxIncrement : maxIncrement; // Last move may be smaller than maxIncrement
-                int currTarget = startPos + (maxIncrement*(i-1) + increment);       // Current target position
-                int moveTo = absolute ? currTarget : increment;                     // Parameter for the move command, either absolutely or relatively
-                
-                return moveCmd(moveTo)
-                    .then(getPosition())
-                    .repeatWhen(repeat -> repeat.delayElements(Duration.ofMillis(statusUpdateInterval)))
-                    .takeUntil(actualPos -> Objects.equals(actualPos, currTarget))
-                    .last();
-            }).then().thenReturn(true);
+            // Move by the maximum increment, or the remaining distance, whichever is smaller
+            int moveAmount = Math.min(Math.abs(delta), maxIncrement);
+            // Apply the sign of the delta to the next move
+            moveAmount = delta < 0 ? -moveAmount : moveAmount;
+            // Calculate the next position
+            int nextMove = target + moveAmount;
+
+
+            return moveCmd(nextMove).doOnSuccess(v -> 
+                // Recursively call this method until the target is reached,
+                // but only as a side effect after completion of the first
+                // move command as to not block, since that'd be the same as
+                // just calling the await version of this method.
+                Mono.delay(Duration.ofMillis(statusUpdateInterval))
+                .thenMany(Flux.interval(Duration.ofMillis(statusUpdateInterval)))   // check periodically if still open
+                .flatMap(i -> this.isMoving()                                       // keep checking until it closes
+                    .filter(Boolean.FALSE::equals)
+                    .flatMap(open -> Mono.just(true))
+                ).next()
+                .then(moveUntilAbsoluteAwait(target, maxIncrement))
+                .timeout(Duration.ofMillis((synchronousTimeout > 0) ? synchronousTimeout : Long.MAX_VALUE))
+                .subscribe()
+            );
+        });
+    }
+
+    private Mono<Boolean> moveUntilAbsoluteAwait(int target, int maxIncrement) {
+        return getPosition().flatMap(startPos -> {
+            // Calculate the next move
+            int delta = target - startPos;
+
+            if (Math.abs(delta) <= config.getPositionTolerance()) {
+                // If it's within the tolerance, stop moving
+                return Mono.just(true);
+            }
+
+            // Move by the maximum increment, or the remaining distance, whichever is smaller
+            int moveAmount = Math.min(Math.abs(delta), maxIncrement);
+            // Apply the sign of the delta to the next move
+            moveAmount = delta < 0 ? -moveAmount : moveAmount;
+            // Calculate the next position
+            int nextMove = target + moveAmount;
+
+
+            return moveCmd(nextMove)
+                    .then(Mono.delay(Duration.ofMillis(statusUpdateInterval)))          // wait before checking state
+                    .thenMany(Flux.interval(Duration.ofMillis(statusUpdateInterval)))   // check periodically if still open
+                    .flatMap(i -> this.isMoving()                                       // keep checking until it closes
+                        .filter(Boolean.FALSE::equals)
+                        .flatMap(open -> Mono.just(true))
+                    ).next()
+                    .then(moveUntilAbsolute(target, maxIncrement));  // recursively call this method until the target position is reached
+        });
+    }
+
+    private Mono<Boolean> moveUntilRelative(int target, int maxIncrement) {
+         return getPosition().flatMap(startPos -> {
+            // Calculate the next move
+            int delta = target - startPos;
+
+            if (Math.abs(delta) <= config.getPositionTolerance()) {
+                // If it's within the tolerance, stop moving
+                return Mono.just(true);
+            }
+
+            // Move by the maximum increment, or the remaining distance, whichever is smaller
+            int moveAmount = Math.min(Math.abs(delta), maxIncrement);
+            // Apply the sign of the delta to the next move
+            moveAmount = delta < 0 ? -moveAmount : moveAmount;
+            // Calculate the next position
+            int nextMove = moveAmount;
+
+
+            return moveCmd(nextMove).doOnSuccess(v -> 
+                // Recursively call this method until the target is reached,
+                // but only as a side effect after completion of the first
+                // move command as to not block, since that'd be the same as
+                // just calling the await version of this method.
+                Mono.delay(Duration.ofMillis(statusUpdateInterval))
+                .thenMany(Flux.interval(Duration.ofMillis(statusUpdateInterval)))   // check periodically if still open
+                .flatMap(i -> this.isMoving()                                       // keep checking until it closes
+                    .filter(Boolean.FALSE::equals)
+                    .flatMap(open -> Mono.just(true))
+                ).next()
+                .then(moveUntilRelativeAwait(target, maxIncrement))
+                .timeout(Duration.ofMillis((synchronousTimeout > 0) ? synchronousTimeout : Long.MAX_VALUE))
+                .subscribe()
+            );
+        });
+    }
+
+    private Mono<Boolean> moveUntilRelativeAwait(int target, int maxIncrement) {
+        return getPosition().flatMap(startPos -> {
+            // Calculate the next move
+            int delta = target - startPos;
+
+            if (Math.abs(delta) <= config.getPositionTolerance()) {
+                // If it's within the tolerance, stop moving
+                return Mono.just(true);
+            }
+
+            // Move by the maximum increment, or the remaining distance, whichever is smaller
+            int moveAmount = Math.min(Math.abs(delta), maxIncrement);
+            // Apply the sign of the delta to the next move
+            moveAmount = delta < 0 ? -moveAmount : moveAmount;
+            // Calculate the next position
+            int nextMove = moveAmount;
+
+
+            return moveCmd(nextMove)
+                    .then(Mono.delay(Duration.ofMillis(statusUpdateInterval)))          // wait before checking state
+                    .thenMany(Flux.interval(Duration.ofMillis(statusUpdateInterval)))   // check periodically if still open
+                    .flatMap(i -> this.isMoving()                                       // keep checking until it closes
+                        .filter(Boolean.FALSE::equals)
+                        .flatMap(open -> Mono.just(true))
+                    ).next()
+                    .then(moveUntilRelativeAwait(target, maxIncrement));  // recursively call this method until the target position is reached
         });
     }
 

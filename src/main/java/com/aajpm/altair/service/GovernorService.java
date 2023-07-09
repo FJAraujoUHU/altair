@@ -30,9 +30,10 @@ import com.aajpm.altair.utility.solver.EphemeridesSolver;
 import nom.tam.fits.FitsException;
 import reactor.core.publisher.Mono;
 import reactor.util.function.Tuple2;
+import reactor.util.function.Tuple4;
+import reactor.util.function.Tuple5;
 import reactor.util.function.Tuples;
 
-// TODO: BUSY system does not work. Make a queue and let the governor run it?
 @Service
 public class GovernorService {
 
@@ -41,12 +42,13 @@ public class GovernorService {
 
     private Order currentOrder = null;
 
+    private Order nextOrder = null;
+
     private Interval currentOrderInterval = null;
 
     private Interval nextNight = null;
 
     private AltairUser currentUser = null;
-
 
     //#region Flags    
 
@@ -55,9 +57,6 @@ public class GovernorService {
 
     /** If the admin is in control */
     private final AtomicBoolean adminMode = new AtomicBoolean(false);
-
-    /** If the observatory is performing a task */
-    private final AtomicBoolean busyFlag = new AtomicBoolean(false);
 
     /** isSafe() disable override */
     private final AtomicBoolean safeFlag = new AtomicBoolean(false);
@@ -116,8 +115,6 @@ public class GovernorService {
             return Mono.just(State.ADMIN);
         if (!enabledFlag.get())
             return Mono.just(State.DISABLED);
-        if (busyFlag.get())
-            return Mono.just(State.BUSY);
         
         return observatoryService.getStatus().map(status -> {
 
@@ -150,21 +147,35 @@ public class GovernorService {
      */
     public Mono<GovernorStatus> getStatus() {
         Mono<String> stateMono = getState().map(state -> state.toString().toLowerCase()).onErrorReturn("ERROR");
+        Mono<Boolean> isSafeMono = observatoryService.isSafe(false).onErrorReturn(false);
         Mono<Boolean> isSafeOverrideMono = Mono.just(safeFlag.get());
-        String currentOrderStr;
-        if (currentOrder instanceof ProgramOrder) {
-            ProgramOrder programOrder = (ProgramOrder) currentOrder;
-            currentOrderStr = String.format(Locale.US,"%s [ID: %d]", programOrder.getProgram().getName(), programOrder.getId());
-        } else if (currentOrder != null) {
-            currentOrderStr = String.format(Locale.US,"[ID: %d]", currentOrder.getId());
-        } else {
-            currentOrderStr = "None";
-        }
+
+         Mono<String> currentOrderMono = Mono.fromCallable(() -> {
+            if (currentOrder instanceof ProgramOrder) {
+                ProgramOrder programOrder = (ProgramOrder) currentOrder;
+                return String.format(Locale.US,"%s [ID: %d]", programOrder.getProgram().getName(), programOrder.getId());
+            } else if (currentOrder != null) {
+                return String.format(Locale.US,"[ID: %d]", currentOrder.getId());
+            }
+            return "None";
+        });
+
         Mono<String> currentOrderRemainingTimeMono = Mono.just((currentOrderInterval == null || currentOrderInterval.hasElapsed())
                                                         ? "N/A"
                                                         : (new Interval(Instant.now(), currentOrderInterval.getEnd()).toDurationString()));
+
+        Mono<String> nextOrderMono = Mono.fromCallable(() -> {
+            if (nextOrder instanceof ProgramOrder) {
+                ProgramOrder programOrder = (ProgramOrder) nextOrder;
+                return String.format(Locale.US,"%s [ID: %d]", programOrder.getProgram().getName(), programOrder.getId());
+            } else if (nextOrder != null) {
+                return String.format(Locale.US,"[ID: %d]", nextOrder.getId());
+            }
+            return "None";
+        });
+
         Mono<String> currentUserMono = Mono.just(getCurrentUser() == null ? "None" : getCurrentUser().getUsername());
-        Mono<String> currentOrderMono = Mono.just(currentOrderStr);
+       
         Mono<String> nextNightMono = Mono.just(nextNight == null ? "None" : nextNight.toString());
 
         Mono<String> useAltairSlaving = observatoryService.isAltairSlaving()
@@ -173,19 +184,20 @@ public class GovernorService {
                                         .map(slaved -> Boolean.TRUE.equals(slaved) ? "Slaved":"Not slaved").onErrorReturn("Unknown");
         Mono<String> slavingMono = useAltairSlaving.zipWith(isSlaved, (use, slaved) -> String.format(Locale.US,"%s (%s)", slaved, use));
 
-        Mono<Boolean> isSafeMono = observatoryService.isSafe(false).onErrorReturn(false);
         
-        return Mono.zip(stateMono, isSafeMono, isSafeOverrideMono, currentOrderMono, currentOrderRemainingTimeMono, currentUserMono, nextNightMono, slavingMono)
-                    .map(tuple -> new GovernorStatus(
-                        tuple.getT1(),
-                        tuple.getT2(),
-                        tuple.getT3(),
-                        tuple.getT4(),
-                        tuple.getT5(),
-                        tuple.getT6(),
-                        tuple.getT7(),
-                        tuple.getT8()
-                    ));
+        Mono<Tuple4<String, Boolean, Boolean, String>> stateMono1 = Mono.zip(stateMono, isSafeMono, isSafeOverrideMono, currentOrderMono);
+        Mono<Tuple5<String, String, String, String, String>> stateMono2 = Mono.zip(currentOrderRemainingTimeMono, nextOrderMono, currentUserMono, nextNightMono, slavingMono);
+        return stateMono1.zipWith(stateMono2).map(tuple -> new GovernorStatus(
+            tuple.getT1().getT1(),
+            tuple.getT1().getT2(),
+            tuple.getT1().getT3(),
+            tuple.getT1().getT4(),
+            tuple.getT2().getT1(),
+            tuple.getT2().getT2(),
+            tuple.getT2().getT3(),
+            tuple.getT2().getT4(),
+            tuple.getT2().getT5()
+        ));
     }
 
     /**
@@ -231,7 +243,7 @@ public class GovernorService {
      * @return {@code true} if the user is allowed to operate the observatory right now,
      *         and {@code false} otherwise.
      */
-    public boolean canOperate(AltairUser user) {
+    public boolean userCanOperate(AltairUser user) {
         if (user == null)
             return false;
         try {
@@ -333,15 +345,22 @@ public class GovernorService {
      * @param admin the admin user.
      * @throws UnauthorisedException if the user is not an admin.
      */
-    public void enterAdminMode(AltairUser admin) throws UnauthorisedException {
+    public Mono<Boolean> enterAdminMode(AltairUser admin) throws UnauthorisedException {
         if (admin == null)
-            throw new UnauthorisedException("Must provide an admin user");
+            return Mono.error(new UnauthorisedException("Must provide an admin user"));
         if (!admin.isAdmin())
-            throw new UnauthorisedException(admin);
+            return Mono.error(new UnauthorisedException(admin));
 
-        this.abortOrder();
-        currentUser = admin;
-        adminMode.set(true);
+        return this.abortOrder()
+            .onErrorResume(e -> {
+                logger.error("Governor::enterAdminMode(): Error while aborting order", e);
+                return Mono.just(true);
+            })
+            .then(Mono.fromCallable(() -> {
+                currentUser = admin;
+                adminMode.set(true);
+                return true;
+            }));
     }
 
     /**
@@ -351,16 +370,19 @@ public class GovernorService {
      * @throws IllegalStateException if not already in admin mode.
      * @throws UnauthorisedException if the user is not an admin.
      */
-    public void exitAdminMode(AltairUser admin) throws IllegalStateException, UnauthorisedException {
+    public Mono<Boolean> exitAdminMode(AltairUser admin) throws IllegalStateException, UnauthorisedException {
         if (!adminMode.get())
-            throw new IllegalStateException("Not in admin mode");
+            return Mono.error(new IllegalStateException("Not in admin mode"));
         if (admin == null)
-            throw new UnauthorisedException("Must provide an admin user");
+            return Mono.error(new UnauthorisedException("Must provide an admin user"));
         if (!admin.isAdmin())
-            throw new UnauthorisedException(admin);
+            return Mono.error(new UnauthorisedException(admin));
         
-        currentUser = null;
-        adminMode.set(false);
+        return Mono.fromCallable(() -> {
+            currentUser = null;
+            adminMode.set(false);
+            return true;
+        });
     }
 
     /**
@@ -409,6 +431,9 @@ public class GovernorService {
         return observatoryService.useAltairSlaving(useAltairSlaving);
     }
 
+    // TODO: make startOrder private and create a public version that basically just sets the current order
+    // for the governor to pickup
+
     /**
      * Starts a new program, by placing a new order for it and starting it right away.
      * 
@@ -418,19 +443,17 @@ public class GovernorService {
      * @throws IllegalArgumentException if the program or user is null
      * @throws IllegalStateException if there is already an order in progress
      */
-    public void startProgram(Program program, AltairUser user) throws IllegalArgumentException, IllegalStateException, UnauthorisedException {
-        try {
-            busyFlag.set(true);
+    public Mono<Boolean> startProgram(Program program, AltairUser user) {
+        if (program == null)
+            return Mono.error(new IllegalArgumentException("Must provide a program"));
+        if (user == null)
+            return Mono.error(new IllegalArgumentException("Must provide a user"));
+        if (!userCanOperate(user))
+            return Mono.error(new UnauthorisedException(user, "Cannot start a program while not operating the observatory"));
+        if (currentOrder != null)
+            return Mono.error(new IllegalStateException("Cannot start a new order while another one is in progress"));
 
-            if (program == null)
-                throw new IllegalArgumentException("Must provide a program");
-            if (user == null)
-                throw new IllegalArgumentException("Must provide a user");
-            if (!canOperate(user))
-                throw new UnauthorisedException(user, "Cannot start a program while not operating the observatory");
-            if (currentOrder != null)
-                throw new IllegalStateException("Cannot start a new order while another one is in progress");
-            
+        return Mono.fromCallable(() -> {
             ProgramOrder order = programOrderService.create();
             order.setProgram(program);
             order.setUser(user);
@@ -445,142 +468,139 @@ public class GovernorService {
                 setupOrder.getExposureOrders().add(exposureOrder);
             });
 
-            connectAll().block(Duration.ofMinutes(5));
-            observatoryService.startAwait().block(Duration.ofMinutes(5));
-            startOrder(programOrderService.save(setupOrder));
-        } catch (Exception e) {
-            busyFlag.set(false);
-            throw e;
-        }
-        
+            return programOrderService.save(setupOrder);
+        })
+        .flatMap(order -> 
+            this.queueOrder(order)
+            /*observatoryService.startAwait()
+            .then(this.startOrder(order))*/
+        );
     }
 
+    // TODO: make startOrder private and create a public version that basically just sets the current order
+    // for the governor to pickup
+
+    public Mono<Boolean> queueOrder(Order order) {
+        if (order == null)
+            return Mono.error(new IllegalArgumentException("Must provide an order"));
+
+        return Mono.fromCallable(() -> {
+            nextOrder = order;
+            return true;
+        });
+    }
+
+
     /**
-     * Starts the current order.
+     * Starts the order.
      * 
-     * Note that this method will not check for safety, so it should only be called
-     * after making sure the outside conditions are safe.
+     * Note that this method will not check for safety, so it should only be
+     * called after making sure the outside conditions are safe and starting
+     * the observatory.
      * 
      * @param order the order to start
      */
-    public void startOrder(Order order) {
-        try {
-            busyFlag.set(true);
+    private Mono<Boolean> startOrder(Order order) {
+        if (order == null)
+            return Mono.error(new IllegalArgumentException("Must provide an order"));
 
-            if (currentOrder != null) {
-                abortOrder();
-            }
+        Mono<Boolean> ret = Mono.empty().flatMap(b -> currentOrder != null 
+                                                    ? abortOrder()
+                                                    : Mono.just(true));
 
-            currentOrder = order;
-
-            if (currentOrder instanceof ControlOrder) {
-                startControlOrder((ControlOrder) currentOrder);
-            } else if (currentOrder instanceof ProgramOrder) {
-                startProgramOrder((ProgramOrder) currentOrder);
-            } else {
-                throw new UnsupportedOperationException("Order " + order.getId() + " type not supported");
-            }
-
-        } catch (Exception e) {
-            busyFlag.set(false);
-            throw e;
+        if (order instanceof ControlOrder) {
+            ret = ret.then(startControlOrder((ControlOrder) order));
+        } else if (order instanceof ProgramOrder) {
+            ret = ret.then(startProgramOrder((ProgramOrder) order));
+        } else {
+            return Mono.error(new UnsupportedOperationException("Order " + order.getId() + " type not supported"));
         }
+
+        return ret;
     }
 
     //#region startOrder helpers
-    private void startControlOrder(ControlOrder order) {
-        currentOrder = order;
-        currentOrderInterval = order.getRequestedInterval();
-        busyFlag.set(false);
+    private Mono<Boolean> startControlOrder(ControlOrder order) {
+        return Mono.fromCallable(() -> {
+            currentOrder = order;
+            currentOrderInterval = order.getRequestedInterval();
+            return true;
+        });
     }
 
-    private void startProgramOrder(ProgramOrder order) {
-        try {
-            currentOrder = order;
-            Program program = order.getProgram();
-            AstroObject target = program.getTarget();
-            ExposureOrder exposureOrder = order
-                                        .getExposureOrders()
-                                        .stream()
-                                        .filter(eo -> !eo.isCompleted())
-                                        .findFirst()
-                                        .orElse(null);
-                
-            if (exposureOrder == null) {
-                throw new IllegalArgumentException("Program " + program.getId() + " has no pending exposure order");
-            }
-            
-            ExposureParams params = exposureOrder.getExposureParams();
-            
+    // TODO: program gets into startprogram but never runs nor ends in currentProgram 
+    private Mono<Boolean> startProgramOrder(ProgramOrder order) {
+        // Get the exposure order to run
+        Mono<ExposureOrder> exposureOrder = Mono.fromCallable(() -> {
+            ExposureOrder eo = order.getExposureOrders()
+                                    .stream()
+                                    .filter(exp -> !exp.isCompleted())
+                                    .sorted((e1, e2) ->
+                                        e1.getExposureParams()
+                                            .getExposureTime()
+                                            .compareTo(
+                                                e2.getExposureParams().getExposureTime()
+                                            )
+                                    )
+                                    .findFirst()
+                                    .orElse(null);
+            if (eo == null)
+                throw new IllegalStateException("Program " + order.getProgram().getId() + " has no pending exposure orders");
+            return eo;
+        });
+
+        // Start the exposure order
+        return exposureOrder.flatMap(eo -> {
+            AstroObject target = eo.getExposureParams().getProgram().getTarget();
+            ExposureParams params = eo.getExposureParams();
 
             Mono<Boolean> job = observatoryService.startCamera();
-            if (target.shouldHaveRaDec()) {
-                job = job.then(observatoryService
-                            .slewTogetherRaDecAwait(target.getRa(), target.getDec()));
-            } else {
-                job = job.then(ephemeridesSolver.getAltAz(target.getName()).flatMap(altAz ->
-                                observatoryService.slewTogetherAltAzAwait(altAz[0], altAz[1])));
-            }
-
-            job = job
+                // Slew to the target, whether it's an object or coordinates
+                if (target.shouldHaveRaDec()) {
+                    job = job.then(observatoryService
+                                .slewTogetherRaDecAwait(target.getRa(), target.getDec()));
+                } else {
+                    job = job.then(ephemeridesSolver.getAltAz(target.getName()).flatMap(altAz ->
+                                    observatoryService.slewTogetherAltAzAwait(altAz[0], altAz[1])));
+                }
+            
+             job = job
                     .then(observatoryService.setSlavedAwait(true))
                     .then(observatoryService.startExposure(params))
-                    .doOnTerminate(() -> {
-                        // Mark the exposureOrder as in progress
-                        exposureOrder.setState(ExposureOrder.States.IN_PROGRESS);
-                        ExposureOrder savedExposureOrder = exposureOrderService.update(exposureOrder);
+                    .then(Mono.fromCallable(() -> {
+                        eo.setState(ExposureOrder.States.IN_PROGRESS);
+                        ExposureOrder savedExposureOrder = exposureOrderService.update(eo);
                         long exposureTime = Math.round(savedExposureOrder.getExposureParams().getExposureTime());
+                        currentOrder = savedExposureOrder.getProgram();
                         currentOrderInterval = new Interval(Instant.now(), Duration.of(exposureTime, ChronoUnit.SECONDS));
-                        busyFlag.set(false);
-                    });
-
-            job.subscribe();
-
-        } catch (Exception e) {
+                        return true;
+                    }));
+            return job;
+        })
+        .onErrorResume(e -> Mono.fromCallable(() -> {
+            // If there was an error, mark the exposure order as failed
+            // and go to IDLE
+            if (currentOrder != null) {
+                markAsFail();
+            }
             currentOrder = null;
             currentOrderInterval = null;
-            busyFlag.set(false);
-            throw e;
-        }
+            return true;
+        }));
     }
     //#endregion
 
     /**
      * Aborts the current order, manages the order's status and goes to IDLE.
+     * @return a Mono that executes the abort order and completes when the 
+     *          order is aborted.
      */
-    public void abortOrder() {
-        try {
-            busyFlag.set(true);
-
-            observatoryService.abort()
-                .doOnTerminate(() -> {
-                    markAsFail();
-                    currentOrder = null;
-                    currentOrderInterval = null;
-                    busyFlag.set(false);
-                }).subscribe();
-
-        } catch (Exception e) {
-            currentOrder = null;
-            currentOrderInterval = null;
-            busyFlag.set(false);
-            throw e;
-        }
-    }
-
-    /**
-     * Aborts the current order, manages the order's status and goes to IDLE.
-     * @return a Mono that executes the abort order and completes when the order is aborted.
-     */
-    public Mono<Boolean> abortOrderMono() {
+    public Mono<Boolean> abortOrder() {
         return observatoryService.abort()
-                .doOnSubscribe(s -> busyFlag.set(true))
                 .then(Mono.fromCallable(() -> {
                     markAsFail();
-
                     currentOrder = null;
                     currentOrderInterval = null;
-                    busyFlag.set(false);
                     return true;
                 }));
     }
@@ -588,22 +608,14 @@ public class GovernorService {
     /**
      * Ends the current order, manages the order's completion status and goes to IDLE.
      */
-    public void endOrder() {
-        try {
-            busyFlag.set(true);
-
-            observatoryService.abort()
-                .doOnTerminate(() -> {
+    private Mono<Boolean> endOrder() {
+        return observatoryService.abort()
+                .then(Mono.fromCallable(() -> {
                     markAsComplete();
-
                     currentOrder = null;
                     currentOrderInterval = null;
-                    busyFlag.set(false);
-                }).subscribe();
-
-        } finally {
-            busyFlag.set(false);
-        }
+                    return true;
+                }));
     }
 
     private void markAsComplete() {
@@ -735,9 +747,6 @@ public class GovernorService {
             case DISABLED:
                 logger.error("If you're seeing this, something is wrong: governor is disabled but somehow still running.");
                 return;
-            case BUSY:
-                logger.debug("Governor: Busy, skipping execution");
-                return;
             case ADMIN:
                 logger.debug("Governor: Admin mode, skipping execution");
                 return;
@@ -794,22 +803,34 @@ public class GovernorService {
             }
 
 
-            // It's time to start the scheduler
-            Interval searchInterval = new Interval(Instant.now(), nextNight.getEnd());
-            List<Order> orders = orderService.buildSchedule(searchInterval).block();
-            if (orders == null || orders.isEmpty()) {
-                logger.info("Governor: no orders to run, parking the telescope.");
-                observatoryService.stopAwait()
-                        .then(disconnectAllExceptWeather())
-                        .block(Duration.ofMinutes(5));
-                return;
+            Order queuedOrder = null;
+            if (nextOrder != null) {
+                queuedOrder = nextOrder;
+                nextOrder = null;
+            } else {
+                // It's time to start the scheduler
+                Interval searchInterval = new Interval(Instant.now(), nextNight.getEnd());
+                List<Order> orders = orderService.buildSchedule(searchInterval).block();
+                if (orders != null && !orders.isEmpty()) {
+                    queuedOrder = orders.get(0);
+                }
             }
 
+            if (queuedOrder == null) {
+                // If there are no orders to run, park the telescope and exit
+                logger.info("Governor: no orders to run, parking the telescope.");
+                    observatoryService.stopAwait()
+                            .then(disconnectAllExceptWeather())
+                            .block(Duration.ofMinutes(5));
+                    return;
+            }
+            
+            // If there are orders to run, start the observatory and run the queued order
             logger.debug("Governor: Starting the observatory and running the first order.");
             connectAll().block(Duration.ofMinutes(5));
             observatoryService.startAwait().block(Duration.ofMinutes(5));
-            logger.info("Governor: Observatory started, running the order [ID={}]", orders.get(0).getId());
-            this.startOrder(orders.get(0));
+            logger.info("Governor: Observatory started, running the order [ID={}]", queuedOrder);
+            this.startOrder(queuedOrder).block(Duration.ofMinutes(5));
         } catch (Exception e) {
             logger.error("Error starting the observatory", e);
         }
@@ -828,20 +849,35 @@ public class GovernorService {
                 return;
             }
             
-            Interval searchInterval = new Interval(Instant.now(), nextNight.getEnd());
-            List<Order> orders = orderService.buildSchedule(searchInterval).block();
-            if (orders == null || orders.isEmpty()) {
-                logger.info("Governor: no orders to run, parking the telescope.");
-                observatoryService.stopAwait()
-                    .block(Duration.ofMinutes(5));
-                return;
+
+            Order queuedOrder = null;
+            if (nextOrder != null) {
+                queuedOrder = nextOrder;
+                nextOrder = null;
+            } else {
+                // It's time to start the scheduler
+                Interval searchInterval = new Interval(Instant.now(), nextNight.getEnd());
+                List<Order> orders = orderService.buildSchedule(searchInterval).block();
+                if (orders != null && !orders.isEmpty()) {
+                    queuedOrder = orders.get(0);
+                }
             }
 
+            if (queuedOrder == null) {
+                // If there are no orders to run, park the telescope and exit
+                logger.info("Governor: no orders to run, parking the telescope.");
+                    observatoryService.stopAwait()
+                            .then(disconnectAllExceptWeather())
+                            .block(Duration.ofMinutes(5));
+                    return;
+            }
+            
+            // If there are orders to run, start the observatory and run the queued order
             logger.debug("Governor: Starting the observatory and running the first order.");
             connectAll().block(Duration.ofMinutes(5));
             observatoryService.startAwait().block(Duration.ofMinutes(5));
-            logger.info("Governor: Observatory started, running the order [ID={}]", orders.get(0).getId());
-            this.startOrder(orders.get(0));
+            logger.info("Governor: Observatory started, running the order [ID={}]", queuedOrder);
+            this.startOrder(queuedOrder).block(Duration.ofMinutes(5));
         } catch (Exception e) {
             logger.error("Error starting the observatory", e);
         }
@@ -870,7 +906,8 @@ public class GovernorService {
             }
 
             // Download and save the image, mark the exposure/program as complete
-            this.endOrder();
+            this.endOrder()
+                .block(Duration.ofMinutes(5));
 
         } else {
             if (isSafe) {
@@ -880,7 +917,7 @@ public class GovernorService {
             } else {
                 // Abort and go to PARKED/Safe position
                 logger.info("Governor: It's not safe to observe, aborting the program and parking the telescope.");
-                this.abortOrderMono()
+                this.abortOrder()
                     .then(observatoryService.stopAwait())
                     .block(Duration.ofMinutes(5));
             }
@@ -907,7 +944,9 @@ public class GovernorService {
                     .block(Duration.ofMinutes(5));
             }
 
-            this.endOrder();
+            this.endOrder()
+                .block(Duration.ofMinutes(5));
+
         } else {
             if (isSafe) {
                 // It's safe and running, so do nothing
@@ -915,7 +954,7 @@ public class GovernorService {
             } else {
                 // Abort and go to PARKED/Safe position
                 logger.info("Governor: It's not safe to observe, aborting the session and parking the telescope.");
-                this.abortOrderMono()
+                this.abortOrder()
                     .then(observatoryService.stopAwait())
                     .block(Duration.ofMinutes(5));
             }
@@ -959,6 +998,8 @@ public class GovernorService {
         String currentOrder,
         /** Remaining time in current order, as {@code Xd Yh Zm As} */
         String currentOrderRemainingTime,
+        /** Next order, as "Name (ID: XX)" */
+        String nextOrder,
         String currentUser,
         /** Value of nextNight, as DateStart -> DateEnd */
         String nextNight,

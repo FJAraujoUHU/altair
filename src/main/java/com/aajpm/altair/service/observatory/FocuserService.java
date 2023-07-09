@@ -1,11 +1,28 @@
 package com.aajpm.altair.service.observatory;
 
+import com.aajpm.altair.config.ObservatoryConfig.FocuserConfig;
 import com.aajpm.altair.utility.exception.DeviceException;
 
 import reactor.core.publisher.Mono;
 
 public abstract class FocuserService {
-    
+    /////////////////////////////// ATTRIBUTES /////////////////////////////////
+    //#region Attributes
+
+    protected FocuserConfig config;
+
+    //#endregion
+    ////////////////////////////// CONSTRUCTOR /////////////////////////////////
+    //#region Constructor
+
+    /**
+     * Creates a new instance of the CameraService class
+     */
+    protected FocuserService(FocuserConfig config) {
+        this.config = config;
+    }
+
+    //#endregion
     ///////////////////////////////// GETTERS /////////////////////////////////
     //#region Getters
 
@@ -127,11 +144,16 @@ public abstract class FocuserService {
      * A record containing the device capabilities
      */
     public record FocuserCapabilities(
-        boolean canAbsolute,        // If the device can move to an absolute position (this is transparent to the user, implementations must handle this)
-        boolean canTempComp,        // If the device supports temperature compensation
-        int maxIncrement,           // The maximum increment the device can move in a single move operation
-        int maxStep,                // The maximum step the device can move to
-        int stepSize                // The physical size of a single step, in microns
+        /** If the device can move to an absolute position (this is transparent to the user, implementations must handle this) */
+        boolean canAbsolute,
+        /** If the device supports temperature compensation */
+        boolean canTempComp,
+        /** The maximum increment the device can move in a single move operation */
+        int maxIncrement,
+        /**  The maximum step the device can move to, that is, the range of the device is [0-maxStep] */
+        int maxStep,
+        /** The physical size of a single step, in microns */
+        int stepSize
     ) {}
 
     /**

@@ -49,7 +49,7 @@ public class GovernorAPIController {
     public Mono<Boolean> enable() {
         try {
             AltairUser user = AltairUserService.getCurrentUser();
-            if (!governor.canOperate(user))
+            if (!governor.userCanOperate(user))
                 return Mono.error(new UnauthorisedException(user));
 
             return governor.enable();
@@ -62,7 +62,7 @@ public class GovernorAPIController {
     public Mono<Boolean> disable() {
         try {
             AltairUser user = AltairUserService.getCurrentUser();
-            if (!governor.canOperate(user))
+            if (!governor.userCanOperate(user))
                 return Mono.error(new UnauthorisedException(user));
 
             return governor.disable();
@@ -75,7 +75,7 @@ public class GovernorAPIController {
     public Mono<Boolean> connectAll() {
         try {
             AltairUser user = AltairUserService.getCurrentUser();
-            if (!governor.canOperate(user))
+            if (!governor.userCanOperate(user))
                 return Mono.error(new UnauthorisedException(user));
 
             return governor.connectAll();
@@ -88,7 +88,7 @@ public class GovernorAPIController {
     public Mono<Boolean> disconnectAll() {
         try {
             AltairUser user = AltairUserService.getCurrentUser();
-            if (!governor.canOperate(user))
+            if (!governor.userCanOperate(user))
                 return Mono.error(new UnauthorisedException(user));
 
             return governor.disconnectAll();
@@ -101,8 +101,8 @@ public class GovernorAPIController {
     public Mono<Boolean> enterAdminMode() {
         try {
             AltairUser user = AltairUserService.getCurrentUser();
-            governor.enterAdminMode(user);
-            return Mono.just(true);
+
+            return governor.enterAdminMode(user);
         } catch (Exception e) {
             return Mono.error(e);
         }
@@ -112,8 +112,8 @@ public class GovernorAPIController {
     public Mono<Boolean> exitAdminMode() {
         try {
             AltairUser user = AltairUserService.getCurrentUser();
-            governor.exitAdminMode(user);
-            return Mono.just(true);
+            
+            return governor.exitAdminMode(user);
         } catch (Exception e) {
             return Mono.error(e);
         }
@@ -123,7 +123,7 @@ public class GovernorAPIController {
     public Mono<Boolean> setSafeOverride(@RequestParam(value = "override") boolean safeOverride) {
         try {
             AltairUser user = AltairUserService.getCurrentUser();
-            if (!governor.canOperate(user))
+            if (!governor.userCanOperate(user))
                 return Mono.error(new UnauthorisedException(user));
 
             governor.setSafeOverride(safeOverride);
@@ -137,8 +137,9 @@ public class GovernorAPIController {
     public Mono<Boolean> setSlaving(@RequestParam(value = "enable") boolean enable) {
         try {
             AltairUser user = AltairUserService.getCurrentUser();
-            if (!governor.canOperate(user))
+            if (!governor.userCanOperate(user))
                 return Mono.error(new UnauthorisedException(user));
+
             else return governor.setSlaving(enable);
         } catch (Exception e) {
             return Mono.error(e);
@@ -149,8 +150,9 @@ public class GovernorAPIController {
     public Mono<Boolean> useAltairSlaving(@RequestParam(value = "usealtair") boolean useAltair) {
         try {
             AltairUser user = AltairUserService.getCurrentUser();
-            if (!governor.canOperate(user))
+            if (!governor.userCanOperate(user))
                 return Mono.error(new UnauthorisedException(user));
+
             else return governor.useAltairSlaving(useAltair);
         } catch (Exception e) {
             return Mono.error(e);
@@ -161,11 +163,10 @@ public class GovernorAPIController {
     public Mono<Boolean> startOrder(@RequestParam(value = "orderid") int orderId) {
         try {
             AltairUser user = AltairUserService.getCurrentUser();
-            if (!governor.canOperate(user))
+            if (!governor.userCanOperate(user))
                 return Mono.error(new UnauthorisedException(user));
 
-            governor.startOrder(orderService.findById(orderId));
-            return Mono.just(true);
+            return governor.queueOrder(orderService.findById(orderId));
         } catch (Exception e) {
             return Mono.error(e);
         }
@@ -175,11 +176,10 @@ public class GovernorAPIController {
     public Mono<Boolean> startProgram(@RequestParam(value = "programid") int programId) {
         try {
             AltairUser user = AltairUserService.getCurrentUser();
-            if (!governor.canOperate(user))
+            if (!governor.userCanOperate(user))
                 return Mono.error(new UnauthorisedException(user));
 
-            governor.startProgram(programService.findById(programId), user);
-            return Mono.just(true);
+            return governor.startProgram(programService.findById(programId), user);
         } catch (Exception e) {
             return Mono.error(e);
         }
@@ -189,11 +189,10 @@ public class GovernorAPIController {
     public Mono<Boolean> abortOrder() {
         try {
             AltairUser user = AltairUserService.getCurrentUser();
-            if (!governor.canOperate(user))
+            if (!governor.userCanOperate(user))
                 return Mono.error(new UnauthorisedException(user));
 
-            governor.abortOrder();
-            return Mono.just(true);
+            return governor.abortOrder();
         } catch (Exception e) {
             return Mono.error(e);
         }
@@ -203,7 +202,7 @@ public class GovernorAPIController {
     public Mono<Boolean> startObservatory() {
         try {
             AltairUser user = AltairUserService.getCurrentUser();
-            if (!governor.canOperate(user))
+            if (!governor.userCanOperate(user))
                 return Mono.error(new UnauthorisedException(user));
 
             return governor.startObservatory();
@@ -216,7 +215,7 @@ public class GovernorAPIController {
     public Mono<Boolean> stopObservatory() {
         try {
             AltairUser user = AltairUserService.getCurrentUser();
-            if (!governor.canOperate(user))
+            if (!governor.userCanOperate(user))
                 return Mono.error(new UnauthorisedException(user));
                 
             else return governor.stopObservatory();

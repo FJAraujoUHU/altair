@@ -8,6 +8,10 @@ import org.junit.jupiter.api.TestMethodOrder;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import java.time.Duration;
+
+import com.aajpm.altair.config.ObservatoryConfig.FocuserConfig;
+import com.aajpm.altair.service.observatory.FocuserService.FocuserCapabilities;
 import com.aajpm.altair.utility.webutils.AlpacaClient;
 
 @TestMethodOrder(org.junit.jupiter.api.MethodOrderer.OrderAnnotation.class)
@@ -16,6 +20,7 @@ import com.aajpm.altair.utility.webutils.AlpacaClient;
 public class ASCOMFocuserServiceTest {
 
     static AlpacaClient client;
+    static FocuserConfig config;
 
     static int deviceNumber = 0;
 
@@ -25,7 +30,10 @@ public class ASCOMFocuserServiceTest {
 
     @BeforeAll
     static void beforeClass() {
-        client = new AlpacaClient(url, 5000, 60000);
+        client = new AlpacaClient(url, 5000, 120000);
+        config = new FocuserConfig();
+        config.setBacklashSteps(0);
+        config.setPositionTolerance(5);
     }
 
     @BeforeEach
@@ -36,13 +44,12 @@ public class ASCOMFocuserServiceTest {
     @Test
     @Order(1)
     void testConnect() throws Exception {
-        
         System.out.println("/////////////////////////////////////////////////////////////testConnect");
-        ASCOMFocuserService service = new ASCOMFocuserService(client, deviceNumber, 1000, 60000);
-        service.connect();
-        Thread.sleep(1000);
+        ASCOMFocuserService service = new ASCOMFocuserService(client, deviceNumber,  config, 1000, 60000);
+        
+        service.connect().block(Duration.ofSeconds(10));
 
-        boolean isConnected = service.isConnected().block();
+        boolean isConnected = service.isConnected().block(Duration.ofSeconds(10));
 
         assertTrue(isConnected);
     }
@@ -51,16 +58,15 @@ public class ASCOMFocuserServiceTest {
     @Order(2)
     void testDisconnect() throws Exception {
         System.out.println("/////////////////////////////////////////////////////////////testConnect");
-        ASCOMFocuserService service = new ASCOMFocuserService(client, deviceNumber, 1000, 60000);
-        service.connect();
-        Thread.sleep(1000);
+        ASCOMFocuserService service = new ASCOMFocuserService(client, deviceNumber, config, 1000, 60000);
+        
+        service.connect().block(Duration.ofSeconds(10));
 
-        assertTrue(service.isConnected().block(), "Service should be connected before disconnecting");
+        assertTrue(service.isConnected().block(Duration.ofSeconds(10)), "Service should be connected before disconnecting");
 
-        service.disconnect();
-        Thread.sleep(1000);
+        service.disconnect().block(Duration.ofSeconds(10));
 
-        assertFalse(service.isConnected().block(), "Service should be disconnected after disconnecting");
+        assertFalse(service.isConnected().block(Duration.ofSeconds(10)), "Service should be disconnected after disconnecting");
 
     }
 
@@ -68,21 +74,42 @@ public class ASCOMFocuserServiceTest {
     @Order(3)
     void testMove() throws Exception {
         System.out.println("/////////////////////////////////////////////////////////////testMove");
-        int movement = 100;
+        int timeoutMs = 120000;
+        ASCOMFocuserService service = new ASCOMFocuserService(client, deviceNumber, config, 1000, timeoutMs);
         int error = 5;
+        
+        
+        service.connect().block(Duration.ofSeconds(10));
 
-        ASCOMFocuserService service = new ASCOMFocuserService(client, deviceNumber, 1000, 60000);
-        service.connect();
-        Thread.sleep(1000);
+        assertTrue(service.isConnected().block(Duration.ofSeconds(10)), "Service should be connected before testing this");
 
-        assertTrue(service.isConnected().block(), "Service should be connected before testing this");
 
-        int startingPosition = service.getPosition().block();
-        int newPosition = startingPosition + movement;
-        service.move(newPosition);
+
+        FocuserCapabilities caps = service.getCapabilities().block(Duration.ofSeconds(10));
+        int maxStep = caps.maxStep();
+        int minStep = 0;
+
+        int newPosition = minStep;
+        service.move(newPosition).subscribe();
 
         // check every 500ms for 10 seconds
-        long timer = System.currentTimeMillis() + 10000;
+        long timer = System.currentTimeMillis() + timeoutMs;
+        while (System.currentTimeMillis() < timer) {
+            Thread.sleep(1000);
+            if (!service.isMoving().block()) {
+                break;
+            }
+        }
+
+        assertTrue(System.currentTimeMillis() < timer, "Move should have completed in under " + timeoutMs + " ms");
+        int realPosition = service.getPosition().block();
+        assertTrue(Math.abs(realPosition - newPosition) < error, "Move should have been within 5 steps of the target");
+
+        newPosition = maxStep;
+        service.move(newPosition).subscribe();
+
+        // check every 500ms for 10 seconds
+        timer = System.currentTimeMillis() + timeoutMs;
         while (System.currentTimeMillis() < timer) {
             Thread.sleep(500);
             if (!service.isMoving().block()) {
@@ -90,8 +117,38 @@ public class ASCOMFocuserServiceTest {
             }
         }
 
-        assertTrue(System.currentTimeMillis() < timer, "Move should have completed in under 10 seconds");
+        assertTrue(System.currentTimeMillis() < timer, "Move should have completed in under " + timeoutMs + " ms");
+        realPosition = service.getPosition().block();
+        assertTrue(Math.abs(realPosition - newPosition) < error, "Move should have been within 5 steps of the target");
+    }
+
+    @Test
+    @Order(4)
+    void testMoveAwait() throws Exception {
+        System.out.println("/////////////////////////////////////////////////////////////testMove");
+        int timeoutMs = 120000;
+        ASCOMFocuserService service = new ASCOMFocuserService(client, deviceNumber, config, 1000, timeoutMs);
+        int error = 5;
+        
+        service.connect().block(Duration.ofSeconds(10));
+
+        assertTrue(service.isConnected().block(Duration.ofSeconds(10)), "Service should be connected before testing this");
+
+
+        FocuserCapabilities caps = service.getCapabilities().block(Duration.ofSeconds(10));
+        int maxStep = caps.maxStep();
+        int minStep = 0;
+
+        int newPosition = minStep;
+        service.moveAwait(newPosition).block(Duration.ofMillis(timeoutMs));
+
         int realPosition = service.getPosition().block();
+        assertTrue(Math.abs(realPosition - newPosition) < error, "Move should have been within 5 steps of the target");
+
+        newPosition = maxStep;
+        service.moveAwait(newPosition).block(Duration.ofMillis(timeoutMs));
+
+        realPosition = service.getPosition().block();
         assertTrue(Math.abs(realPosition - newPosition) < error, "Move should have been within 5 steps of the target");
     }
 

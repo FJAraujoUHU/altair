@@ -532,8 +532,8 @@ public class ObservatoryService {
                         startCamera())
                     .thenReturn(true)
                 )
-                .doOnSuccess(s -> logger.info("Observatory::startAwait(): Observatory started successfully"))
-                .doOnError(e -> logger.error("Observatory::startAwait(): Error starting observatory", e));
+                .doOnSuccess(s -> logger.info("Observatory::startAwaitAwait(): Observatory started successfully"))
+                .doOnError(e -> logger.error("Observatory::startAwaitAwait(): Error starting observatory", e));
     }
 
     /**
@@ -578,8 +578,8 @@ public class ObservatoryService {
                         return canFindHome && !isAtHome ? telescope.findHomeAwait() : Mono.just(true);
                     }));
 
-        return ret.doOnSuccess(s -> logger.info("Observatory::startTelescope(): Telescope started successfully"))
-                    .doOnError(e -> logger.error("Observatory::startTelescope(): Error starting telescope", e));
+        return ret.doOnSuccess(s -> logger.info("Observatory::startTelescopeAwait(): Telescope started successfully"))
+                    .doOnError(e -> logger.error("Observatory::startTelescopeAwait(): Error starting telescope", e));
     }
 
     /**
@@ -617,8 +617,8 @@ public class ObservatoryService {
                         return canFindHome && !isAtHome ? dome.findHomeAwait() : Mono.just(true);
                     }));
 
-        return ret.doOnSuccess(s -> logger.info("Observatory::startDome(): Dome started successfully"))
-                    .doOnError(e -> logger.error("Observatory::startDome(): Error starting dome", e));
+        return ret.doOnSuccess(s -> logger.info("Observatory::startDomeAwait(): Dome started successfully"))
+                    .doOnError(e -> logger.error("Observatory::startDomeAwait(): Error starting dome", e));
     }
 
     /**
@@ -791,8 +791,8 @@ public class ObservatoryService {
                         stopCameraAwait())
                     .thenReturn(true)
                 )
-                .doOnSuccess(s -> logger.info("Observatory::stop(): Observatory stopped successfully"))
-                .doOnError(e -> logger.error("Observatory::stop(): Error stopping observatory", e));
+                .doOnSuccess(s -> logger.info("Observatory::stopAwait(): Observatory stopped successfully"))
+                .doOnError(e -> logger.error("Observatory::stopAwait(): Error stopping observatory", e));
     }
 
 
@@ -846,8 +846,8 @@ public class ObservatoryService {
 
             return ret;
         })
-        .doOnSuccess(s -> logger.info("Observatory::stopTelescope(): Telescope stopped successfully"))
-        .doOnError(e -> logger.error("Observatory::stopTelescope(): Error stopping telescope", e));
+        .doOnSuccess(s -> logger.info("Observatory::stopTelescopeAwait(): Telescope stopped successfully"))
+        .doOnError(e -> logger.error("Observatory::stopTelescopeAwait(): Error stopping telescope", e));
     }
 
     /**
@@ -894,8 +894,8 @@ public class ObservatoryService {
                     
             return ret;
         })
-        .doOnSuccess(s -> logger.info("Observatory::stopDome(): Dome stopped successfully"))
-        .doOnError(e -> logger.error("Observatory::stopDome(): Error stopping dome", e));
+        .doOnSuccess(s -> logger.info("Observatory::stopDomeAwait(): Dome stopped successfully"))
+        .doOnError(e -> logger.error("Observatory::stopDomeAwait(): Error stopping dome", e));
     }
 
     /**
@@ -924,8 +924,8 @@ public class ObservatoryService {
 
             return ret;
         })
-        .doOnSuccess(s -> logger.info("Observatory::stopCamera(): Camera stopped successfully"))
-        .doOnError(e -> logger.error("Observatory::stopCamera(): Error stopping camera", e));
+        .doOnSuccess(s -> logger.info("Observatory::stopCameraAwait(): Camera stopped successfully"))
+        .doOnError(e -> logger.error("Observatory::stopCameraAwait(): Error stopping camera", e));
     }
 
     /**
@@ -1609,7 +1609,7 @@ public class ObservatoryService {
         int binX = params.getBinX();
         int binY = params.getBinY();
         
-        Mono<Boolean> cameraAction = Mono.just(true);
+        Mono<Boolean> cameraAction;
 
         if (params.usesSubFrame()) {
             int[] subFrame = new int[] {

@@ -63,6 +63,8 @@ public class ObservatoryConfig {
 
     private FilterWheelConfig filterWheel;
 
+    private FocuserConfig focuser;
+
 
     //#region Getters/Setters
     public int getStatusUpdateInterval() {
@@ -113,6 +115,14 @@ public class ObservatoryConfig {
         this.filterWheel = filterWheel;
     }
 
+    public FocuserConfig getFocuser() {
+        return focuser;
+    }
+
+    public void setFocuser(FocuserConfig focuser) {
+        this.focuser = focuser;
+    }
+
     //#endregion
 
     //#endregion
@@ -139,7 +149,7 @@ public class ObservatoryConfig {
     public FocuserService focuserService() {
         AlpacaClient client = new AlpacaClient("http://localhost:32323/", (int) synchronousTimeout, (int) synchronousTimeout);
         
-        return new ASCOMFocuserService(client, 0, statusUpdateInterval, synchronousTimeout);
+        return new ASCOMFocuserService(client, 0, focuser, statusUpdateInterval, synchronousTimeout);
     }
 
     @Bean
@@ -326,5 +336,33 @@ public class ObservatoryConfig {
         //#endregion
     }
 
+    public static class FocuserConfig {
+
+        /** Amount of backlash in the focuser, in steps. Set to 0 to disable backlash compensation.
+         *  @apiNote This is a placeholder for a future feature, as backlash compensation is not yet implemented.
+         */
+        private int backlashSteps = 0;
+
+        /** Tolerance for the focuser position, in steps. If the focuser is within this tolerance, it is considered to be at the target position. */
+        private int positionTolerance = 0;
+
+        //#region Getters/Setters
+        public int getBacklashSteps() {
+            return backlashSteps;
+        }
+
+        public void setBacklashSteps(int backlashSteps) {
+            this.backlashSteps = backlashSteps < 0 ? 0 : backlashSteps;
+        }
+
+        public int getPositionTolerance() {
+            return positionTolerance;
+        }
+
+        public void setPositionTolerance(int positionTolerance) {
+            this.positionTolerance = Math.abs(positionTolerance);
+        }
+        //#endregion
+    }
     //#endregion
 }
