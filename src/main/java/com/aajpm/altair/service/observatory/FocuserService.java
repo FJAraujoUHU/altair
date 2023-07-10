@@ -16,7 +16,7 @@ public abstract class FocuserService {
     //#region Constructor
 
     /**
-     * Creates a new instance of the CameraService class
+     * Creates a new instance of the FocuserService class
      */
     protected FocuserService(FocuserConfig config) {
         this.config = config;

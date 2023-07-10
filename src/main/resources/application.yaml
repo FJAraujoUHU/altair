@@ -35,6 +35,9 @@ altair:
         synchronous-timeout: 120000             # Timeout in ms for synchronous operations (mainly slews). If set too high, failed operations might never finish, and if set too low, some successful operations might get interrupted. Set to 0 to disable timeouts (not recommended).
         use-native-slaving: false               # If true, Altair will use the native slaving capabilities of the mount, if available. Else, Altair will use its own slaving mechanism.
         disable-safety-checks: true             # If true, Altair will not check if the conditions are safe to operate before slewing. This is not recommended, as it might cause damage to the mount. Use only if you really know what you are doing.
+        dome:
+            is-naughty: false                   # If true, Altair will not use isParked() and atHome() to check if the dome is parked and at home, respectively. Use only for devices who can find park or find home but fail to report it correctly.
+            naughty-tolerance: 3.0              # Tolerance in degrees for finding the position of the dome, if naughty mode is enabled. If it is disabled, this does nothing.
         camera:
             max-cooldown-rate: 2.5              # Maximum cooldown rate for the camera, in °C/min, if hardware does not support auto ramping.
             min-cooldown-rate: 0.5              # Minimum cooldown rate for the camera, in °C/min, if hardware does not support auto ramping. If it cools down too slowly, the cooler will stop cooling it further.

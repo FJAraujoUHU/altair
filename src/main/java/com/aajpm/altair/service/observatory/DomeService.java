@@ -1,11 +1,28 @@
 package com.aajpm.altair.service.observatory;
 
+import com.aajpm.altair.config.ObservatoryConfig.DomeConfig;
 import com.aajpm.altair.utility.exception.DeviceException;
 
 import reactor.core.publisher.Mono;
 
 public abstract class DomeService {
+    /////////////////////////////// ATTRIBUTES /////////////////////////////////
+    //#region Attributes
 
+    protected DomeConfig config;
+
+    //#endregion
+    ////////////////////////////// CONSTRUCTOR /////////////////////////////////
+    //#region Constructor
+
+    /**
+     * Creates a new instance of the DomeService class
+     */
+    protected DomeService(DomeConfig config) {
+        this.config = config;
+    }
+
+    //#endregion
     ///////////////////////////////// GETTERS /////////////////////////////////
     //#region Getters
 
@@ -412,7 +429,14 @@ public abstract class DomeService {
         boolean canShutter,
         boolean canSetAzimuth,
         boolean canSetAltitude,
-        boolean canSlave
+        boolean canSlave,
+        /** 
+         * In the rare case the dome, when finding home or parking,
+         * it will comply, but won't always correctly report it in isAtHome()
+         * and isParked(). This seems to be the case for the MaxDome II ASCOM
+         * driver.
+         */
+        boolean isNaughty
     ) {}
 
     /**

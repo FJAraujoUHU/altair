@@ -59,6 +59,9 @@ public class ObservatoryConfig {
      */
     private boolean disableSafetyChecks = false;
 
+
+    private DomeConfig dome;
+
     private CameraConfig camera;
 
     private FilterWheelConfig filterWheel;
@@ -97,6 +100,14 @@ public class ObservatoryConfig {
 
     public void setDisableSafetyChecks(boolean disableSafetyChecks) {
         this.disableSafetyChecks = disableSafetyChecks;
+    }
+
+    public DomeConfig getDome() {
+        return dome;
+    }
+
+    public void setDome(DomeConfig dome) {
+        this.dome = dome;
     }
 
     public CameraConfig getCamera() {
@@ -142,7 +153,7 @@ public class ObservatoryConfig {
     public DomeService domeService() {
         AlpacaClient client = new AlpacaClient("http://localhost:32323/", (int) synchronousTimeout, (int) synchronousTimeout);
         
-        return new ASCOMDomeService(client, 0, statusUpdateInterval, synchronousTimeout);
+        return new ASCOMDomeService(client, 0, dome, statusUpdateInterval, synchronousTimeout);
     }
 
     @Bean
@@ -176,6 +187,42 @@ public class ObservatoryConfig {
     //#endregion
     ////////////////////////////// INNER CLASSES //////////////////////////////
     //#region Inner classes
+
+    public static class DomeConfig {
+        /** 
+         * In the rare case the dome, when finding home or parking,
+         * it will comply, but won't always correctly report it in isAtHome()
+         * and isParked(). This seems to be the case for the MaxDome II ASCOM
+         * driver.
+         */
+        private boolean isNaughty = false;
+
+        /**
+         * If the dome is naughty, it will be considered in position if it is
+         * within this distance from the home/parked position, in degrees.
+         * If it is not naughty, this setting is ignored.
+         */
+        private double naughtyTolerance = 0.5;
+
+
+        //#region Getter/Setters
+        public boolean getIsNaughty() {
+            return isNaughty;
+        }
+
+        public void setIsNaughty(boolean isNaughty) {
+            this.isNaughty = isNaughty;
+        }
+
+        public double getNaughtyTolerance() {
+            return naughtyTolerance;
+        }
+
+        public void setNaughtyTolerance(double naughtyTolerance) {
+            this.naughtyTolerance = Math.abs(naughtyTolerance);
+        }
+        //#endregion
+    }
 
     public static class CameraConfig {
         /**
@@ -338,7 +385,8 @@ public class ObservatoryConfig {
 
     public static class FocuserConfig {
 
-        /** Amount of backlash in the focuser, in steps. Set to 0 to disable backlash compensation.
+        /**
+         *  Amount of backlash in the focuser, in steps. Set to 0 to disable backlash compensation.
          *  @apiNote This is a placeholder for a future feature, as backlash compensation is not yet implemented.
          */
         private int backlashSteps = 0;

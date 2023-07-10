@@ -431,9 +431,6 @@ public class GovernorService {
         return observatoryService.useAltairSlaving(useAltairSlaving);
     }
 
-    // TODO: make startOrder private and create a public version that basically just sets the current order
-    // for the governor to pickup
-
     /**
      * Starts a new program, by placing a new order for it and starting it right away.
      * 
@@ -470,15 +467,8 @@ public class GovernorService {
 
             return programOrderService.save(setupOrder);
         })
-        .flatMap(order -> 
-            this.queueOrder(order)
-            /*observatoryService.startAwait()
-            .then(this.startOrder(order))*/
-        );
+        .flatMap(this::queueOrder);
     }
-
-    // TODO: make startOrder private and create a public version that basically just sets the current order
-    // for the governor to pickup
 
     public Mono<Boolean> queueOrder(Order order) {
         if (order == null)
@@ -528,7 +518,6 @@ public class GovernorService {
         });
     }
 
-    // TODO: program gets into startprogram but never runs nor ends in currentProgram 
     private Mono<Boolean> startProgramOrder(ProgramOrder order) {
         // Get the exposure order to run
         Mono<ExposureOrder> exposureOrder = Mono.fromCallable(() -> {

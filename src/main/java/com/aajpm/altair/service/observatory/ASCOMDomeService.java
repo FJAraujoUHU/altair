@@ -5,6 +5,7 @@ import java.time.Duration;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 
+import com.aajpm.altair.config.ObservatoryConfig.DomeConfig;
 import com.aajpm.altair.utility.exception.DeviceException;
 import com.aajpm.altair.utility.webutils.AlpacaClient;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -23,17 +24,18 @@ public class ASCOMDomeService extends DomeService {
     final long synchronousTimeout; // how long to wait for synchronous methods to complete
 
     private DomeCapabilities capabilities;
+
+    private double parkedAz = Double.NaN; // the azimuth the dome is parked at, if it's naughty
+
+    private double homeAz = Double.NaN; // the azimuth the dome is home at, if it's naughty
     
 
-    public ASCOMDomeService(AlpacaClient client, int statusUpdateInterval, long synchronousTimeout) {
-        this.client = client;
-        this.deviceNumber = 0;
-        this.statusUpdateInterval = statusUpdateInterval;
-        this.synchronousTimeout = synchronousTimeout;
-        this.getCapabilities().onErrorComplete().subscribe(); // attempt to get the device's capabilities
+    public ASCOMDomeService(AlpacaClient client, DomeConfig config, int statusUpdateInterval, long synchronousTimeout) {
+        this(client, 0, config, statusUpdateInterval, synchronousTimeout);
     }
 
-    public ASCOMDomeService(AlpacaClient client, int deviceNumber, int statusUpdateInterval, long synchronousTimeout) {
+    public ASCOMDomeService(AlpacaClient client, int deviceNumber, DomeConfig config, int statusUpdateInterval, long synchronousTimeout) {
+        super(config);
         this.client = client;
         this.deviceNumber = deviceNumber;
         this.statusUpdateInterval = statusUpdateInterval;
@@ -67,7 +69,20 @@ public class ASCOMDomeService extends DomeService {
 
     @Override
     public Mono<Boolean> isAtHome() throws DeviceException {
-        return this.get("athome").map(JsonNode::asBoolean);
+        return Mono.empty()
+        .flatMap(none -> {
+            if (!config.getIsNaughty()) {
+                // if the dome is not naughty, just check the atHome property
+                return this.get("athome").map(JsonNode::asBoolean);
+            } else {
+                // if the dome is naughty, check if the azimuth is the home azimuth
+                if (Double.isNaN(homeAz)) {
+                    return Mono.error(new DeviceException("Dome is naughty, but home azimuth is not set"));
+                } else {
+                    return this.getAz().map(az -> Math.abs(az - homeAz) < config.getNaughtyTolerance());
+                }
+            }
+        });
     }
 
     @Override
@@ -77,7 +92,20 @@ public class ASCOMDomeService extends DomeService {
 
     @Override
     public Mono<Boolean> isParked() throws DeviceException {
-        return this.get("atpark").map(JsonNode::asBoolean);
+        return Mono.empty()
+        .flatMap(none -> {
+            if (!config.getIsNaughty()) {
+                // if the dome is not naughty, just check the atPark property
+                return this.get("atpark").map(JsonNode::asBoolean);
+            } else {
+                // if the dome is naughty, check if the azimuth is the parked azimuth
+                if (Double.isNaN(parkedAz)) {
+                    return Mono.error(new DeviceException("Dome is naughty, but parked azimuth is not set"));
+                } else {
+                    return this.getAz().map(az -> Math.abs(az - parkedAz) < config.getNaughtyTolerance());
+                }
+            }
+        });
     }
 
     @Override
@@ -171,7 +199,20 @@ public class ASCOMDomeService extends DomeService {
     public Mono<Boolean> findHome() throws DeviceException {
         return getCapabilities().flatMap(caps -> {
             if (caps.canFindHome()) {
-                return this.put("findhome", null).thenReturn(true);
+                return this.put("findhome", null)
+                    .thenReturn(true)
+                    .doOnSuccess(v -> {
+                        if (config.getIsNaughty()) {
+                            // if the dome is naughty, set the home azimuth to the azimuth when it stops moving
+                            Mono.delay(Duration.ofMillis(statusUpdateInterval))
+                                .thenMany(Flux.interval(Duration.ofMillis(statusUpdateInterval)))
+                                .flatMap(i -> this.isSlewing()
+                                    .filter(Boolean.FALSE::equals)
+                                    .flatMap(slewing -> this.getAz())
+                                ).next()
+                                .subscribe(az -> homeAz = az);
+                        }
+                    });
             } else {
                 return Mono.error(new DeviceException("Dome does not support finding home"));
             }
@@ -183,10 +224,17 @@ public class ASCOMDomeService extends DomeService {
         return findHome()
             .then(Mono.delay(Duration.ofMillis(statusUpdateInterval)))          // wait before checking state
             .thenMany(Flux.interval(Duration.ofMillis(statusUpdateInterval)))   // check periodically if at home
-            .flatMap(i -> this.isAtHome()                                       // keep checking until atHome is true
-                .filter(Boolean.TRUE::equals)
-                .flatMap(atHome -> Mono.just(true))
-            ).next()
+            .flatMap(i -> {
+                if (config.getIsNaughty()) {
+                    return this.isSlewing()
+                                .filter(Boolean.FALSE::equals)
+                                .flatMap(slewing -> Mono.just(true));
+                } else {
+                    return this.isAtHome()
+                                .filter(Boolean.TRUE::equals)
+                                .flatMap(atHome -> Mono.just(true));
+                }
+            }).next()
             .timeout(Duration.ofMillis((synchronousTimeout > 0) ? synchronousTimeout : Long.MAX_VALUE));
     }
 
@@ -246,13 +294,20 @@ public class ASCOMDomeService extends DomeService {
     public Mono<Boolean> park() throws DeviceException {
         return getCapabilities().flatMap(caps -> {
             if (caps.canPark()) {
-                return this.isParked().flatMap(parked -> {
-                    if (Boolean.TRUE.equals(parked)) {
-                        return Mono.just(true);
-                    } else {
-                        return this.put("park", null).thenReturn(true);
-                    }
-                });
+                return this.put("findhome", null)
+                    .thenReturn(true)
+                    .doOnSuccess(v -> {
+                        if (config.getIsNaughty()) {
+                            // if the dome is naughty, set the home azimuth to the azimuth when it stops moving
+                            Mono.delay(Duration.ofMillis(statusUpdateInterval))
+                                .thenMany(Flux.interval(Duration.ofMillis(statusUpdateInterval)))
+                                .flatMap(i -> this.isSlewing()
+                                    .filter(Boolean.FALSE::equals)
+                                    .flatMap(slewing -> this.getAz())
+                                ).next()
+                                .subscribe(az -> parkedAz = az);
+                        }
+                    });
             } else {
                 return Mono.error(new DeviceException("Dome does not support parking"));
             }
@@ -261,26 +316,21 @@ public class ASCOMDomeService extends DomeService {
 
     @Override
     public Mono<Boolean> parkAwait() throws DeviceException {
-        return getCapabilities().flatMap(caps -> {
-            if (caps.canPark()) {
-                return this.isParked().flatMap(parked -> {
-                    if (Boolean.TRUE.equals(parked)) {
-                        return Mono.just(true);
-                    } else {
-                        return park()
-                            .then(Mono.delay(Duration.ofMillis(statusUpdateInterval)))          // wait before checking state
-                            .thenMany(Flux.interval(Duration.ofMillis(statusUpdateInterval)))   // check periodically if parked
-                            .flatMap(i -> this.isParked()                                       // keep checking until atPark is true
+        return park()
+            .then(Mono.delay(Duration.ofMillis(statusUpdateInterval)))          // wait before checking state
+            .thenMany(Flux.interval(Duration.ofMillis(statusUpdateInterval)))   // check periodically if at home
+            .flatMap(i -> {
+                if (config.getIsNaughty()) {
+                    return this.isSlewing()
+                                .filter(Boolean.FALSE::equals)
+                                .flatMap(slewing -> Mono.just(true));
+                } else {
+                    return this.isParked()
                                 .filter(Boolean.TRUE::equals)
-                                .flatMap(p -> Mono.just(true))
-                            ).next()
-                            .timeout(Duration.ofMillis((synchronousTimeout > 0) ? synchronousTimeout : Long.MAX_VALUE));
-                    }
-                });
-            } else {
-                return Mono.error(new DeviceException("Dome does not support parking"));
-            }
-        });
+                                .flatMap(atHome -> Mono.just(true));
+                }
+            }).next()
+            .timeout(Duration.ofMillis((synchronousTimeout > 0) ? synchronousTimeout : Long.MAX_VALUE));
     }
 
     @Override
@@ -419,7 +469,8 @@ public class ASCOMDomeService extends DomeService {
                 tuple.getT3(),
                 tuple.getT4(),
                 tuple.getT5(),
-                tuple.getT6()
+                tuple.getT6(),
+                config.getIsNaughty()
             ));
 
         // Only run if the device is connected.
