@@ -20,6 +20,7 @@ import com.aajpm.altair.service.ProgramService;
 import jakarta.transaction.Transactional;
 
 @Component
+@SuppressWarnings("java:S1854")
 public class SetupDataLoader implements ApplicationListener<ContextRefreshedEvent>{
 
     private boolean alreadySetup = false;
@@ -357,7 +358,7 @@ public class SetupDataLoader implements ApplicationListener<ContextRefreshedEven
             // Create the Exposures
             ExposureParams params = exposureParams.create();
             params.setLightFrame(true);
-            params.setExposureTime(30.0);
+            params.setExposureTime(5.0);
             params.setFilter("Luminance");
             params.setBinX(1);
             params.setBinY(1);

@@ -69,8 +69,7 @@ public class ASCOMDomeService extends DomeService {
 
     @Override
     public Mono<Boolean> isAtHome() throws DeviceException {
-        return Mono.empty()
-        .flatMap(none -> {
+        return Mono.just(true).flatMap(t -> {
             if (!config.getIsNaughty()) {
                 // if the dome is not naughty, just check the atHome property
                 return this.get("athome").map(JsonNode::asBoolean);
@@ -92,8 +91,7 @@ public class ASCOMDomeService extends DomeService {
 
     @Override
     public Mono<Boolean> isParked() throws DeviceException {
-        return Mono.empty()
-        .flatMap(none -> {
+        return Mono.just(true).flatMap(t -> {
             if (!config.getIsNaughty()) {
                 // if the dome is not naughty, just check the atPark property
                 return this.get("atpark").map(JsonNode::asBoolean);

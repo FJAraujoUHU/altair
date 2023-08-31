@@ -165,8 +165,6 @@ public class AstroImageService extends BasicEntityCRUDService<AstroImage> {
 
         // Creation date validation
         Assert.notNull(image.getCreationDate(), "The image must have a creation date.");
-        boolean isDatePast = image.getCreationDate().isBefore(Instant.now());
-        Assert.isTrue(isDatePast, "The image creation date cannot be set in the future.");
 
         return super.save(image);
     }
@@ -186,8 +184,6 @@ public class AstroImageService extends BasicEntityCRUDService<AstroImage> {
 
         // Creation date validation
         Assert.notNull(image.getCreationDate(), "The image must have a creation date.");
-        boolean isDatePast = image.getCreationDate().isBefore(Instant.now());
-        Assert.isTrue(isDatePast, "The image creation date cannot be set in the future.");
 
         return super.update(image);
     }
