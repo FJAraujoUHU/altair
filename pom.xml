@@ -10,7 +10,7 @@
 	</parent>
 	<groupId>com.aajpm</groupId>
 	<artifactId>altair</artifactId>
-	<version>0.1.0-SNAPSHOT</version>
+	<version>1.0-beta</version>
 	<packaging>war</packaging>
 	<name>ALTAIR</name>
 	<description>ALTAIR - Autonomous Logical Telescope Aiming and Image Recorder</description>
